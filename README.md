@@ -81,7 +81,13 @@
 ### 3.5 외형
 - 생성형 AI 참고 이미지는 게임과 스토어 자료에 쓰지 않습니다(`docs/.gdignore`로 내보내기에서 제외).
 - 외부 CC0 에셋 사이트(Kenney, Quaternius 등)는 이 개발 환경에서 접속이 막혀 있었습니다. 대신 기존 도형 모델을 통일된 로우폴리 규칙(공통 테두리 두께, 단색 팔레트, 돌 기단·처마·꽃 상자·투구 눈구멍 등)으로 다듬었습니다. 땅에는 잔디 결과 길 자갈을 더했습니다.
-- 외형과 기능의 분리(점유 칸, 기준점, Turret/Crossbow/Operator와 관절 노드 이름)는 그대로입니다.
+- 외형과 기능의 분리(점유 칸, 기준점, Turret/Crossbow/Operator)는 그대로입니다.
+- 캐릭터(A5): 고블린 일꾼(약 1.0, 3등신)·기사(약 1.15, 3.5등신, 변형 5종)·보스 용사/기사단장(약 1.3, 4등신)을 `scripts/world/character_rig.gd`(`CharacterRig`)로 다시 만들었습니다.
+  - 캐릭터 하나 = 스킨 메시 1개 + Skeleton3D(정점마다 뼈 하나 100%, 정점 색 + 공용 재질). Compatibility 렌더러에서 스키닝이 정상 표시되는 것을 확인했습니다.
+  - 관절: Pelvis·Spine·Neck·Head, ArmL/R→ForearmL/R→HandL/R, LegL/R→ShinL/R→FootL/R. 검·망치는 HandR(+X), 방패는 HandL(-X).
+  - 자세 함수: `pose_idle`, `pose_walk`(무릎 굽힘·발 디딤·몸 위아래), `pose_attack(p)`(p=0 이 내려친 순간 = 성 피해 프레임), `pose_hit`, `pose_die`, `pose_hammer(p)`(p=0 이 내려친 순간 = 망치 소리), `update_secondary`(망토·깃털·귀), `set_expression`(normal/angry/hurt/ko), `update_blink`.
+  - 삼각형: 고블린 2,330~2,510, 기사 2,790~2,980, 보스 3,070~3,300. 그리기 호출: 캐릭터당 메시 1개(이전에는 12개).
+  - 검사: `godot --headless --path . --script res://tests/character_checks.gd`. 캡처·성능: `tests/character_capture.gd`, `tests/character_perf.gd`(디스플레이 필요).
 
 ### 3.6 출시 준비
 - 웹 빌드(스레드 없는 템플릿, Compatibility)를 헤드리스 Chromium(WebGL2)에서 실행해 표시·한국어·클릭을 확인했습니다.
@@ -97,7 +103,7 @@ config/prototype-defaults.json   수치 단일 기준(경제·건물·공사·�
 config/decorations.json          꾸미기 부품 목록
 config/initial-layout.json       초기 배치
 scripts/core/                    규칙(화면과 분리): game_state, grid_logic(BFS), battle_sim, battle_advisor, decor, save_manager, game_config
-scripts/world/                   3D: world_view, models(부품 조립), mesh_batch, workers(일꾼)
+scripts/world/                   3D: world_view, models(부품 조립), character_rig(관절 캐릭터), mesh_batch, workers(일꾼)
 scripts/ui/                      hud(패널·꾸미기 패널), tutorial(안내 말풍선), ui_icon
 scripts/audio/sound.gd           자동 로드 Sound(버스·효과음·배경음)
 scripts/main.gd                  흐름·입력·저장 시점·앱 상태

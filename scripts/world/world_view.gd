@@ -3,6 +3,8 @@ extends Node3D
 ## 3D 장면: 지면·장식·울타리·건물·캐릭터·전투 연출·카메라. 게임 규칙은 갖지 않는다.
 
 const KNIGHT_HP_BAR_W := 0.7
+const KNIGHT_HIT_TIME := 0.35      # 맞았을 때 밀렸다 돌아오는 시간
+const KNIGHT_DIE_TIME := 0.6       # 쓰러지는 동작 시간(이후 땅속으로 가라앉음)
 
 var camera: Camera3D
 var cam_target := Vector3(7.0, 0, -5.0)
@@ -566,14 +568,21 @@ func clear_battle() -> void:
 			(n.get_node("Turret") as Node3D).rotation = Vector3.ZERO
 
 
+## 기사 = CharacterRig(변형 5종, id 로 고름). kind 가 hero/commander 이면 보스 모델.
 func _make_knight(k: Dictionary) -> void:
-	var n := Models.knight()
+	var kind := String(k.get("kind", "knight"))
+	var n: CharacterRig
+	if kind == "hero" or kind == "commander":
+		n = CharacterRig.boss(kind)
+	else:
+		n = CharacterRig.knight((int(k.id) * 7) % 5)
+	n.seed_id = int(k.id)
 	n.name = "Knight%d" % k.id
 	n.position = W(k.pos.x, 0, k.pos.y) + _knight_offset(k.id)
 	n.rotation.y = yaw_for_dir(k.facing)
 	_battle_root.add_child(n)
 	var bar := Node3D.new()
-	bar.position = Vector3(0, 1.4, 0)
+	bar.position = Vector3(0, n.hp_bar_y(), 0)
 	n.add_child(bar)
 	var bg := MeshInstance3D.new()
 	var bgq := QuadMesh.new()
@@ -589,7 +598,7 @@ func _make_knight(k: Dictionary) -> void:
 	fgm.render_priority = 11
 	fg.material_override = fgm
 	bar.add_child(fg)
-	_knight_nodes[k.id] = {node = n, fg = fgq, flash = 0.0, swing = 0.0}
+	_knight_nodes[k.id] = {node = n, fg = fgq, flash = 0.0, hurt = 0.0, struck = false}
 
 
 func _knight_offset(id: int) -> Vector3:
@@ -614,6 +623,7 @@ func update_battle(sim: BattleSim, delta: float, castle_id: String) -> void:
 				Sound.play("hit", -4.0, randf_range(0.9, 1.1))
 				if _knight_nodes.has(e.knight):
 					_knight_nodes[e.knight].flash = 0.12
+					_knight_nodes[e.knight].hurt = KNIGHT_HIT_TIME
 				_floater("-%d" % int(e.damage), _knight_pos(sim, e.knight) + Vector3(0.25, 1.65, 0), Color("fff1a8"))
 			"kill":
 				Sound.play("knight_down", -2.0)
@@ -622,13 +632,14 @@ func update_battle(sim: BattleSim, delta: float, castle_id: String) -> void:
 					var dead: Dictionary = sim.knights[e.knight - 1]
 					(kn.node as Node3D).position = W(dead.pos.x, 0, dead.pos.y) + _knight_offset(e.knight)
 					_set_overlay(kn.node, null)
+					(kn.node as CharacterRig).set_expression("hurt")
 					_dying.append({node = kn.node, t = 0.0})
 					_knight_nodes.erase(e.knight)
 			"castle_hit":
 				Sound.play("castle_hit", -3.0)
 				_castle_shake = 0.18
 				if _knight_nodes.has(e.knight):
-					_knight_nodes[e.knight].swing = 0.3
+					_knight_nodes[e.knight].struck = true
 				var cn: Node3D = _building_nodes.get(castle_id)
 				if cn:
 					_floater("-%d" % int(e.damage), cn.position + Vector3(randf_range(-0.6, 0.6), 2.0, 0.6), Color("ff7a6e"))
@@ -638,30 +649,32 @@ func update_battle(sim: BattleSim, delta: float, castle_id: String) -> void:
 	for id in _knight_nodes:
 		var kn: Dictionary = _knight_nodes[id]
 		var k: Dictionary = sim.knights[id - 1]
-		var n: Node3D = kn.node
+		var n: CharacterRig = kn.node
 		n.position = W(k.pos.x, 0, k.pos.y) + _knight_offset(id)
 		var f: Vector2 = k.facing
 		n.rotation.y = lerp_angle(n.rotation.y, yaw_for_dir(f), minf(1.0, delta * 12.0))
-		var leg_l: Node3D = n.get_node("LegL")
-		var leg_r: Node3D = n.get_node("LegR")
-		var arm_r: Node3D = n.get_node("ArmR")
-		var arm_l: Node3D = n.get_node("ArmL")
+		var speed := 0.0
+		var expr := "normal"
 		if k.state == "walk":
-			var s := sin(t_now * 9.0 + id)
-			leg_l.rotation.x = s * 0.6
-			leg_r.rotation.x = -s * 0.6
-			arm_l.rotation.x = -s * 0.35
-			arm_r.rotation.x = s * 0.35
-			n.position.y = absf(s) * 0.04
+			n.pose_walk(t_now * CharacterRig.WALK_RATE + float(id) * 0.37)
+			speed = 1.0
 		else:
-			leg_l.rotation.x = 0.0
-			leg_r.rotation.x = 0.0
-			# 준비: 공격 시점이 다가오면 검을 들어 올리고, 피해 순간 내려친다
-			var interval := float(GameConfig.combat().knight_attack_interval_seconds)
-			var wind := clampf(1.0 - k.attack_timer / interval, 0.0, 1.0)
-			kn.swing = maxf(0.0, kn.swing - delta)
-			arm_r.rotation.x = 0.5 if kn.swing > 0.0 else 0.3 + wind * 2.3
-			arm_l.rotation.x = -0.3
+			# 공격 위상: 성 피해(attack_timer 가 0)가 나는 프레임에 검이 가장 낮다(p = 0)
+			var interval := float(k.get("attack_interval", GameConfig.combat().knight_attack_interval_seconds))
+			var p := 1.0 - float(k.attack_timer) / maxf(interval, 0.01)
+			# 첫 타격 전에는 '내려친 자세'를 보이지 않고 준비 자세에서 들어 올린다
+			if not kn.struck and p < 0.25:
+				p = 0.25
+			n.pose_attack(fposmod(p, 1.0))
+			expr = "angry"
+		kn.hurt = maxf(0.0, kn.hurt - delta)
+		if kn.hurt > 0.0:
+			n.pose_hit(1.0 - kn.hurt / KNIGHT_HIT_TIME)
+			expr = "hurt"
+		if n.expression != expr:
+			n.set_expression(expr)
+		n.update_secondary(delta, speed)
+		n.update_blink(t_now + float(id) * 0.61)
 		kn.fg.size = Vector2(KNIGHT_HP_BAR_W * clampf(float(k.hp) / float(k.max_hp), 0.0, 1.0), 0.08)
 		kn.fg.center_offset = Vector3(-(KNIGHT_HP_BAR_W - kn.fg.size.x) * 0.5, 0, 0)
 		kn.flash = maxf(0.0, kn.flash - delta)
@@ -669,12 +682,13 @@ func update_battle(sim: BattleSim, delta: float, castle_id: String) -> void:
 	# 쓰러지는 기사
 	for dk in _dying:
 		dk.t += delta
-		var n: Node3D = dk.node
-		n.rotation.x = -minf(dk.t / 0.35, 1.0) * PI * 0.5
-		n.position.y = -maxf(0.0, dk.t - 0.6) * 0.8
-		if dk.t > 1.2:
+		var n: CharacterRig = dk.node
+		n.pose_die(minf(dk.t / KNIGHT_DIE_TIME, 1.0))
+		n.update_secondary(delta, 0.0)
+		n.position.y = -maxf(0.0, dk.t - KNIGHT_DIE_TIME - 0.2) * 0.8
+		if dk.t > KNIGHT_DIE_TIME + 0.8:
 			n.queue_free()
-	_dying = _dying.filter(func(d): return d.t <= 1.2)
+	_dying = _dying.filter(func(d): return d.t <= KNIGHT_DIE_TIME + 0.8)
 	# 방어탑 조준
 	for t in sim.towers:
 		var tn := _tower_node(t.id)
@@ -688,8 +702,9 @@ func update_battle(sim: BattleSim, delta: float, castle_id: String) -> void:
 		var cb: Node3D = tn.get_node("Turret/Crossbow")
 		cb.position.z = move_toward(cb.position.z, 0.0, delta * 0.6)
 		var op: Node3D = tn.get_node("Turret/Operator")
-		op.get_node("ArmL").rotation.x = 1.25
-		op.get_node("ArmR").rotation.x = 1.25
+		if op is CharacterRig:
+			(op as CharacterRig).pose_crossbow(t_now)
+			(op as CharacterRig).update_blink(t_now + 0.4)
 	# 발사체: 지면 위치는 시뮬레이션, 높이는 탑 위에서 표적 가슴까지의 낮은 곡선
 	for bolt in sim.bolts:
 		if not _bolt_nodes.has(bolt.id):

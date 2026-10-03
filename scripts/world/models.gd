@@ -349,6 +349,7 @@ static func defense_tower(deco: Dictionary = {}) -> Node3D:
 	turret.add_child(t.instance("Crossbow"))
 	var op := goblin(false)
 	op.name = "Operator"
+	op.pose_crossbow()
 	op.scale = Vector3.ONE * 0.8
 	op.position = Vector3(0.0, 0.0, 0.42)
 	turret.add_child(op)
@@ -402,130 +403,16 @@ static func scaffold(fp: Vector2i) -> Node3D:
 	return r
 
 
-# ------------------------------------------------------------------ 고블린 (약 1.0)
-## 관절 노드: LegL/LegR/ArmL/ArmR(어깨·엉덩이 피벗), Head
-static func goblin(with_hammer: bool = true) -> Node3D:
-	var r := _root("Goblin")
-	var body := MeshBatch.new()
-	body.sphere(0.2, Vector3(0, 0.44, 0), TUNIC, Vector3(1.0, 1.05, 0.85))
-	body.box(Vector3(0.36, 0.06, 0.3), Vector3(0, 0.36, 0), WOOD_DARK)
-	body.box(Vector3(0.07, 0.06, 0.02), Vector3(0, 0.36, -0.15), BRASS)
-	body.box(Vector3(0.32, 0.1, 0.26), Vector3(0, 0.29, 0), SHORTS)
-	r.add_child(body.instance("Body"))
-
-	var head := Node3D.new()
-	head.name = "Head"
-	head.position = Vector3(0, 0.62, 0)
-	var h := MeshBatch.new()
-	h.sphere(0.23, Vector3(0, 0.16, 0), GOBLIN_SKIN, Vector3(1.05, 0.95, 0.95))
-	# 큰 뾰족 귀
-	h.cyl(0.0, 0.08, 0.32, Vector3(0.32, 0.2, 0.02), GOBLIN_SKIN_DARK, Vector3(0, 0, -100))
-	h.cyl(0.0, 0.08, 0.32, Vector3(-0.32, 0.2, 0.02), GOBLIN_SKIN_DARK, Vector3(0, 0, 100))
-	# 눈·송곳니·코
-	h.sphere(0.04, Vector3(0.08, 0.17, -0.2), BLACK)
-	h.sphere(0.04, Vector3(-0.08, 0.17, -0.2), BLACK)
-	h.sphere(0.035, Vector3(0, 0.12, -0.23), GOBLIN_SKIN_DARK)
-	h.cyl(0.0, 0.015, 0.04, Vector3(0.05, 0.04, -0.19), WHITE, Vector3(180, 0, 0))
-	h.cyl(0.0, 0.015, 0.04, Vector3(-0.05, 0.04, -0.19), WHITE, Vector3(180, 0, 0))
-	# 이마 위 황동 고글
-	h.box(Vector3(0.42, 0.04, 0.4), Vector3(0, 0.27, 0.0), WOOD_DARK)
-	h.cyl(0.06, 0.06, 0.05, Vector3(0.08, 0.29, -0.2), BRASS, Vector3(70, 0, 0))
-	h.cyl(0.06, 0.06, 0.05, Vector3(-0.08, 0.29, -0.2), BRASS, Vector3(70, 0, 0))
-	h.cyl(0.04, 0.04, 0.055, Vector3(0.08, 0.29, -0.205), Color("9fd8e8"), Vector3(70, 0, 0))
-	h.cyl(0.04, 0.04, 0.055, Vector3(-0.08, 0.29, -0.205), Color("9fd8e8"), Vector3(70, 0, 0))
-	# 갈색 머리 한 줌
-	h.cyl(0.0, 0.07, 0.14, Vector3(0.0, 0.4, 0.02), HAIR, Vector3(-15, 0, 10))
-	h.cyl(0.0, 0.05, 0.11, Vector3(0.06, 0.38, 0.0), HAIR, Vector3(0, 0, -25))
-	head.add_child(h.instance("HeadMesh"))
-	r.add_child(head)
-
-	for side in [-1.0, 1.0]:
-		var leg := Node3D.new()
-		leg.name = "LegR" if side > 0 else "LegL"
-		leg.position = Vector3(0.09 * side, 0.26, 0)
-		var lb := MeshBatch.new()
-		lb.box(Vector3(0.1, 0.16, 0.1), Vector3(0, -0.08, 0), GOBLIN_SKIN)
-		lb.box(Vector3(0.13, 0.12, 0.17), Vector3(0, -0.2, -0.02), BOOT)
-		leg.add_child(lb.instance("LegMesh"))
-		r.add_child(leg)
-		var arm := Node3D.new()
-		arm.name = "ArmR" if side > 0 else "ArmL"
-		arm.position = Vector3(0.21 * side, 0.52, 0)
-		var ab := MeshBatch.new()
-		ab.box(Vector3(0.08, 0.2, 0.08), Vector3(0.02 * side, -0.1, 0), GOBLIN_SKIN)
-		ab.sphere(0.05, Vector3(0.02 * side, -0.21, 0), GOBLIN_SKIN)
-		if with_hammer and side > 0:
-			# 나무 망치는 본인의 오른손(+X)
-			ab.box(Vector3(0.04, 0.04, 0.32), Vector3(0.02, -0.21, -0.12), WOOD)
-			ab.box(Vector3(0.1, 0.1, 0.16), Vector3(0.02, -0.21, -0.28), WOOD_DARK, Vector3(0, 90, 0))
-		arm.add_child(ab.instance("ArmMesh"))
-		r.add_child(arm)
-	return r
+# ------------------------------------------------------------------ 캐릭터(관절형 리그로 위임)
+## 고블린(약 1.0, 3등신)·기사(약 1.15, 3.5등신)는 CharacterRig(하나의 스킨 메시 + 골격)로 만든다.
+## 관절 뼈: Head, Neck, Spine, Pelvis, ArmL/R, ForearmL/R, HandL/R, LegL/R, ShinL/R, FootL/R.
+## 자세는 pose_idle/pose_walk/pose_attack/pose_hammer 등 함수로 바꾼다(노드 회전이 아님).
+static func goblin(with_hammer: bool = true, variant: int = 0) -> CharacterRig:
+	return CharacterRig.goblin(variant, with_hammer)
 
 
-# ------------------------------------------------------------------ 인간 기사 (약 1.1)
-static func knight() -> Node3D:
-	var r := _root("Knight")
-	var body := MeshBatch.new()
-	body.box(Vector3(0.34, 0.3, 0.24), Vector3(0, 0.5, 0), SILVER)
-	body.box(Vector3(0.26, 0.04, 0.02), Vector3(0, 0.6, -0.125), GOLD)
-	body.box(Vector3(0.36, 0.06, 0.26), Vector3(0, 0.36, 0), WOOD_DARK)
-	body.box(Vector3(0.06, 0.06, 0.02), Vector3(0, 0.36, -0.135), GOLD)
-	body.box(Vector3(0.32, 0.12, 0.24), Vector3(0, 0.28, 0), RED)
-	body.sphere(0.08, Vector3(0.2, 0.62, 0), SILVER_DARK)
-	body.sphere(0.08, Vector3(-0.2, 0.62, 0), SILVER_DARK)
-	# 붉은 짧은 망토(뒤 +Z)
-	body.box(Vector3(0.36, 0.42, 0.03), Vector3(0, 0.44, 0.15), RED, Vector3(-8, 0, 0))
-	r.add_child(body.instance("Body"))
-
-	var head := Node3D.new()
-	head.name = "Head"
-	head.position = Vector3(0, 0.66, 0)
-	var h := MeshBatch.new()
-	h.sphere(0.2, Vector3(0, 0.18, 0), SKIN)
-	h.sphere(0.03, Vector3(0.07, 0.17, -0.18), BLACK)
-	h.sphere(0.03, Vector3(-0.07, 0.17, -0.18), BLACK)
-	# 은색 투구 + 황동 테두리 + 붉은 깃
-	h.sphere(0.23, Vector3(0, 0.25, 0.02), SILVER, Vector3(1, 0.85, 1))
-	h.box(Vector3(0.36, 0.05, 0.05), Vector3(0, 0.27, -0.19), GOLD)
-	h.box(Vector3(0.05, 0.12, 0.05), Vector3(0, 0.33, -0.2), SILVER_DARK)
-	# 투구 눈구멍(어두운 띠)과 볼가리개 테두리
-	h.box(Vector3(0.3, 0.04, 0.03), Vector3(0, 0.21, -0.215), BLACK)
-	h.box(Vector3(0.44, 0.04, 0.42), Vector3(0, 0.12, 0.03), GOLD)
-	h.box(Vector3(0.04, 0.2, 0.3), Vector3(0.21, 0.13, 0.03), SILVER)
-	h.box(Vector3(0.04, 0.2, 0.3), Vector3(-0.21, 0.13, 0.03), SILVER)
-	h.sphere(0.085, Vector3(0.0, 0.47, 0.08), RED, Vector3(0.55, 0.9, 1.4), Vector3(-30, 0, 0))
-	head.add_child(h.instance("HeadMesh"))
-	r.add_child(head)
-
-	for side in [-1.0, 1.0]:
-		var leg := Node3D.new()
-		leg.name = "LegR" if side > 0 else "LegL"
-		leg.position = Vector3(0.09 * side, 0.24, 0)
-		var lb := MeshBatch.new()
-		lb.box(Vector3(0.12, 0.16, 0.12), Vector3(0, -0.07, 0), SILVER_DARK)
-		lb.box(Vector3(0.14, 0.1, 0.18), Vector3(0, -0.18, -0.02), BOOT)
-		leg.add_child(lb.instance("LegMesh"))
-		r.add_child(leg)
-		var arm := Node3D.new()
-		arm.name = "ArmR" if side > 0 else "ArmL"
-		arm.position = Vector3(0.23 * side, 0.58, 0)
-		var ab := MeshBatch.new()
-		ab.box(Vector3(0.09, 0.22, 0.09), Vector3(0.02 * side, -0.1, 0), SILVER)
-		ab.sphere(0.055, Vector3(0.02 * side, -0.22, 0), BOOT)
-		if side > 0:
-			# 검은 본인의 오른손(+X)
-			ab.box(Vector3(0.04, 0.04, 0.14), Vector3(0.02, -0.22, -0.04), GOLD)
-			ab.box(Vector3(0.05, 0.03, 0.4), Vector3(0.02, -0.22, -0.3), SILVER)
-			ab.cyl(0.0, 0.03, 0.07, Vector3(0.02, -0.22, -0.53), SILVER, Vector3(-90, 0, 0))
-		else:
-			# 둥근 붉은 방패는 왼손(-X)
-			ab.cyl(0.2, 0.2, 0.04, Vector3(-0.07, -0.16, 0.0), RED, Vector3(0, 0, 90), 16)
-			ab.cyl(0.21, 0.21, 0.03, Vector3(-0.065, -0.16, 0.0), GOLD, Vector3(0, 0, 90), 16)
-			ab.sphere(0.05, Vector3(-0.1, -0.16, 0.0), GOLD)
-		arm.add_child(ab.instance("ArmMesh"))
-		r.add_child(arm)
-	return r
+static func knight(variant: int = 0) -> CharacterRig:
+	return CharacterRig.knight(variant)
 
 
 # ------------------------------------------------------------------ 발사체
