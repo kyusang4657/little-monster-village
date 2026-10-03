@@ -218,6 +218,21 @@ func _build_ground() -> void:
 		var rw := float(r.w)
 		var rd := float(r.d)
 		g.box(Vector3(rw, 0.02, rd), W(float(r.x) + rw * 0.5, 0.014, float(r.z) + rd * 0.5), Color("dcbb7f"))
+	# 잔디 결: 조금 짙거나 옅은 납작한 풀밭 조각(장식, 비충돌)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	for i in 70:
+		var p := Vector2(rng.randf_range(-8.0, w + 8.0), rng.randf_range(-8.0, d + 7.0))
+		var r := rng.randf_range(0.35, 1.1)
+		var c := Color("7fb84c") if i % 2 == 0 else Color("9ad366")
+		g.cyl(r, r, 0.012, W(p.x, 0.006, p.y), c, Vector3.ZERO, 10)
+	# 길 가장자리 자갈
+	for rr in GameConfig.layout().cosmetic_path_rects:
+		for i in int(rr.w) * int(rr.d):
+			var px := float(rr.x) + rng.randf_range(0.0, float(rr.w))
+			var pz := float(rr.z) + rng.randf_range(0.0, float(rr.d))
+			if rng.randf() < 0.5:
+				g.sphere(rng.randf_range(0.04, 0.07), W(px, 0.02, pz), Color("c9a46a"), Vector3(1.2, 0.5, 1.0))
 	var mi := g.instance("Ground")
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
@@ -599,7 +614,7 @@ func update_battle(sim: BattleSim, delta: float, castle_id: String) -> void:
 				Sound.play("hit", -4.0, randf_range(0.9, 1.1))
 				if _knight_nodes.has(e.knight):
 					_knight_nodes[e.knight].flash = 0.12
-				_floater("-%d" % int(e.damage), _knight_pos(sim, e.knight) + Vector3(0, 1.2, 0), Color("fff1a8"))
+				_floater("-%d" % int(e.damage), _knight_pos(sim, e.knight) + Vector3(0.25, 1.65, 0), Color("fff1a8"))
 			"kill":
 				Sound.play("knight_down", -2.0)
 				if _knight_nodes.has(e.knight):

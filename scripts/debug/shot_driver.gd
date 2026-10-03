@@ -18,6 +18,8 @@ func run(p_main, p_out: String, scenario: String = "full") -> void:
 			_decor()
 		"tutorial":
 			_tutorial()
+		"closeup":
+			_closeup()
 		_:
 			_sequence()
 
@@ -309,4 +311,28 @@ func _tutorial() -> void:
 	main.hud._show_menu()
 	await _wait(4)
 	await _shot("51-menu-audio")
+	_finish_log()
+
+
+func _focus(logical: Vector2, size: float) -> void:
+	main.world.cam_target = WorldView.W(logical.x, 0, logical.y)
+	main.world.cam_size = size
+	main.world._apply_camera()
+	await _wait(3)
+
+
+func _closeup() -> void:
+	await _wait(20)
+	await _focus(Vector2(6.5, 6.5), 6.0)
+	await _shot("60-close-castle-houses")
+	await _focus(Vector2(3.0, 6.5), 4.0)
+	await _shot("61-close-lumber-workers")
+	main._start_raid()
+	await _fast_battle(13.0)
+	await _focus(Vector2(6.5, 3.5), 3.5)
+	for i in 6:
+		await _wait(1)
+	await _shot("62-close-knights")
+	await _focus(Vector2(4.0, 2.0), 3.5)
+	await _shot("63-close-tower")
 	_finish_log()
