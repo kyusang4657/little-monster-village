@@ -120,7 +120,7 @@ Linux Xvfb + Mesa llvmpipe(CPU로 그리는 소프트웨어 렌더러), 1280×72
   [성 모델 높이 Lv.1~4] [2.9, 3.62, 4.1, 5.3]
 RESULT: 532 checks passed, 0 failed      (tests/run_tests.gd, 37개 시나리오)
 RESULT: 447 passed, 0 failed              (tests/character_checks.gd)
-RESULT: 83 passed, 0 failed               (tests/integration_driver.gd, 1280×720)
+RESULT: 88 passed, 0 failed               (tests/integration_driver.gd, 1280×720)
 웹: Godot 4.4.1 / WebGL 2.0 Compatibility 실행, 프롤로그 → 안내 진행(Playwright Chromium, SwiftShader)
 ```
 
@@ -132,7 +132,7 @@ RESULT: 83 passed, 0 failed               (tests/integration_driver.gd, 1280×72
 | --- | --- | --- |
 | 규칙(scripts/core) | 높음 0, 중간 2, 낮음 6. 앞마당이 일찍 점령되면 정문 밖 기사가 멈춤(현재 수치에서는 잠재), 잘못된 v3 필드가 검증을 통과 등 | 모두 수정, 재발 방지 검사 test_review_fixes_core |
 | 화면·흐름 | 높음 1(앞마당 완성이 이야기 대기열을 덮어 장 장면·자동 재도전이 사라짐), 중간 4, 낮음 7 | 모두 수정, 통합 검사 _review_ui_checks |
-| 수정 검증 | 진행 중(수정 커밋 7d0efbf 회귀 검토) | 결과가 나오면 이 줄에 기록 |
+| 수정 검증 | 데이터 손실 없음. 저장 검증은 정상 상태 3,738가지 왕복에서 거부 0건. 낮음 5(안내가 떠 있을 때 10단계 방어 시작이 멈춤, 새 게임 때 옛 대기 장면, --no-story 와 저장된 대기 장면, 대사 없는 장면 처리, 안내 중 새 게임) | 모두 수정, 통합 검사 추가(88개) |
 
 ## 9. 결과 요약
 

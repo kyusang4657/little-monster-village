@@ -509,3 +509,45 @@ func _review_ui_checks(s: GameState) -> void:
 	main._args["no-story"] = true
 	# 9) 지도가 넓어지면 축소 한계도 넓어진다
 	check(main.world.cam_max >= 20.0 * WorldView._map_grow(s.bounds()) - 0.01, "넓힌 지도 축소 한계 %.1f" % main.world.cam_max)
+	# 11) 안내가 떠 있을 때 10단계 방어 시작: 안내를 끝내고 보스 장면 → 전투
+	main._args.erase("no-story")
+	s.story_seen.erase("boss_intro")
+	var keep10 := [s.ready_stage, s.highest_cleared]
+	s.ready_stage = GameConfig.stage_count()
+	s.highest_cleared = GameConfig.stage_count() - 1
+	s.raid_ready = true
+	s.mode = GameState.MODE_RAID_READY
+	main.tutorial.start()
+	await _wait(1)
+	main._start_raid()
+	await _wait(2)
+	check(not main.tutorial.active() and main.story_view.active() and main.story_view.current_id() == "boss_intro", "안내 중 방어 시작 → 안내 끝, 보스 장면")
+	main.story_view._finish()
+	await _wait(3)
+	check(s.mode == GameState.MODE_BATTLE and main.sim != null, "보스 장면 뒤 바로 전투")
+	main.sim.castle_hp = 0
+	main.sim.advance(0.1)
+	await _wait(4)
+	main._on_result_closed("village")
+	await _wait(3)
+	s.ready_stage = keep10[0]
+	s.highest_cleared = keep10[1]
+	# 12) 새 게임: 옛 대기 장면은 버리고 안내 중이어도 프롤로그부터
+	main.tutorial.start()
+	s.story_pending.append("outpost_built")
+	s.story_seen.erase("outpost_built")
+	main._begin_new("house")
+	await _wait(1)
+	s.mode = GameState.MODE_BUILD
+	main._on_menu_action("reset")
+	await _wait(3)
+	check(main.story_view.active() and main.story_view.current_id() == "prologue" and not main.tutorial.active(), "새 게임 → 옛 장면 없이 프롤로그")
+	main.story_view._finish()
+	await _wait(2)
+	check(main.state.story_seen.keys() == ["prologue"] and main.state.story_pending.is_empty(), "새 게임 본 장면은 프롤로그뿐 %s" % str(main.state.story_seen.keys()))
+	s = main.state
+	# 13) --no-story 면 저장본에 남은 대기 장면도 띄우지 않음
+	main._args["no-story"] = true
+	s.story_pending.append("outpost_lost")
+	await _wait(3)
+	check(not main.story_view.active() and s.story_pending.is_empty(), "--no-story 는 대기 장면도 비움")

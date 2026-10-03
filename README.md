@@ -141,7 +141,7 @@ scripts/main.gd                  흐름·입력·저장 시점·앱 상태
 scripts/debug/shot_driver.gd     실행 화면 자동 캡처(내보내기 제외)
 tests/run_tests.gd               규칙·밸런스 자동 검사 532개(헤드리스)
 tests/character_checks.gd        캐릭터 관절·비율·동작·예산 검사 447개(헤드리스)
-tests/integration_driver.gd      실제 장면 통합 검사 83개(디스플레이 필요)
+tests/integration_driver.gd      실제 장면 통합 검사 88개(디스플레이 필요)
 tools/make_sounds.py             효과음·배경음 합성기(CC0)
 docs/store, docs/release         스토어 자료, 출시 안내
 ```

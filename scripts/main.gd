@@ -439,6 +439,9 @@ func _can_show_story() -> bool:
 func _story_next() -> void:
 	if not _can_show_story():
 		return
+	# 검사·캡처용 --no-story: 저장본에 남은 대기 장면도 보여 주지 않는다(콜백은 그대로 실행)
+	if _args.has("no-story"):
+		state.story_pending.clear()
 	while not state.story_pending.is_empty():
 		var t := String(state.story_pending[0])
 		var sc := Story.scene_for(t)
@@ -447,8 +450,11 @@ func _story_next() -> void:
 			continue
 		_story_current = t
 		_reset_pointer_state()
-		story_view.play(sc)
-		return
+		if story_view.play(sc):
+			return
+		# 대사가 없는 장면은 건너뛴다(대기열에서 빼고 다음으로)
+		state.story_pending.pop_front()
+		_story_current = ""
 	var then := _story_then
 	_story_then = Callable()
 	if then.is_valid():
@@ -457,11 +463,11 @@ func _story_next() -> void:
 
 ## 장면을 끝까지 보거나 건너뛰면 그때 본 것으로 저장한다(도중에 앱이 꺼지면 다음 실행에서 다시 보여 줌)
 func _on_story_finished(id: String) -> void:
-	if _story_current != "":
+	if _story_current != "" and state.story_pending.has(_story_current):
 		state.story_seen[id] = true
 		state.story_pending.erase(_story_current)
-		_story_current = ""
 		saver.save(state)
+	_story_current = ""
 	_story_next()
 
 
@@ -650,6 +656,8 @@ func _start_raid() -> void:
 	var pre := "before_stage:%d" % state.ready_stage
 	var sc := Story.scene_for(pre)
 	if not sc.is_empty() and not state.story_seen.has(String(sc.id)) and not _args.has("no-story"):
+		# 방어 시작을 눌렀으니 안내는 여기서 끝낸다(안내가 떠 있으면 장면이 기다리기만 하므로)
+		tutorial.notify("battle_started")
 		_queue_story([pre], _start_raid)
 		return
 	var r := state.begin_battle()
@@ -807,6 +815,12 @@ func _on_menu_action(action: String) -> void:
 			_last_ui = ""
 			hud.toast("도움 모드를 켰어요: 같은 단계에서 %d번 이상 지면 기사 체력이 조금 줄어요" % int(GameConfig.raids().assist.after_losses) if state.assist_enabled else "도움 모드를 껐어요", 3.0)
 		"reset":
+			# 이전 게임의 대기 장면·콜백·안내는 버린다(편집을 닫으며 옛 장면이 뜨지 않게 먼저 비움)
+			state.story_pending.clear()
+			_story_then = Callable()
+			_story_current = ""
+			if tutorial.active():
+				tutorial.end(true)
 			if not edit.is_empty():
 				_end_edit()
 			sim = null
@@ -819,7 +833,6 @@ func _on_menu_action(action: String) -> void:
 			world.reset_camera()
 			_last_ui = ""
 			hud.toast("새 마을에서 시작해요")
-			_story_then = Callable()
 			_queue_story(["new_game"])
 
 
