@@ -23,6 +23,10 @@ var bolts: Array = []
 var events: Array = []
 
 var route: Array[Vector2i] = []
+## 도움 모드 적용 배율(1.0 = 정상)
+var hp_multiplier: float = 1.0
+## 공사 중이라 전투에 참여하지 않은 방어탑 ID
+var constructing_towers: Array[String] = []
 var castle_center := Vector2.ZERO
 
 var _spawn_timer: float = 0.0
@@ -32,12 +36,13 @@ var _next_bolt_id: int = 1
 var _c: Dictionary
 
 
-func setup(buildings: Array, edges: Dictionary, p_stage: int) -> void:
+func setup(buildings: Array, edges: Dictionary, p_stage: int, p_hp_multiplier: float = 1.0) -> void:
 	_c = GameConfig.combat()
 	stage_id = p_stage
 	var st := GameConfig.stage(p_stage)
 	total = int(st.knight_count)
-	knight_hp = int(st.knight_hp)
+	hp_multiplier = clampf(p_hp_multiplier, 0.1, 1.0)
+	knight_hp = maxi(1, int(round(int(st.knight_hp) * hp_multiplier)))
 	castle_max = int(GameConfig.building_def("castle").hp)
 	castle_hp = castle_max
 	route = GridLogic.find_route(buildings, edges)
@@ -47,6 +52,9 @@ func setup(buildings: Array, edges: Dictionary, p_stage: int) -> void:
 	towers = []
 	for b in buildings:
 		if b.type != "defense_tower":
+			continue
+		if float(b.get("build_left", 0.0)) > 0.0 and not bool(GameConfig.construction().get("towers_fight_while_constructing", false)):
+			constructing_towers.append(String(b.id))
 			continue
 		var fp := GameConfig.footprint(b.type)
 		var lv := GameConfig.tower_level(int(b.level))

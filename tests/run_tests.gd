@@ -16,6 +16,8 @@ func _init() -> void:
 		"test_battle_stage1_default_win", "test_battle_loss_layout", "test_battle_upgrade_effect",
 		"test_battle_bolts_and_counts", "test_battle_stages_2_3_reachable", "test_watchdog_and_long_route",
 		"test_battle_pause_no_catchup",
+		"test_construction_basic", "test_construction_battle_and_rules", "test_save_v2_and_migration",
+		"test_decor", "test_assist_mode",
 	]
 	for t in tests:
 		var before := _fail
@@ -362,6 +364,17 @@ func test_unsaved_preview_not_persisted() -> void:
 	check(not v.resolve_battle(b.battle_id, 1, true).applied and v.wood == 140, "재실행 후 재지급 없음")
 
 
+## 마을 시간으로 공사를 끝낸다(실제 규칙 경로 사용)
+func finish_construction(s: GameState) -> void:
+	var m := s.mode
+	s.mode = GameState.MODE_VILLAGE
+	for i in 60 * 30:
+		if s.constructing().is_empty():
+			break
+		s.tick(1.0 / 60.0)
+	s.mode = m
+
+
 func sim(s: GameState, stage: int) -> BattleSim:
 	var b := BattleSim.new()
 	b.setup(s.buildings, s.all_edges(), stage)
@@ -473,6 +486,7 @@ func test_battle_stages_2_3_reachable() -> void:
 	s.commit_upgrade("tower_02")
 	var r1 := s.commit_new_building("defense_tower", 7, 1, 0)
 	check(r1.ok, "3번째 탑 (7,1): %s" % r1.reason)
+	finish_construction(s)
 	var b2 := sim(s, 2)
 	print("  [P03] 2단계 탑 3(Lv2,Lv2,Lv1): %s HP%d %.1f초" % [b2.outcome, b2.castle_hp, b2.time])
 	check(b2.outcome == "win", "2단계 클리어 가능")
@@ -480,6 +494,8 @@ func test_battle_stages_2_3_reachable() -> void:
 	s.commit_upgrade(r1.id)
 	var r2 := s.commit_new_building("defense_tower", 7, 3, 0)
 	check(r2.ok, "4번째 탑 (7,3): %s" % r2.reason)
+	finish_construction(s)
+	s.wood = 500
 	s.commit_upgrade(r2.id)
 	var b3 := sim(s, 3)
 	print("  [P03] 3단계 탑 4(Lv2×4): %s HP%d %.1f초" % [b3.outcome, b3.castle_hp, b3.time])
@@ -524,3 +540,124 @@ func test_battle_pause_no_catchup() -> void:
 	# 복귀 직후 큰 delta 가 와도 몰아서 진행하지 않는다
 	b.advance(30.0)
 	check(b.time - t <= BattleSim.STEP * BattleSim.MAX_STEPS_PER_FRAME + 0.0001, "큰 delta 몰아치기 없음")
+
+
+func test_construction_basic() -> void:
+	var s := fresh()
+	s.mode = GameState.MODE_VILLAGE
+	var r := s.commit_new_building("house", 10, 7, 0)
+	var h := s.get_building(r.id)
+	check(is_equal_approx(float(h.build_left), 10.0) and not s.is_built(h), "주택 공사 10초로 시작")
+	check(s.count_type("house") == 3 and s.wood == 70, "공사 중에도 수량·비용은 확정 시 반영")
+	var done := []
+	s.construction_finished.connect(func(id): done.append(id))
+	for m in [GameState.MODE_BATTLE, GameState.MODE_PAUSED, GameState.MODE_RESULT]:
+		s.mode = m
+		s.tick(5.0)
+		check(is_equal_approx(float(h.build_left), 10.0), "%s 에서 공사 정지" % m)
+	s.mode = GameState.MODE_BUILD
+	for i in 300:
+		s.tick(1.0 / 60.0)
+	check(absf(float(h.build_left) - 5.0) < 0.01, "BUILD 상태에서 공사 진행")
+	s.mode = GameState.MODE_RAID_READY
+	for i in 400:
+		s.tick(1.0 / 60.0)
+	check(s.is_built(h) and done == [r.id], "완성 신호 1회 (%s)" % str(done))
+	check(is_equal_approx(s.build_progress(h), 1.0), "진행률 1")
+	var t := s.commit_new_building("defense_tower", 1, 4, 0)
+	check(is_equal_approx(float(s.get_building(t.id).build_left), 20.0), "방어탑 공사 20초")
+	check(is_equal_approx(GameState.build_seconds("castle"), 0.0), "초기 건물은 공사 없음")
+
+
+func test_construction_battle_and_rules() -> void:
+	var s := fresh()
+	s.wood = 500
+	var r := s.commit_new_building("defense_tower", 7, 1, 0)
+	check(not s.check_upgrade(r.id).ok, "공사 중 강화 불가")
+	var mv := s.commit_move(r.id, 7, 3, 1)
+	check(mv.ok and float(s.get_building(r.id).build_left) == 20.0, "공사 중 이동 허용·진행 유지")
+	var b := BattleSim.new()
+	b.setup(s.buildings, s.all_edges(), 1)
+	check(b.towers.size() == 2 and b.constructing_towers == [r.id], "공사 중 방어탑은 전투 불참")
+	finish_construction(s)
+	var c := BattleSim.new()
+	c.setup(s.buildings, s.all_edges(), 1)
+	check(c.towers.size() == 3 and c.constructing_towers.is_empty(), "완성 후 전투 참여")
+	check(s.check_upgrade(r.id).ok, "완성 후 강화 가능")
+
+
+func test_save_v2_and_migration() -> void:
+	var dir := _tmp_dir("v2")
+	var sm := SaveManager.new(dir)
+	var s := fresh()
+	s.mode = GameState.MODE_VILLAGE
+	var r := s.commit_new_building("house", 10, 7, 2)
+	s.tick(3.25)
+	s.commit_decor("house_01", {roof_color = "red", window = "round"})
+	s.consecutive_losses = 2
+	s.assist_enabled = true
+	sm.save(s)
+	var t := GameState.new()
+	check(sm.load_into(t).status == "loaded", "v2 불러오기")
+	check(absf(float(t.get_building(r.id).build_left) - 6.75) < 0.01, "공사 남은 시간 복원")
+	check(t.get_building("house_01").deco.roof_color == "red" and t.get_building("house_01").deco.chimney == "back_right", "꾸미기 복원")
+	check(t.consecutive_losses == 2 and t.assist_enabled, "연패·도움 모드 복원")
+	# 버전 1 저장본(공사·꾸미기 필드 없음)
+	var v1 := {version = 1, buildings = [], interior_fences = [], wood = 120, wood_frac = 0.0, ready_stage = 2,
+		highest_cleared = 1, raid_ready = true, raid_timer = -1.0, last_resolved_battle_id = 1, battle_seq = 1}
+	for b in fresh().buildings:
+		v1.buildings.append({id = b.id, type = b.type, x = b.x, z = b.z, rot = b.rot, level = b.level})
+	check(GameState.validate_dict(v1) == "", "v1 저장본 허용")
+	var u := GameState.new()
+	u.from_dict(v1)
+	check(u.wood == 120 and u.ready_stage == 2 and s.is_built(u.get_building("tower_01")) and u.get_building("house_02").deco.roof_color == "purple", "v1 → v2 이전(완성 상태·기본 꾸미기)")
+	var bad := s.to_dict()
+	bad.buildings[0].build_left = 999.0
+	check(GameState.validate_dict(bad) != "", "공사 시간 범위 밖 거부")
+
+
+func test_decor() -> void:
+	var s := fresh()
+	check(s.get_building("house_01").deco == Decor.defaults("house"), "기본 꾸미기")
+	check(Decor.defaults("house").roof_color == "purple" and Decor.defaults("house").chimney == "back_right", "기본값은 기준 시트(보라 맞배·뒤 오른쪽 굴뚝)")
+	var w := s.wood
+	check(s.commit_decor("house_01", {roof_color = "teal", roof_shape = "steep", window = "arch", chimney = "none", flag = "star", junk = "x"}).ok, "꾸미기 적용")
+	var d: Dictionary = s.get_building("house_01").deco
+	check(d.roof_shape == "steep" and d.flag == "star" and not d.has("junk") and s.wood == w, "무료·알 수 없는 부품 제거")
+	s.commit_decor("house_01", {roof_color = "gold"})
+	check(s.get_building("house_01").deco.roof_color == "purple", "없는 값은 기본값")
+	check(not s.commit_decor("castle_01", {}).ok, "성은 꾸미기 없음")
+	check(s.commit_decor("tower_01", {emblem = "moon"}).ok and s.get_building("tower_01").deco.emblem == "moon", "방어탑 꾸미기")
+	var a := sim(fresh(), 1)
+	var b := sim(s, 1)
+	check(a.outcome == b.outcome and a.castle_hp == b.castle_hp and is_equal_approx(a.time, b.time), "꾸미기는 전투 결과에 영향 없음")
+	for type in ["house", "defense_tower", "lumber_camp"]:
+		for p in Decor.parts(type):
+			check(p.options.size() >= 2 and not Decor.option(type, p.id, p.default).is_empty(), "%s.%s 선택지·기본값" % [type, p.id])
+
+
+func test_assist_mode() -> void:
+	var s := fresh()
+	check(not s.assist_enabled and is_equal_approx(s.assist_multiplier(), 1.0), "기본 꺼짐")
+	s.consecutive_losses = 3
+	check(is_equal_approx(s.assist_multiplier(), 1.0), "꺼져 있으면 연패해도 그대로")
+	s.assist_enabled = true
+	s.consecutive_losses = 1
+	check(is_equal_approx(s.assist_multiplier(), 1.0), "1패는 적용 안 함")
+	s.consecutive_losses = 2
+	check(is_equal_approx(s.assist_multiplier(), 0.9), "2연패 0.9")
+	s.consecutive_losses = 3
+	check(is_equal_approx(s.assist_multiplier(), 0.81), "3연패 0.81")
+	s.consecutive_losses = 9
+	check(is_equal_approx(s.assist_multiplier(), 0.7), "하한 0.7")
+	var b := BattleSim.new()
+	b.setup(s.buildings, s.all_edges(), 1, s.assist_multiplier())
+	check(b.knight_hp == 63, "기사 체력 90×0.7=63")
+	s.consecutive_losses = 0
+	var bb := s.begin_battle()
+	s.resolve_battle(bb.battle_id, 1, false)
+	s.leave_result()
+	check(s.consecutive_losses == 1, "패배 시 증가")
+	var bc := s.begin_battle()
+	s.resolve_battle(bc.battle_id, 1, true)
+	check(s.consecutive_losses == 0, "승리 시 초기화")

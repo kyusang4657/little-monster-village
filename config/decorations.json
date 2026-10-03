@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "status": "cosmetic_only_no_gameplay_effect",
+  "notes": "건물 꾸미기 부품 목록. 전투·경제 수치에 영향이 없다. 새 건물 종류는 같은 형식으로 parts 를 추가하면 패널과 저장이 자동으로 따라온다.",
+  "types": {
+    "house": {
+      "parts": [
+        {
+          "id": "roof_color",
+          "label": "지붕 색",
+          "default": "purple",
+          "options": [
+            { "id": "purple", "label": "보라", "color": "7a4bc4" },
+            { "id": "red", "label": "빨강", "color": "c4463e" },
+            { "id": "teal", "label": "청록", "color": "2e9c97" },
+            { "id": "green", "label": "초록", "color": "4c9a3d" },
+            { "id": "brown", "label": "갈색", "color": "8a5a30" }
+          ]
+        },
+        {
+          "id": "roof_shape",
+          "label": "지붕 모양",
+          "default": "gable",
+          "options": [
+            { "id": "gable", "label": "맞배" },
+            { "id": "hip", "label": "모임" },
+            { "id": "steep", "label": "뾰족" }
+          ]
+        },
+        {
+          "id": "window",
+          "label": "창문",
+          "default": "square",
+          "options": [
+            { "id": "square", "label": "네모" },
+            { "id": "round", "label": "동그라미" },
+            { "id": "arch", "label": "아치" }
+          ]
+        },
+        {
+          "id": "chimney",
+          "label": "굴뚝",
+          "default": "back_right",
+          "options": [
+            { "id": "back_right", "label": "뒤 오른쪽" },
+            { "id": "back_left", "label": "뒤 왼쪽" },
+            { "id": "none", "label": "없음" }
+          ]
+        },
+        {
+          "id": "flag",
+          "label": "깃발",
+          "default": "none",
+          "options": [
+            { "id": "none", "label": "없음" },
+            { "id": "skull", "label": "해골" },
+            { "id": "moon", "label": "달" },
+            { "id": "star", "label": "별" }
+          ]
+        }
+      ]
+    },
+    "defense_tower": {
+      "parts": [
+        {
+          "id": "flag_color",
+          "label": "깃발 색",
+          "default": "purple",
+          "options": [
+            { "id": "purple", "label": "보라", "color": "7a4bc4" },
+            { "id": "red", "label": "빨강", "color": "c4463e" },
+            { "id": "teal", "label": "청록", "color": "2e9c97" },
+            { "id": "green", "label": "초록", "color": "4c9a3d" }
+          ]
+        },
+        {
+          "id": "emblem",
+          "label": "문양",
+          "default": "skull",
+          "options": [
+            { "id": "skull", "label": "해골" },
+            { "id": "moon", "label": "달" },
+            { "id": "star", "label": "별" },
+            { "id": "none", "label": "없음" }
+          ]
+        }
+      ]
+    },
+    "lumber_camp": {
+      "parts": [
+        {
+          "id": "roof_color",
+          "label": "지붕 색",
+          "default": "purple",
+          "options": [
+            { "id": "purple", "label": "보라", "color": "7a4bc4" },
+            { "id": "red", "label": "빨강", "color": "c4463e" },
+            { "id": "teal", "label": "청록", "color": "2e9c97" },
+            { "id": "green", "label": "초록", "color": "4c9a3d" },
+            { "id": "brown", "label": "갈색", "color": "8a5a30" }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -178,6 +178,55 @@ func _sequence() -> void:
 	check(main.world.get_node("Battle").get_child_count() == 0, "결과 후 적·화살 정리")
 	check(s.mode == GameState.MODE_VILLAGE and not s.raid_ready and s.ready_stage == 2, "승리 후 다음 예고 대기")
 
+	await _construction_checks(s)
+
 	_lines.append("RESULT: %d passed, %d failed" % [_pass, _fail])
 	print("\n".join(_lines))
 	get_tree().quit(1 if _fail > 0 else 0)
+
+
+func _advance_village(seconds: float) -> void:
+	var step := 1.0 / 30.0
+	var t := 0.0
+	while t < seconds:
+		main.state.tick(step)
+		main.world.update_village(main.state.buildings, main.state.all_edges(), step, true)
+		t += step
+	await _wait(2)
+
+
+func _construction_checks(s: GameState) -> void:
+	s.wood = 300
+	main._begin_new("house")
+	await _wait(1)
+	main._move_ghost_to(Vector2i(12, 4))
+	await _wait(1)
+	main._confirm_edit()
+	await _wait(2)
+	var id := ""
+	for b in s.buildings:
+		if b.type == "house" and not s.is_built(b):
+			id = b.id
+	check(id != "", "공사 중 주택 생성")
+	var node: Node3D = main.world.building_node(id)
+	check(node != null and node.has_node("Scaffold") and node.get_node("Body").scale.y < 0.3, "비계 표시·몸체 낮음")
+	var snap := GameState.new()
+	SaveManager.new(main.saver.dir).load_into(snap)
+	check(not snap.get_building(id).is_empty() and float(snap.get_building(id).build_left) > 9.0, "확정 직후 공사 상태 저장")
+	await _advance_village(6.0)
+	var at_site := false
+	for w in main.world.crew.summary():
+		if w.target == id and w.state == WorkerCrew.STATE_WORK:
+			at_site = true
+	check(at_site, "일꾼이 현장에 도착해 작업 중 %s" % str(main.world.crew.summary()))
+	check(node.get_node("Body").scale.y > 0.4, "진행률만큼 몸체 상승")
+	await _advance_village(5.0)
+	check(s.is_built(s.get_building(id)), "10초 뒤 완성")
+	await _wait(3)
+	check(not node.has_node("Scaffold"), "완성 후 비계 제거")
+	await _advance_village(8.0)
+	var home := true
+	for w in main.world.crew.summary():
+		if w.target != "" or w.state == WorkerCrew.STATE_WORK:
+			home = false
+	check(home, "완성 후 일꾼 복귀")

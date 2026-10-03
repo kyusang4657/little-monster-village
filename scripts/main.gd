@@ -54,6 +54,7 @@ func _ready() -> void:
 		saver.save(state)
 	_castle_id = String(GridLogic.castle_of(state.buildings).get("id", "castle_01"))
 	state.changed.connect(_on_state_changed)
+	state.construction_finished.connect(_on_construction_finished)
 	_load_settings()
 	_sync_world()
 	_refresh_hud()
@@ -66,7 +67,7 @@ func _ready() -> void:
 	if _args.has("shots"):
 		var driver = load("res://scripts/debug/shot_driver.gd").new()
 		add_child(driver)
-		driver.run(self, String(_args.get("shots")))
+		driver.run(self, String(_args.get("shots")), String(_args.get("scenario", "full")))
 
 
 func _parse_args() -> Dictionary:
@@ -117,6 +118,9 @@ func _process(delta: float) -> void:
 			if _autosave_t >= AUTOSAVE_SECONDS:
 				_autosave_t = 0.0
 				saver.save(state)
+	var village_time: bool = state.mode in GameConfig.construction().progress_states
+	world.update_village(state.buildings, state.all_edges(), dt, village_time)
+	match state.mode:
 		GameState.MODE_BATTLE:
 			if sim != null:
 				sim.advance(dt)
@@ -131,6 +135,15 @@ func _on_state_changed() -> void:
 		var b := state.get_building(selected_id)
 		if not b.is_empty():
 			hud.show_info(b, state)
+
+
+func _on_construction_finished(id: String) -> void:
+	var b := state.get_building(id)
+	if b.is_empty():
+		return
+	hud.toast("%s 완성!" % GameConfig.type_label(b.type))
+	saver.save(state)
+	_on_state_changed()
 
 
 func _sync_world() -> void:
@@ -307,7 +320,8 @@ func _confirm_edit() -> void:
 			var cost := state.build_cost(edit.type)
 			r = state.commit_new_building(edit.type, edit.x, edit.z, edit.rot)
 			if r.ok:
-				hud.toast("%s 완성! 목재 -%d" % [GameConfig.type_label(edit.type), cost])
+				var secs := int(GameState.build_seconds(edit.type))
+				hud.toast(("%s 공사 시작! 목재 -%d · %d초 뒤 완성" % [GameConfig.type_label(edit.type), cost, secs]) if secs > 0 else ("%s 완성! 목재 -%d" % [GameConfig.type_label(edit.type), cost]))
 		"fence":
 			r = state.commit_fences(edit.add, edit.remove)
 			if r.ok:
@@ -376,7 +390,9 @@ func _start_raid() -> void:
 	saver.save(state)
 	world.clear_battle()
 	sim = BattleSim.new()
-	sim.setup(state.buildings, state.all_edges(), int(r.stage))
+	sim.setup(state.buildings, state.all_edges(), int(r.stage), float(r.get("hp_multiplier", 1.0)))
+	if not sim.constructing_towers.is_empty():
+		hud.toast("공사 중인 방어탑 %d개는 이번 전투에 참여하지 않아요" % sim.constructing_towers.size(), 3.0)
 	_last_ui = ""
 	if sim.outcome == "abort":
 		_finish_battle()

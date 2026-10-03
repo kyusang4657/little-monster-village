@@ -4,6 +4,7 @@ extends RefCounted
 
 signal changed
 signal raid_became_ready
+signal construction_finished(id: String)
 
 const MODE_VILLAGE := "VILLAGE"
 const MODE_BUILD := "BUILD"
@@ -12,7 +13,7 @@ const MODE_BATTLE := "BATTLE"
 const MODE_PAUSED := "PAUSED"
 const MODE_RESULT := "RESULT"
 
-const SAVE_VERSION := 1
+const SAVE_VERSION := 2
 
 var buildings: Array = []
 var interior_fences: Dictionary = {}
@@ -25,6 +26,10 @@ var raid_timer: float = -1.0
 var last_resolved_battle_id: int = 0
 var battle_seq: int = 0
 var rng_seed: int = 0
+## 같은 단계 연속 패배 수(도움 모드 판단용, 승리하면 0)
+var consecutive_losses: int = 0
+## 도움 모드(연패 시 기사 체력 소폭 감소). 기본 꺼짐.
+var assist_enabled: bool = false
 
 ## 실행 중 상태(저장하지 않음)
 var mode: String = MODE_RAID_READY
@@ -42,6 +47,7 @@ func new_game() -> void:
 		buildings.append({
 			id = String(b.id), type = String(b.type), x = int(b.x), z = int(b.z),
 			rot = int(b.rotation_quarters), level = int(b.level),
+			build_left = 0.0, deco = Decor.defaults(String(b.type)),
 		})
 	interior_fences = {}
 	for e in lay.interior_fence_edges:
@@ -57,6 +63,8 @@ func new_game() -> void:
 	battle_seq = last_resolved_battle_id
 	rng_seed = randi()
 	_rng.seed = rng_seed
+	consecutive_losses = 0
+	assist_enabled = bool(GameConfig.raids().get("assist", {}).get("enabled_default", false))
 	mode = idle_mode()
 	changed.emit()
 
@@ -81,6 +89,13 @@ func tick(delta: float) -> void:
 				wood_frac -= whole
 				wood = mini(wood + whole, capacity())
 				changed.emit()
+	if mode in GameConfig.construction().progress_states:
+		for b in buildings:
+			if float(b.build_left) > 0.0:
+				b.build_left = maxf(0.0, float(b.build_left) - delta)
+				if b.build_left <= 0.0:
+					construction_finished.emit(b.id)
+					changed.emit()
 	if not raid_ready and raid_timer >= 0.0 and mode in GameConfig.raids().timer_states:
 		raid_timer -= delta
 		if raid_timer <= 0.0:
@@ -126,6 +141,30 @@ func building_at(cell: Vector2i) -> Dictionary:
 		if cell in GridLogic.footprint_cells(b):
 			return b
 	return {}
+
+
+func is_built(b: Dictionary) -> bool:
+	return float(b.get("build_left", 0.0)) <= 0.0
+
+
+static func build_seconds(type: String) -> float:
+	return float(GameConfig.building_def(type).get("build_seconds", 0.0))
+
+
+## 0~1 공사 진행률(완성 = 1)
+func build_progress(b: Dictionary) -> float:
+	var total := build_seconds(b.type)
+	if total <= 0.0:
+		return 1.0
+	return clampf(1.0 - float(b.get("build_left", 0.0)) / total, 0.0, 1.0)
+
+
+func constructing() -> Array:
+	var out: Array = []
+	for b in buildings:
+		if not is_built(b):
+			out.append(b)
+	return out
 
 
 func all_edges() -> Dictionary:
@@ -181,7 +220,8 @@ func commit_new_building(type: String, x: int, z: int, rot: int) -> Dictionary:
 	var v := check_new_building(type, x, z, rot)
 	if not v.ok:
 		return v
-	var b := {id = next_id(type), type = type, x = x, z = z, rot = posmod(rot, 4), level = 1}
+	var b := {id = next_id(type), type = type, x = x, z = z, rot = posmod(rot, 4), level = 1,
+		build_left = build_seconds(type), deco = Decor.defaults(type)}
 	wood -= build_cost(type)
 	buildings.append(b)
 	changed.emit()
@@ -194,6 +234,8 @@ func check_move(id: String, x: int, z: int, rot: int) -> Dictionary:
 		return {ok = false, reason = "건물을 찾을 수 없어요"}
 	if not bool(GameConfig.building_def(b.type).get("movable", false)):
 		return {ok = false, reason = "성은 옮길 수 없어요"}
+	if not is_built(b) and not bool(GameConfig.construction().move_while_constructing):
+		return {ok = false, reason = "공사 중에는 옮길 수 없어요"}
 	return GridLogic.validate_building(buildings, interior_fences, {id = id, type = b.type, x = x, z = z, rot = rot}, id)
 
 
@@ -216,6 +258,8 @@ func check_upgrade(id: String) -> Dictionary:
 	var cost := upgrade_cost(b)
 	if cost < 0:
 		return {ok = false, reason = "최대 레벨이에요"}
+	if not is_built(b) and not bool(GameConfig.construction().upgrade_while_constructing):
+		return {ok = false, reason = "공사가 끝나면 강화할 수 있어요"}
 	if wood < cost:
 		return {ok = false, reason = "목재가 부족해요"}
 	return {ok = true, reason = "", cost = cost}
@@ -230,6 +274,18 @@ func commit_upgrade(id: String) -> Dictionary:
 	b.level = int(b.level) + 1
 	changed.emit()
 	return v
+
+
+## 꾸미기 적용(무료, 외형 전용). 알 수 없는 값은 기본값으로 정리된다.
+func commit_decor(id: String, deco: Dictionary) -> Dictionary:
+	var b := get_building(id)
+	if b.is_empty():
+		return {ok = false, reason = "건물을 찾을 수 없어요"}
+	if not Decor.has_parts(b.type):
+		return {ok = false, reason = "꾸밀 수 없는 건물이에요"}
+	b.deco = Decor.sanitize(b.type, deco)
+	changed.emit()
+	return {ok = true, reason = ""}
 
 
 func check_fences(add: Dictionary, remove: Dictionary) -> Dictionary:
@@ -266,7 +322,18 @@ func begin_battle() -> Dictionary:
 	current_battle_stage = ready_stage
 	mode = MODE_BATTLE
 	changed.emit()
-	return {ok = true, battle_id = current_battle_id, stage = ready_stage}
+	return {ok = true, battle_id = current_battle_id, stage = ready_stage, hp_multiplier = assist_multiplier()}
+
+
+## 도움 모드가 켜져 있고 같은 단계에서 연속으로 졌을 때만 1보다 작아진다.
+func assist_multiplier() -> float:
+	var a: Dictionary = GameConfig.raids().get("assist", {})
+	if not assist_enabled or a.is_empty():
+		return 1.0
+	var after := int(a.after_losses)
+	if consecutive_losses < after:
+		return 1.0
+	return maxf(float(a.min_multiplier), pow(float(a.hp_multiplier_step), consecutive_losses - after + 1))
 
 
 ## 전투 결과를 한 번만 반영한다. 같은 battle_id 를 다시 넣으면 아무것도 바뀌지 않는다.
@@ -275,6 +342,7 @@ func resolve_battle(battle_id: int, stage_id: int, won: bool) -> Dictionary:
 		return {applied = false, reward = 0, won = won, stage = stage_id}
 	last_resolved_battle_id = battle_id
 	var reward := 0
+	consecutive_losses = 0 if won else consecutive_losses + 1
 	if won:
 		reward = add_wood(int(GameConfig.stage(stage_id).win_wood))
 		highest_cleared = maxi(highest_cleared, stage_id)
@@ -316,7 +384,8 @@ func leave_result() -> void:
 func to_dict() -> Dictionary:
 	var bl: Array = []
 	for b in buildings:
-		bl.append({id = b.id, type = b.type, x = int(b.x), z = int(b.z), rot = int(b.rot), level = int(b.level)})
+		bl.append({id = b.id, type = b.type, x = int(b.x), z = int(b.z), rot = int(b.rot), level = int(b.level),
+			build_left = snappedf(float(b.get("build_left", 0.0)), 0.001), deco = Decor.sanitize(b.type, b.get("deco", {}))})
 	var fences: Array = interior_fences.keys()
 	fences.sort()
 	return {
@@ -333,6 +402,8 @@ func to_dict() -> Dictionary:
 		battle_seq = battle_seq,
 		rng_seed = rng_seed,
 		rng_state = str(_rng.state),
+		consecutive_losses = consecutive_losses,
+		assist_enabled = assist_enabled,
 	}
 
 
@@ -343,7 +414,7 @@ static func validate_dict(d) -> String:
 	for key in ["version", "buildings", "interior_fences", "wood", "ready_stage", "highest_cleared", "raid_ready", "raid_timer", "last_resolved_battle_id", "battle_seq"]:
 		if not d.has(key):
 			return "누락: %s" % key
-	if int(d.version) != SAVE_VERSION:
+	if int(d.version) < 1 or int(d.version) > SAVE_VERSION:
 		return "버전 불일치"
 	if typeof(d.buildings) != TYPE_ARRAY or typeof(d.interior_fences) != TYPE_ARRAY:
 		return "형식 오류"
@@ -367,6 +438,9 @@ static func validate_dict(d) -> String:
 			return "레벨 범위 오류"
 		if int(b.rot) < 0 or int(b.rot) > 3:
 			return "회전 범위 오류"
+		var left := float(b.get("build_left", 0.0))
+		if left < 0.0 or left > build_seconds(String(b.type)) + 0.001:
+			return "공사 시간 범위 오류"
 		bl.append({id = String(b.id), type = String(b.type), x = int(b.x), z = int(b.z), rot = int(b.rot), level = int(b.level)})
 	for type in counts:
 		if counts[type] > int(GameConfig.building_def(type).max_count):
@@ -405,8 +479,10 @@ static func validate_dict(d) -> String:
 
 func from_dict(d: Dictionary) -> void:
 	buildings = []
+	# 버전 1 저장본: 공사 없음·꾸미기 기본값으로 이어받는다
 	for b in d.buildings:
-		buildings.append({id = String(b.id), type = String(b.type), x = int(b.x), z = int(b.z), rot = int(b.rot), level = int(b.level)})
+		buildings.append({id = String(b.id), type = String(b.type), x = int(b.x), z = int(b.z), rot = int(b.rot), level = int(b.level),
+			build_left = float(b.get("build_left", 0.0)), deco = Decor.sanitize(String(b.type), b.get("deco", {}))})
 	interior_fences = {}
 	for k in d.interior_fences:
 		interior_fences[String(k)] = true
@@ -424,6 +500,8 @@ func from_dict(d: Dictionary) -> void:
 	_rng.seed = rng_seed
 	if d.has("rng_state"):
 		_rng.state = int(String(d.rng_state))
+	consecutive_losses = maxi(0, int(d.get("consecutive_losses", 0)))
+	assist_enabled = bool(d.get("assist_enabled", false))
 	mode = idle_mode()
 	current_battle_id = 0
 	current_battle_stage = 0

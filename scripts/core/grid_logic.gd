@@ -161,6 +161,16 @@ static func find_route(buildings: Array, edges: Dictionary) -> Array[Vector2i]:
 	var goals := attack_cells(buildings, edges)
 	if goals.is_empty():
 		return empty
+	return find_path(buildings, edges, start, goals)
+
+
+## 4방향 BFS 최단 경로(건물 점유 칸·울타리 변을 피함). 시작 칸은 점유되어 있어도 출발할 수 있다.
+## 이웃 순서가 고정이라 결과가 항상 같다(결정적).
+static func find_path(buildings: Array, edges: Dictionary, start: Vector2i, goals: Dictionary) -> Array[Vector2i]:
+	var empty: Array[Vector2i] = []
+	if goals.is_empty() or not in_grid(start):
+		return empty
+	var occ := occupancy(buildings)
 	var prev := {start: start}
 	var queue: Array[Vector2i] = [start]
 	var head := 0

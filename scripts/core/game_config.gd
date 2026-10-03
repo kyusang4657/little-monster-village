@@ -55,6 +55,10 @@ static func combat() -> Dictionary:
 	return defaults().combat
 
 
+static func construction() -> Dictionary:
+	return defaults().get("construction", {progress_states = [], move_while_constructing = true, upgrade_while_constructing = false})
+
+
 static func raids() -> Dictionary:
 	return defaults().raids
 

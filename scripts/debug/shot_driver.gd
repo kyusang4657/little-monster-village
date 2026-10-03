@@ -7,11 +7,71 @@ var out_dir := ""
 var log_lines: Array[String] = []
 
 
-func run(p_main, p_out: String) -> void:
+func run(p_main, p_out: String, scenario: String = "full") -> void:
 	main = p_main
 	out_dir = p_out
 	DirAccess.make_dir_recursive_absolute(out_dir)
-	_sequence()
+	match scenario:
+		"construction":
+			_construction()
+		_:
+			_sequence()
+
+
+## 마을 시간을 빠르게 진행(규칙·일꾼 모두 같은 경로로 갱신)
+func _advance_village(seconds: float) -> void:
+	var step := 1.0 / 30.0
+	var t := 0.0
+	while t < seconds:
+		main.state.tick(step)
+		main.world.update_village(main.state.buildings, main.state.all_edges(), step, true)
+		t += step
+	await _wait(2)
+
+
+func _finish_log() -> void:
+	var f := FileAccess.open(out_dir.path_join("shot-log.txt"), FileAccess.WRITE)
+	f.store_string("\n".join(log_lines))
+	f.close()
+	get_tree().quit()
+
+
+func _construction() -> void:
+	await _wait(20)
+	var s: GameState = main.state
+	s.wood = 300
+	main._begin_new("house")
+	await _wait(2)
+	main._move_ghost_to(Vector2i(10, 7))
+	await _wait(2)
+	main._confirm_edit()
+	await _wait(2)
+	main._begin_new("defense_tower")
+	await _wait(2)
+	main._move_ghost_to(Vector2i(7, 2))
+	await _wait(2)
+	main._confirm_edit()
+	await _wait(4)
+	_log("구매 직후: %s" % str(main.world.crew.summary()))
+	await _shot("20-construction-start")
+	await _advance_village(4.0)
+	_log("4초 뒤: %s" % str(main.world.crew.summary()))
+	await _shot("21-construction-walking")
+	await _advance_village(3.0)
+	_log("7초 뒤: 주택 남은 %.1f, 탑 남은 %.1f / %s" % [s.get_building("house_03").build_left, s.get_building("tower_03").build_left, str(main.world.crew.summary())])
+	await _shot("22-construction-hammering")
+	var t3: Dictionary = s.get_building("tower_03")
+	main._tap(main.world.camera.unproject_position(WorldView.building_center("defense_tower", t3.x, t3.z)))
+	await _wait(4)
+	await _shot("23-construction-info")
+	main._deselect()
+	await _advance_village(4.0)
+	await _shot("24-house-complete")
+	await _advance_village(10.0)
+	_log("완성 후: 주택 %.1f 탑 %.1f / %s" % [s.get_building("house_03").build_left, s.get_building("tower_03").build_left, str(main.world.crew.summary())])
+	await _advance_village(5.0)
+	await _shot("25-all-complete")
+	_finish_log()
 
 
 func _wait(frames: int) -> void:

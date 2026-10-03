@@ -20,8 +20,8 @@ var _footprint_mat: StandardMaterial3D
 var _selection: MeshInstance3D
 var _ghost: Node3D
 var _ghost_type := ""
-var _ambient: Array = []
-var _ambient_time := 0.0
+var crew: WorkerCrew
+var _complete_pop: Dictionary = {}      # id -> 남은 완성 연출 시간
 
 var _battle_root: Node3D
 var _knight_nodes: Dictionary = {}       # knight id -> {node, bar, fg, dying}
@@ -58,11 +58,11 @@ func _ready() -> void:
 	_flash_mat = _unshaded(Color(1, 1, 1, 0.55))
 	_bar_bg_mat = _unshaded(Color("3a2443"), true)
 	_bar_fg_mat = _unshaded(Color("e0443c"), true)
-	for i in 2:
-		var g := Models.goblin(i == 0)
-		g.name = "AmbientGoblin%d" % i
-		add_child(g)
-		_ambient.append(g)
+	crew = WorkerCrew.new()
+	crew.name = "Workers"
+	add_child(crew)
+	var cc := GameConfig.construction()
+	crew.setup(int(cc.get("worker_count", 2)), float(cc.get("worker_walk_cells_per_second", 1.6)))
 
 
 static func _unshaded(c: Color, billboard: bool = false) -> StandardMaterial3D:
@@ -360,9 +360,17 @@ func sync_buildings(buildings: Array) -> void:
 	for b in buildings:
 		seen[b.id] = true
 		var n: Node3D = _building_nodes.get(b.id)
+		var dk := Decor.key(b.get("deco", {}))
+		if n != null and String(n.get_meta("deco_key", "")) != dk:
+			# 꾸미기가 바뀌면 모델을 다시 조립한다(외형만, 위치·ID 유지)
+			_building_nodes.erase(b.id)
+			n.name = "%s_old" % b.id
+			n.queue_free()
+			n = null
 		if n == null:
-			n = Models.build(b.type)
+			n = Models.build(b.type, b.get("deco", {}))
 			n.name = b.id
+			n.set_meta("deco_key", dk)
 			_buildings_root.add_child(n)
 			_building_nodes[b.id] = n
 		place_node(n, b.type, int(b.x), int(b.z), int(b.rot))
@@ -373,7 +381,7 @@ func sync_buildings(buildings: Array) -> void:
 		if not seen.has(id):
 			_building_nodes[id].queue_free()
 			_building_nodes.erase(id)
-	_place_ambient(buildings)
+	update_construction(buildings, 0.0)
 
 
 func place_node(n: Node3D, type: String, x: int, z: int, rot: int) -> void:
@@ -388,7 +396,7 @@ func building_node(id: String) -> Node3D:
 func show_ghost(type: String, x: int, z: int, rot: int) -> void:
 	if _ghost == null or _ghost_type != type:
 		hide_ghost()
-		_ghost = Models.build(type)
+		_ghost = Models.build(type, Decor.defaults(type))
 		_ghost.name = "Ghost"
 		_ghost_type = type
 		add_child(_ghost)
@@ -402,40 +410,59 @@ func hide_ghost() -> void:
 		_ghost_type = ""
 
 
-func _place_ambient(buildings: Array) -> void:
-	# 분위기용 일꾼: 벌목소 앞(망치질)·주택 앞. 비어 있는 칸을 찾아 둔다(비충돌).
-	var occ := GridLogic.occupancy(buildings)
-	var anchors := ["lumber_camp", "house"]
-	for i in _ambient.size():
-		var g: Node3D = _ambient[i]
-		var anchor := {}
-		for b in buildings:
-			if b.type == anchors[i]:
-				anchor = b
-				break
-		if anchor.is_empty():
-			g.visible = false
+## 공사 중 표시: 몸체가 진행률만큼 올라오고 비계·남은 시간 표시. 완성 순간 살짝 튀어 오른다.
+func update_construction(buildings: Array, delta: float) -> void:
+	for b in buildings:
+		var n: Node3D = _building_nodes.get(b.id)
+		if n == null:
 			continue
-		g.visible = true
-		var fp := GameConfig.footprint(anchor.type)
-		var best := Vector2i(-1, -1)
-		var best_d := INF
-		var center := Vector2(anchor.x + fp.x * 0.5, anchor.z + fp.y * 0.5)
-		for x in range(anchor.x - 1, anchor.x + fp.x + 1):
-			for z in range(anchor.z - 1, anchor.z + fp.y + 1):
-				var c := Vector2i(x, z)
-				if not GridLogic.in_grid(c) or occ.has(c):
-					continue
-				var dd := Vector2(x + 0.5, z + 0.5).distance_to(center + Vector2(0.6 if i == 0 else -0.6, -1.2))
-				if dd < best_d:
-					best_d = dd
-					best = c
-		if best.x < 0:
-			g.visible = false
-			continue
-		g.position = cell_center(best) + Vector3(0.0, 0, 0.0)
-		var look := center - to_logical(g.position)
-		g.rotation.y = yaw_for_dir(look)
+		var body: Node3D = n.get_node("Body")
+		var left := float(b.get("build_left", 0.0))
+		var sc: Node3D = n.get_node_or_null("Scaffold")
+		if left > 0.0:
+			var total := maxf(GameState.build_seconds(b.type), 0.001)
+			var p := clampf(1.0 - left / total, 0.0, 1.0)
+			if sc == null:
+				sc = Models.scaffold(GameConfig.footprint(b.type))
+				n.add_child(sc)
+				var lbl := Label3D.new()
+				lbl.name = "BuildTimer"
+				lbl.font = _font
+				lbl.font_size = 64
+				lbl.pixel_size = 0.0075
+				lbl.outline_size = 14
+				lbl.modulate = Color("fff6d8")
+				lbl.outline_modulate = Color("4a2b5e")
+				lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+				lbl.no_depth_test = true
+				lbl.position = Vector3(0, 2.0, 0)
+				sc.add_child(lbl)
+			body.scale = Vector3(1, 0.08 + 0.92 * p, 1)
+			(sc.get_node("BuildTimer") as Label3D).text = "공사 중 %d초" % int(ceil(left))
+			if n.has_node("Turret"):
+				(n.get_node("Turret") as Node3D).visible = false
+		else:
+			if sc != null:
+				sc.name = "ScaffoldDone"
+				sc.queue_free()
+				_complete_pop[b.id] = 0.45
+			if n.has_node("Turret"):
+				(n.get_node("Turret") as Node3D).visible = true
+			var pop := float(_complete_pop.get(b.id, 0.0))
+			if pop > 0.0:
+				pop -= delta
+				_complete_pop[b.id] = pop
+				var k := sin(clampf(1.0 - pop / 0.45, 0.0, 1.0) * PI)
+				body.scale = Vector3(1.0 + 0.08 * k, 1.0 + 0.14 * k, 1.0 + 0.08 * k)
+			else:
+				_complete_pop.erase(b.id)
+				body.scale = Vector3.ONE
+
+
+## 매 프레임: 공사 표시와 일꾼. active=false(전투·일시정지)면 일꾼은 제자리에서 멈춘다.
+func update_village(buildings: Array, edges: Dictionary, delta: float, active: bool) -> void:
+	update_construction(buildings, delta)
+	crew.update_crew(buildings, edges, delta, active)
 
 
 # ------------------------------------------------------------------ 편집 표시
@@ -725,16 +752,3 @@ func _update_floaters(delta: float) -> void:
 			l.queue_free()
 	_floaters = _floaters.filter(func(f): return f.t <= 0.8)
 
-
-# ------------------------------------------------------------------ 분위기 애니메이션
-
-func _process(delta: float) -> void:
-	_ambient_time += delta
-	if _ambient.size() > 0 and _ambient[0].visible:
-		var g: Node3D = _ambient[0]
-		var arm: Node3D = g.get_node("ArmR")
-		arm.rotation.x = 0.3 + absf(sin(_ambient_time * 3.0)) * 1.6
-	if _ambient.size() > 1 and _ambient[1].visible:
-		var g2: Node3D = _ambient[1]
-		g2.get_node("Head").rotation.y = sin(_ambient_time * 0.9) * 0.4
-		g2.get_node("ArmL").rotation.z = -0.3 - absf(sin(_ambient_time * 1.7)) * 0.6

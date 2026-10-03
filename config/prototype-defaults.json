@@ -45,7 +45,7 @@
     "offline_income": false,
     "battle_income": false,
     "move_cost": 0,
-    "build_time_seconds": 0,
+    "build_time_seconds": "per_building_build_seconds",
     "charge_on": "valid_placement_commit",
     "per_kill_reward": 0
   },
@@ -71,7 +71,8 @@
       "max_level": 1,
       "movable": true,
       "deletable": false,
-      "role": "decoration_only"
+      "role": "decoration_only",
+      "build_seconds": 10
     },
     "lumber_camp": {
       "footprint": [
@@ -106,7 +107,8 @@
           "cooldown_seconds": 1.2,
           "upgrade_cost": 60
         }
-      }
+      },
+      "build_seconds": 20
     }
   },
   "fences": {
@@ -181,7 +183,13 @@
         "win_wood": 80
       }
     ],
-    "after_stage_3": "manual_replay_stage_3"
+    "after_stage_3": "manual_replay_stage_3",
+    "assist": {
+      "enabled_default": false,
+      "after_losses": 2,
+      "hp_multiplier_step": 0.9,
+      "min_multiplier": 0.7
+    }
   },
   "persistence": {
     "version": 1,
@@ -211,5 +219,18 @@
     "fence_siege",
     "ground_worker_combat",
     "store_publication"
-  ]
+  ],
+  "construction": {
+    "progress_states": [
+      "VILLAGE",
+      "BUILD",
+      "RAID_READY"
+    ],
+    "move_while_constructing": true,
+    "upgrade_while_constructing": false,
+    "towers_fight_while_constructing": false,
+    "progress_requires_worker": false,
+    "worker_walk_cells_per_second": 2.2,
+    "worker_count": 2
+  }
 }

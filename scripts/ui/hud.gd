@@ -671,6 +671,8 @@ func show_info(b: Dictionary, state: GameState) -> void:
 		"defense_tower":
 			var lv := GameConfig.tower_level(int(b.level))
 			desc += " · 공격력 %d · 사거리 %.1f칸" % [int(lv.damage), float(lv.range_cells)]
+	if not state.is_built(b):
+		desc += " · 공사 중 %d초 남음" % int(ceil(float(b.build_left)))
 	info_desc.text = desc
 	info_move.visible = bool(def.get("movable", false))
 	info_upgrade.visible = b.type == "defense_tower"
@@ -679,6 +681,9 @@ func show_info(b: Dictionary, state: GameState) -> void:
 		var cost := state.upgrade_cost(b)
 		if cost < 0:
 			set_button_text(info_upgrade, "최대 레벨")
+			set_button_enabled(info_upgrade, false)
+		elif not state.is_built(b):
+			set_button_text(info_upgrade, "공사가 끝나면 강화")
 			set_button_enabled(info_upgrade, false)
 		else:
 			var nxt := GameConfig.tower_level(int(b.level) + 1)

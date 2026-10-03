@@ -84,6 +84,23 @@ func sphere(r: float, pos: Vector3, color: Color, scl: Vector3 = Vector3.ONE, ro
 	return self
 
 
+## 사각 뿔대(모임지붕·탑 몸통). half = 바닥 반폭(x,z), top_ratio = 윗면/바닥 비율.
+func quad_frustum(half: Vector2, top_ratio: float, h: float, pos: Vector3, color: Color, rot_deg: Vector3 = Vector3.ZERO) -> MeshBatch:
+	var key := "qf:%.3f" % top_ratio
+	var a := _arrays(key, func():
+		var m := CylinderMesh.new()
+		m.top_radius = top_ratio
+		m.bottom_radius = 1.0
+		m.height = 1.0
+		m.radial_segments = 4
+		m.rings = 1
+		return m)
+	var k := 1.0 / 0.70710678
+	var basis := Basis.from_euler(rot_deg * (PI / 180.0)) * Basis.from_scale(Vector3(half.x * k, h, half.y * k)) * Basis(Vector3.UP, PI * 0.25)
+	_add(a, Transform3D(basis, pos), color)
+	return self
+
+
 ## 삼각 기둥: 삼각형 면이 ±Z, 높이 Y.
 func prism(size: Vector3, pos: Vector3, color: Color, rot_deg: Vector3 = Vector3.ZERO) -> MeshBatch:
 	var a := _arrays("prism", func(): return PrismMesh.new())

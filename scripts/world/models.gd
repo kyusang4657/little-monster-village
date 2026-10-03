@@ -1,7 +1,9 @@
 class_name Models
 extends RefCounted
-## 아트 가이드의 고정 구조를 지킨 임시 입체 모델. 기준점 = 점유 영역 지면 중앙, 정면 = -Z.
+## 통일된 로우폴리 모델(기본 도형 조합, 단색 정점 색). 기준점 = 점유 영역 지면 중앙, 정면 = -Z.
 ## 캐릭터의 '오른손'은 캐릭터 자신의 오른쪽(+X, 정면 -Z 기준)이다.
+## 건물은 부품 함수(_house_roof, _window 등)로 조립하고, 꾸미기 값(deco)에 따라 부품을 고른다.
+## 외형만 바뀌며 점유 칸·기준점·석궁/조작자 노드 이름(Turret/Crossbow/Operator)은 유지한다.
 
 const IVORY := Color("eadfc6")
 const IVORY_DARK := Color("cfc0a0")
@@ -30,18 +32,21 @@ const RED := Color("c8343a")
 const SKIN := Color("f2c9a0")
 const BLACK := Color("2b2233")
 const WHITE := Color("ffffff")
+## 테두리·몰딩 두께(모든 건물 공통 → 같은 손맛의 로우폴리)
+const TRIM := 0.08
 
 
-static func build(type: String) -> Node3D:
+static func build(type: String, deco: Dictionary = {}) -> Node3D:
+	var d := Decor.sanitize(type, deco)
 	match type:
 		"castle":
 			return castle()
 		"house":
-			return house()
+			return house(d)
 		"lumber_camp":
-			return lumber_camp()
+			return lumber_camp(d)
 		"defense_tower":
-			return defense_tower()
+			return defense_tower(d)
 	return Node3D.new()
 
 
@@ -51,112 +56,202 @@ static func _root(n: String) -> Node3D:
 	return r
 
 
-static func _emblem(b: MeshBatch, pos: Vector3, facing_z: float, s: float = 1.0) -> void:
-	# 깃발의 해골 문양을 단순화: 아이보리 머리 + 두 뿔 + 눈
-	b.sphere(0.09 * s, pos, IVORY, Vector3(1, 0.9, 0.35))
-	b.cyl(0.0, 0.035 * s, 0.1 * s, pos + Vector3(0.08 * s, 0.07 * s, 0), IVORY, Vector3(0, 0, -35))
-	b.cyl(0.0, 0.035 * s, 0.1 * s, pos + Vector3(-0.08 * s, 0.07 * s, 0), IVORY, Vector3(0, 0, 35))
-	b.sphere(0.022 * s, pos + Vector3(0.035 * s, 0.01, facing_z * 0.03), PURPLE_DARK)
-	b.sphere(0.022 * s, pos + Vector3(-0.035 * s, 0.01, facing_z * 0.03), PURPLE_DARK)
+## 문양: skull·moon·star·none. pos 는 깃발 앞면 중앙, facing_z 는 깃발이 보는 방향(-1 = 정면).
+static func _emblem(b: MeshBatch, kind: String, pos: Vector3, facing_z: float, s: float = 1.0) -> void:
+	match kind:
+		"skull":
+			b.sphere(0.09 * s, pos, IVORY, Vector3(1, 0.9, 0.35))
+			b.cyl(0.0, 0.035 * s, 0.1 * s, pos + Vector3(0.08 * s, 0.07 * s, 0), IVORY, Vector3(0, 0, -35))
+			b.cyl(0.0, 0.035 * s, 0.1 * s, pos + Vector3(-0.08 * s, 0.07 * s, 0), IVORY, Vector3(0, 0, 35))
+			b.sphere(0.022 * s, pos + Vector3(0.035 * s, 0.01, facing_z * 0.03), PURPLE_DARK)
+			b.sphere(0.022 * s, pos + Vector3(-0.035 * s, 0.01, facing_z * 0.03), PURPLE_DARK)
+		"moon":
+			b.cyl(0.1 * s, 0.1 * s, 0.02, pos, GOLD, Vector3(90, 0, 0), 14)
+			b.cyl(0.085 * s, 0.085 * s, 0.025, pos + Vector3(0.05 * s, 0.03 * s, facing_z * 0.004), PURPLE_DARK, Vector3(90, 0, 0), 14)
+		"star":
+			b.cyl(0.11 * s, 0.11 * s, 0.02, pos, GOLD, Vector3(90, 0, 0), 5)
+			b.cyl(0.11 * s, 0.11 * s, 0.02, pos, GOLD, Vector3(90, 0, 36), 5)
+
+
+## 창문 부품: square·round·arch. center 는 벽면 위 창 중심, yaw 는 벽이 바라보는 방향(0 = -Z 정면).
+static func _window(b: MeshBatch, kind: String, center: Vector3, yaw: float, size: float = 0.22) -> void:
+	var basis := Basis(Vector3.UP, deg_to_rad(yaw))
+	var out := basis * Vector3(0, 0, -1)
+	var rot := Vector3(0, yaw, 0)
+	var cyl_rot := Vector3(90, yaw, 0)
+	match kind:
+		"round":
+			b.cyl(size * 0.62, size * 0.62, 0.04, center, WOOD, cyl_rot, 14)
+			b.cyl(size * 0.46, size * 0.46, 0.05, center + out * 0.006, GLASS, cyl_rot, 14)
+			b.box(Vector3(size * 0.9, 0.02, 0.02), center + out * 0.03, WOOD_DARK, rot)
+		"arch":
+			b.box(Vector3(size * 1.15, size * 1.0, 0.04), center + Vector3(0, -size * 0.12, 0), WOOD, rot)
+			b.cyl(size * 0.58, size * 0.58, 0.04, center + Vector3(0, size * 0.38, 0), WOOD, cyl_rot, 12)
+			b.box(Vector3(size * 0.82, size * 0.8, 0.05), center + Vector3(0, -size * 0.12, 0) + out * 0.006, GLASS, rot)
+			b.cyl(size * 0.41, size * 0.41, 0.05, center + Vector3(0, size * 0.28, 0) + out * 0.006, GLASS, cyl_rot, 12)
+		_:
+			b.box(Vector3(size * 1.3, size * 1.3, 0.04), center, WOOD, rot)
+			b.box(Vector3(size * 0.95, size * 0.95, 0.05), center + out * 0.006, GLASS, rot)
+			b.box(Vector3(size * 1.0, 0.02, 0.02), center + out * 0.03, WOOD_DARK, rot)
+			b.box(Vector3(0.02, size * 1.0, 0.02), center + out * 0.03, WOOD_DARK, rot)
+			# 창 아래 꽃 상자
+			b.box(Vector3(size * 1.4, 0.06, 0.08), center + Vector3(0, -size * 0.78, 0) + out * 0.05, WOOD_DARK, rot)
+			b.sphere(0.035, center + Vector3(-size * 0.35, -size * 0.7, 0) + out * 0.06, Color("e46f8e"))
+			b.sphere(0.035, center + Vector3(size * 0.35, -size * 0.7, 0) + out * 0.06, Color("f3d04f"))
+
+
+## 작은 깃대 + 깃발(지붕 장식)
+static func _pennant(b: MeshBatch, emblem: String, base: Vector3, cloth: Color) -> void:
+	b.cyl(0.022, 0.022, 0.62, base + Vector3(0, 0.31, 0), WOOD_DARK, Vector3.ZERO, 6)
+	b.sphere(0.035, base + Vector3(0, 0.64, 0), GOLD)
+	b.box(Vector3(0.3, 0.2, 0.02), base + Vector3(0.16, 0.5, 0), cloth)
+	_emblem(b, emblem, base + Vector3(0.16, 0.5, -0.012), -1.0, 0.75)
 
 
 # ------------------------------------------------------------------ 마물 성 (3×3)
 static func castle() -> Node3D:
 	var r := _root("Castle")
 	var b := MeshBatch.new()
-	b.box(Vector3(2.9, 0.12, 2.9), Vector3(0, 0.06, 0), STONE)
-	# 낮고 넓은 본관 + 평평한 지붕 테라스
-	b.box(Vector3(2.3, 1.05, 1.9), Vector3(0, 0.645, 0.2), IVORY)
-	b.box(Vector3(2.42, 0.1, 2.02), Vector3(0, 1.2, 0.2), IVORY_DARK)
+	# 계단식 돌 기단
+	b.box(Vector3(2.9, 0.1, 2.9), Vector3(0, 0.05, 0), STONE_DARK)
+	b.box(Vector3(2.7, 0.06, 2.6), Vector3(0, 0.13, 0.05), STONE)
+	# 낮고 넓은 본관 + 아래 돌띠 + 평평한 지붕 테라스
+	b.box(Vector3(2.3, 1.05, 1.9), Vector3(0, 0.685, 0.2), IVORY)
+	b.box(Vector3(2.36, 0.16, 1.96), Vector3(0, 0.24, 0.2), IVORY_DARK)
+	b.box(Vector3(2.42, 0.1, 2.02), Vector3(0, 1.24, 0.2), IVORY_DARK)
 	for i in 6:
 		var x := -1.05 + i * 0.42
-		b.box(Vector3(0.22, 0.18, 0.14), Vector3(x, 1.34, 1.15), IVORY)
+		b.box(Vector3(0.22, 0.18, 0.14), Vector3(x, 1.38, 1.15), IVORY)
 	for i in 4:
 		var z := -0.55 + i * 0.5
-		b.box(Vector3(0.14, 0.18, 0.22), Vector3(1.15, 1.34, z), IVORY)
-		b.box(Vector3(0.14, 0.18, 0.22), Vector3(-1.15, 1.34, z), IVORY)
-	b.box(Vector3(1.2, 0.18, 0.14), Vector3(0, 1.34, -0.75), IVORY)
-	# 정면 양 모서리의 원형 탑 두 개만
+		b.box(Vector3(0.14, 0.18, 0.22), Vector3(1.15, 1.38, z), IVORY)
+		b.box(Vector3(0.14, 0.18, 0.22), Vector3(-1.15, 1.38, z), IVORY)
+	b.box(Vector3(1.2, 0.18, 0.14), Vector3(0, 1.38, -0.75), IVORY)
+	# 정면 양 모서리의 원형 탑 두 개만(중앙 탑 없음)
 	for sx in [-1.0, 1.0]:
 		var p := Vector3(1.0 * sx, 0, -0.78)
-		b.cyl(0.44, 0.48, 1.7, p + Vector3(0, 0.97, 0), IVORY)
-		b.cyl(0.5, 0.5, 0.1, p + Vector3(0, 1.84, 0), IVORY_DARK)
-		b.cyl(0.0, 0.56, 0.8, p + Vector3(0, 2.29, 0), PURPLE)
-		b.sphere(0.07, p + Vector3(0, 2.72, 0), GOLD)
+		b.cyl(0.44, 0.5, 1.72, p + Vector3(0, 1.02, 0), IVORY, Vector3.ZERO, 14)
+		b.cyl(0.52, 0.53, 0.16, p + Vector3(0, 0.24, 0), IVORY_DARK, Vector3.ZERO, 14)
+		b.cyl(0.5, 0.5, 0.1, p + Vector3(0, 1.9, 0), IVORY_DARK, Vector3.ZERO, 14)
+		b.cyl(0.0, 0.58, 0.85, p + Vector3(0, 2.37, 0), PURPLE, Vector3.ZERO, 14)
+		b.cyl(0.6, 0.6, 0.05, p + Vector3(0, 1.97, 0), PURPLE_DARK, Vector3.ZERO, 14)
+		b.sphere(0.07, p + Vector3(0, 2.83, 0), GOLD)
 		# 탑 정면 보라 깃발과 문양
-		b.box(Vector3(0.36, 0.55, 0.04), p + Vector3(0, 1.0, -0.47), PURPLE)
-		b.prism(Vector3(0.36, 0.12, 0.04), p + Vector3(0, 0.67, -0.47), PURPLE, Vector3(0, 0, 180))
-		_emblem(b, p + Vector3(0, 1.05, -0.5), -1.0, 1.1)
-		b.box(Vector3(0.1, 0.18, 0.04), p + Vector3(0.48 * sx, 1.4, 0), GLASS_DARK, Vector3(0, 90 * sx, 0))
-	# 청록 양문과 두 단 계단
-	b.box(Vector3(0.74, 0.62, 0.08), Vector3(0, 0.5, -0.76), TEAL)
-	b.cyl(0.37, 0.37, 0.08, Vector3(0, 0.81, -0.76), TEAL, Vector3(90, 0, 0), 16)
-	b.box(Vector3(0.84, 0.08, 0.06), Vector3(0, 0.81, -0.77), IVORY_DARK)
-	b.box(Vector3(0.03, 0.88, 0.1), Vector3(0, 0.6, -0.8), Color("1f7a77"))
-	b.sphere(0.035, Vector3(0.09, 0.5, -0.82), GOLD)
-	b.sphere(0.035, Vector3(-0.09, 0.5, -0.82), GOLD)
-	b.box(Vector3(1.1, 0.08, 0.28), Vector3(0, 0.16, -0.92), STONE)
-	b.box(Vector3(1.3, 0.08, 0.3), Vector3(0, 0.08, -1.08), STONE_DARK)
+		b.box(Vector3(0.36, 0.55, 0.04), p + Vector3(0, 1.06, -0.47), PURPLE)
+		b.prism(Vector3(0.36, 0.12, 0.04), p + Vector3(0, 0.73, -0.47), PURPLE, Vector3(0, 0, 180))
+		b.box(Vector3(0.42, 0.05, 0.06), p + Vector3(0, 1.34, -0.48), GOLD)
+		_emblem(b, "skull", p + Vector3(0, 1.1, -0.5), -1.0, 1.1)
+		b.box(Vector3(0.1, 0.2, 0.04), p + Vector3(0.48 * sx, 1.46, 0), GLASS_DARK, Vector3(0, 90 * sx, 0))
+	# 청록 양문(돌 아치 테두리)과 낮은 두 단 계단
+	b.box(Vector3(0.9, 0.74, 0.06), Vector3(0, 0.56, -0.74), IVORY_DARK)
+	b.cyl(0.45, 0.45, 0.06, Vector3(0, 0.93, -0.74), IVORY_DARK, Vector3(90, 0, 0), 16)
+	b.box(Vector3(0.74, 0.62, 0.08), Vector3(0, 0.54, -0.76), TEAL)
+	b.cyl(0.37, 0.37, 0.08, Vector3(0, 0.85, -0.76), TEAL, Vector3(90, 0, 0), 16)
+	b.box(Vector3(0.03, 0.88, 0.1), Vector3(0, 0.64, -0.8), Color("1f7a77"))
+	for y in [0.4, 0.7]:
+		b.box(Vector3(0.7, 0.03, 0.02), Vector3(0, y, -0.81), Color("1f7a77"))
+	b.sphere(0.035, Vector3(0.09, 0.54, -0.82), GOLD)
+	b.sphere(0.035, Vector3(-0.09, 0.54, -0.82), GOLD)
+	b.box(Vector3(1.1, 0.08, 0.28), Vector3(0, 0.2, -0.92), STONE)
+	b.box(Vector3(1.3, 0.08, 0.3), Vector3(0, 0.12, -1.08), STONE_DARK)
 	# 옆면 창 하나씩, 후면 창 두 개
 	for sx in [-1.0, 1.0]:
-		b.box(Vector3(0.06, 0.32, 0.24), Vector3(1.16 * sx, 0.75, 0.35), GLASS_DARK)
+		b.box(Vector3(0.06, 0.34, 0.26), Vector3(1.16 * sx, 0.8, 0.35), GLASS_DARK)
+		b.box(Vector3(0.07, 0.05, 0.32), Vector3(1.17 * sx, 0.6, 0.35), IVORY_DARK)
 	for x in [-0.5, 0.5]:
-		b.box(Vector3(0.24, 0.32, 0.06), Vector3(x, 0.75, 1.16), GLASS_DARK)
+		b.box(Vector3(0.26, 0.34, 0.06), Vector3(x, 0.8, 1.16), GLASS_DARK)
+		b.box(Vector3(0.32, 0.05, 0.07), Vector3(x, 0.6, 1.17), IVORY_DARK)
 	# 지붕 뒤 중앙 작은 깃대(중앙 탑 아님)
-	b.cyl(0.025, 0.025, 0.8, Vector3(0, 1.65, 0.85), WOOD_DARK)
-	b.box(Vector3(0.36, 0.22, 0.02), Vector3(0.19, 1.92, 0.85), PURPLE)
+	b.cyl(0.025, 0.025, 0.8, Vector3(0, 1.69, 0.85), WOOD_DARK)
+	b.box(Vector3(0.36, 0.22, 0.02), Vector3(0.19, 1.96, 0.85), PURPLE)
 	r.add_child(b.instance("Body"))
 	return r
 
 
 # ------------------------------------------------------------------ 고블린 주택 (2×2)
-static func house() -> Node3D:
+## 꾸미기: roof_color, roof_shape(gable/hip/steep), window(square/round/arch), chimney(back_right/back_left/none), flag
+static func house(deco: Dictionary = {}) -> Node3D:
+	var d := Decor.sanitize("house", deco)
+	var roof_c := Decor.color("house", d, "roof_color", PURPLE)
 	var r := _root("House")
 	var b := MeshBatch.new()
-	b.box(Vector3(1.72, 0.1, 1.6), Vector3(0, 0.05, 0), STONE)
-	b.box(Vector3(1.4, 0.85, 1.25), Vector3(0, 0.525, 0.05), CREAM)
-	# 목재 프레임
+	# 돌 기단과 벽
+	b.box(Vector3(1.74, 0.12, 1.62), Vector3(0, 0.06, 0), STONE)
+	b.box(Vector3(1.46, 0.14, 1.31), Vector3(0, 0.17, 0.05), STONE_DARK)
+	b.box(Vector3(1.4, 0.78, 1.25), Vector3(0, 0.62, 0.05), CREAM)
+	# 목재 프레임(모서리 기둥·윗보)
 	for sx in [-1.0, 1.0]:
 		for sz in [-1.0, 1.0]:
-			b.box(Vector3(0.11, 0.88, 0.11), Vector3(0.7 * sx, 0.54, 0.05 + 0.625 * sz), WOOD)
-	b.box(Vector3(1.5, 0.09, 0.1), Vector3(0, 0.96, -0.58), WOOD)
-	b.box(Vector3(1.5, 0.09, 0.1), Vector3(0, 0.96, 0.68), WOOD)
-	b.box(Vector3(0.1, 0.09, 1.35), Vector3(0.71, 0.96, 0.05), WOOD)
-	b.box(Vector3(0.1, 0.09, 1.35), Vector3(-0.71, 0.96, 0.05), WOOD)
-	# 보라색 맞배지붕(용마루가 앞뒤 방향, 박공이 정면)
-	b.prism(Vector3(1.38, 0.55, 1.25), Vector3(0, 1.27, 0.05), CREAM)
-	b.prism(Vector3(1.8, 0.7, 1.55), Vector3(0, 1.33, 0.05), PURPLE)
-	b.box(Vector3(0.08, 0.06, 1.6), Vector3(0, 1.69, 0.05), PURPLE_DARK)
-	# 박공의 둥근 다락창
-	b.cyl(0.11, 0.11, 0.04, Vector3(0, 1.2, -0.58), WOOD_DARK, Vector3(90, 0, 0), 14)
-	b.cyl(0.08, 0.08, 0.05, Vector3(0, 1.2, -0.59), GLASS, Vector3(90, 0, 0), 14)
+			b.box(Vector3(0.11, 0.84, 0.11), Vector3(0.7 * sx, 0.6, 0.05 + 0.625 * sz), WOOD)
+	b.box(Vector3(1.5, TRIM, 0.1), Vector3(0, 0.98, -0.58), WOOD)
+	b.box(Vector3(1.5, TRIM, 0.1), Vector3(0, 0.98, 0.68), WOOD)
+	b.box(Vector3(0.1, TRIM, 1.35), Vector3(0.71, 0.98, 0.05), WOOD)
+	b.box(Vector3(0.1, TRIM, 1.35), Vector3(-0.71, 0.98, 0.05), WOOD)
+	var roof_top := _house_roof(b, String(d.roof_shape), roof_c)
 	# 정면 중앙 아치형 나무문과 낮은 계단
-	b.box(Vector3(0.36, 0.42, 0.05), Vector3(0, 0.33, -0.58), WOOD_DARK)
-	b.cyl(0.18, 0.18, 0.05, Vector3(0, 0.54, -0.58), WOOD_DARK, Vector3(90, 0, 0), 14)
-	b.sphere(0.025, Vector3(0.1, 0.35, -0.62), GOLD)
-	b.box(Vector3(0.6, 0.08, 0.22), Vector3(0, 0.12, -0.72), STONE_DARK)
-	# 문 양옆 창문
+	b.box(Vector3(0.44, 0.5, 0.04), Vector3(0, 0.45, -0.575), WOOD)
+	b.box(Vector3(0.36, 0.42, 0.05), Vector3(0, 0.43, -0.58), WOOD_DARK)
+	b.cyl(0.18, 0.18, 0.05, Vector3(0, 0.64, -0.58), WOOD_DARK, Vector3(90, 0, 0), 14)
+	b.box(Vector3(0.02, 0.4, 0.06), Vector3(0, 0.45, -0.6), WOOD)
+	b.sphere(0.025, Vector3(0.1, 0.43, -0.62), GOLD)
+	b.box(Vector3(0.62, 0.08, 0.22), Vector3(0, 0.2, -0.72), STONE_DARK)
+	b.box(Vector3(0.5, 0.06, 0.16), Vector3(0, 0.27, -0.66), STONE)
+	# 창문: 문 양옆 2, 오른쪽 면(정면을 보는 사람의 오른쪽 = -X) 2, 후면 1
+	var wk := String(d.window)
 	for x in [-0.45, 0.45]:
-		b.box(Vector3(0.28, 0.28, 0.04), Vector3(x, 0.6, -0.58), WOOD)
-		b.box(Vector3(0.2, 0.2, 0.05), Vector3(x, 0.6, -0.59), GLASS)
-	# 오른쪽 면(정면을 바라보는 사람의 오른쪽 = -X) 창 두 개
+		_window(b, wk, Vector3(x, 0.66, -0.58), 0.0)
 	for z in [-0.25, 0.35]:
-		b.box(Vector3(0.04, 0.26, 0.24), Vector3(-0.71, 0.6, z), WOOD)
-		b.box(Vector3(0.05, 0.19, 0.17), Vector3(-0.72, 0.6, z), GLASS)
-	# 후면 창 하나
-	b.box(Vector3(0.26, 0.26, 0.04), Vector3(0, 0.6, 0.69), WOOD)
-	b.box(Vector3(0.19, 0.19, 0.05), Vector3(0, 0.6, 0.7), GLASS)
-	# 굴뚝: 뒤쪽 오른쪽 하나(정면에서 보면 오른쪽, 후면에서 보면 왼쪽)
-	b.box(Vector3(0.24, 0.6, 0.24), Vector3(-0.42, 1.5, 0.42), STONE)
-	b.box(Vector3(0.3, 0.08, 0.3), Vector3(-0.42, 1.82, 0.42), STONE_DARK)
+		_window(b, wk, Vector3(-0.71, 0.66, z), 90.0, 0.2)
+	_window(b, wk, Vector3(0, 0.66, 0.69), 180.0, 0.2)
+	# 굴뚝: 기본은 뒤쪽 오른쪽(정면에서 보면 오른쪽, 후면에서 보면 왼쪽)
+	if d.chimney != "none":
+		var cx := -0.42 if d.chimney == "back_right" else 0.42
+		var h := roof_top - 0.95
+		b.box(Vector3(0.24, h, 0.24), Vector3(cx, 1.0 + h * 0.5, 0.42), STONE)
+		b.box(Vector3(0.3, 0.08, 0.3), Vector3(cx, 1.0 + h + 0.04, 0.42), STONE_DARK)
+	if d.flag != "none":
+		_pennant(b, String(d.flag), Vector3(0.0, roof_top - 0.04, -0.15), roof_c.darkened(0.15))
 	r.add_child(b.instance("Body"))
 	return r
 
 
+## 지붕 부품. 반환값 = 지붕 꼭대기 높이(굴뚝·깃발 높이 맞춤)
+static func _house_roof(b: MeshBatch, shape: String, c: Color) -> float:
+	var base := 1.02
+	match shape:
+		"hip":
+			b.quad_frustum(Vector2(0.92, 0.8), 0.18, 0.62, Vector3(0, base + 0.31, 0.05), c)
+			b.box(Vector3(0.32, 0.05, 0.28), Vector3(0, base + 0.63, 0.05), c.darkened(0.2))
+			b.box(Vector3(1.86, 0.05, 1.62), Vector3(0, base + 0.02, 0.05), c.darkened(0.25))
+			return base + 0.64
+		"steep":
+			b.prism(Vector3(1.38, 0.95, 1.25), Vector3(0, base + 0.42, 0.05), CREAM)
+			b.prism(Vector3(1.72, 1.08, 1.5), Vector3(0, base + 0.5, 0.05), c)
+			b.box(Vector3(0.07, 0.07, 1.56), Vector3(0, base + 1.04, 0.05), c.darkened(0.25))
+			b.cyl(0.09, 0.09, 0.04, Vector3(0, base + 0.36, -0.58), WOOD_DARK, Vector3(90, 0, 0), 14)
+			b.cyl(0.065, 0.065, 0.05, Vector3(0, base + 0.36, -0.59), GLASS, Vector3(90, 0, 0), 14)
+			return base + 1.05
+		_:
+			# 맞배(용마루가 앞뒤, 박공이 정면)
+			b.prism(Vector3(1.38, 0.55, 1.25), Vector3(0, base + 0.25, 0.05), CREAM)
+			b.prism(Vector3(1.8, 0.7, 1.55), Vector3(0, base + 0.31, 0.05), c)
+			b.box(Vector3(0.08, 0.06, 1.6), Vector3(0, base + 0.67, 0.05), c.darkened(0.25))
+			# 지붕 끝선(처마 그림자 띠)
+			for sx in [-1.0, 1.0]:
+				b.box(Vector3(0.05, 0.05, 1.58), Vector3(0.9 * sx, base - 0.02, 0.05), c.darkened(0.3))
+			# 박공의 둥근 다락창
+			b.cyl(0.11, 0.11, 0.04, Vector3(0, base + 0.18, -0.58), WOOD_DARK, Vector3(90, 0, 0), 14)
+			b.cyl(0.08, 0.08, 0.05, Vector3(0, base + 0.18, -0.59), GLASS, Vector3(90, 0, 0), 14)
+			return base + 0.68
+
+
 # ------------------------------------------------------------------ 벌목소 (2×2)
-static func lumber_camp() -> Node3D:
+static func lumber_camp(deco: Dictionary = {}) -> Node3D:
+	var d := Decor.sanitize("lumber_camp", deco)
+	var roof_c := Decor.color("lumber_camp", d, "roof_color", PURPLE)
 	var r := _root("LumberCamp")
 	var b := MeshBatch.new()
+	b.box(Vector3(1.8, 0.04, 1.6), Vector3(0, 0.02, 0), Color("a8834f"))
 	# 네 목조 기둥과 돌 받침. 뒤가 높고 앞이 낮다.
 	for sx in [-1.0, 1.0]:
 		for sz in [-1.0, 1.0]:
@@ -164,31 +259,42 @@ static func lumber_camp() -> Node3D:
 			var p := Vector3(0.74 * sx, 0, 0.6 * sz)
 			b.box(Vector3(0.24, 0.14, 0.24), p + Vector3(0, 0.07, 0), STONE)
 			b.box(Vector3(0.13, h, 0.13), p + Vector3(0, 0.14 + h * 0.5, 0), WOOD)
+	# 앞뒤 보
+	b.box(Vector3(1.62, TRIM, 0.1), Vector3(0, 1.09, -0.6), WOOD_DARK)
+	b.box(Vector3(1.62, TRIM, 0.1), Vector3(0, 1.44, 0.6), WOOD_DARK)
 	var ang := rad_to_deg(atan2(1.3 - 0.95, 1.2))
-	b.box(Vector3(1.9, 0.08, 1.62), Vector3(0, 0.14 + 1.125 + 0.06, 0), PURPLE, Vector3(-ang, 0, 0))
-	b.box(Vector3(1.9, 0.05, 0.1), Vector3(0, 0.14 + 0.95 + 0.0, -0.8), PURPLE_DARK, Vector3(-ang, 0, 0))
+	b.box(Vector3(1.9, 0.08, 1.62), Vector3(0, 0.14 + 1.125 + 0.06, 0), roof_c, Vector3(-ang, 0, 0))
+	for i in 5:
+		b.box(Vector3(0.04, 0.03, 1.6), Vector3(-0.76 + i * 0.38, 0.14 + 1.125 + 0.115, 0), roof_c.darkened(0.2), Vector3(-ang, 0, 0))
+	b.box(Vector3(1.9, 0.05, 0.1), Vector3(0, 0.14 + 0.95, -0.8), roof_c.darkened(0.3), Vector3(-ang, 0, 0))
 	# 뒤쪽에만 낮은 판자 벽
 	for i in 3:
 		b.box(Vector3(1.48, 0.16, 0.05), Vector3(0, 0.25 + i * 0.18, 0.62), WOOD_DARK if i % 2 == 0 else WOOD)
-	# 정면 기준 왼쪽(+X) 작업대
+	# 정면 기준 왼쪽(+X) 작업대(톱·도끼)
 	b.box(Vector3(0.55, 0.08, 0.36), Vector3(0.38, 0.48, -0.05), WOOD)
 	for lx in [0.15, 0.6]:
 		for lz in [-0.18, 0.1]:
 			b.box(Vector3(0.06, 0.42, 0.06), Vector3(lx, 0.23, lz), WOOD_DARK)
 	b.box(Vector3(0.22, 0.04, 0.05), Vector3(0.4, 0.54, -0.1), SILVER_DARK, Vector3(0, 30, 0))
 	b.box(Vector3(0.05, 0.05, 0.2), Vector3(0.3, 0.55, 0.05), WOOD_DARK)
+	b.box(Vector3(0.04, 0.3, 0.04), Vector3(0.62, 0.2, -0.32), WOOD_DARK, Vector3(0, 0, 12))
+	b.box(Vector3(0.12, 0.08, 0.03), Vector3(0.66, 0.36, -0.32), SILVER_DARK, Vector3(0, 0, 12))
 	# 오른쪽(-X) 통나무 세 개: 아래 둘·위 하나, 길이 방향은 앞뒤, 밝은 단면이 정면
 	var logs := [Vector3(-0.62, 0.14, -0.1), Vector3(-0.34, 0.14, -0.1), Vector3(-0.48, 0.38, -0.1)]
 	for p in logs:
 		b.cyl(0.13, 0.13, 0.75, p, WOOD_DARK, Vector3(90, 0, 0))
 		b.cyl(0.11, 0.11, 0.02, p + Vector3(0, 0, -0.38), WOOD_LIGHT, Vector3(90, 0, 0))
+		b.cyl(0.05, 0.05, 0.025, p + Vector3(0, 0, -0.385), WOOD, Vector3(90, 0, 0), 8)
 	r.add_child(b.instance("Body"))
 	return r
 
 
 # ------------------------------------------------------------------ 방어탑 (2×2)
 ## 자식: Body(고정), Turret(석궁+조작자, -Z 가 조준 방향), Badge(레벨 표시)
-static func defense_tower() -> Node3D:
+## 꾸미기: flag_color, emblem
+static func defense_tower(deco: Dictionary = {}) -> Node3D:
+	var d := Decor.sanitize("defense_tower", deco)
+	var flag_c := Decor.color("defense_tower", d, "flag_color", PURPLE)
 	var r := _root("DefenseTower")
 	var b := MeshBatch.new()
 	var top := 1.45
@@ -197,12 +303,15 @@ static func defense_tower() -> Node3D:
 			var p := Vector3(0.6 * sx, 0, 0.6 * sz)
 			b.box(Vector3(0.32, 0.18, 0.32), p + Vector3(0, 0.09, 0), STONE)
 			b.box(Vector3(0.2, top + 0.45, 0.2), p + Vector3(0, 0.18 + (top + 0.45) * 0.5 - 0.1, 0), WOOD)
-	# 측면 가새
+			b.box(Vector3(0.24, 0.06, 0.24), p + Vector3(0, top + 0.53, 0), WOOD_DARK)
+	# 측면·정면 가새
 	for sx in [-1.0, 1.0]:
 		b.box(Vector3(0.07, 1.25, 0.08), Vector3(0.6 * sx, 0.8, 0), WOOD_DARK, Vector3(52, 0, 0))
 	b.box(Vector3(1.0, 0.08, 0.07), Vector3(0, 0.8, -0.6), WOOD_DARK, Vector3(0, 0, 40))
-	# 지붕 없는 사각 발판
+	# 지붕 없는 사각 발판(판자 줄)
 	b.box(Vector3(1.5, 0.12, 1.5), Vector3(0, top, 0), WOOD)
+	for i in 4:
+		b.box(Vector3(1.48, 0.01, 0.02), Vector3(0, top + 0.065, -0.54 + i * 0.36), WOOD_DARK)
 	# 난간: 후면 중앙은 사다리 출입구로 비움
 	b.box(Vector3(1.4, 0.1, 0.08), Vector3(0, top + 0.32, -0.66), WOOD)
 	b.box(Vector3(0.08, 0.1, 1.4), Vector3(0.66, top + 0.32, 0), WOOD)
@@ -210,12 +319,12 @@ static func defense_tower() -> Node3D:
 	b.box(Vector3(0.42, 0.1, 0.08), Vector3(0.45, top + 0.32, 0.66), WOOD)
 	b.box(Vector3(0.42, 0.1, 0.08), Vector3(-0.45, top + 0.32, 0.66), WOOD)
 	b.box(Vector3(1.4, 0.06, 0.06), Vector3(0, top + 0.15, -0.66), WOOD_DARK)
-	# 정면 난간의 보라색 깃발
-	b.box(Vector3(0.5, 0.62, 0.03), Vector3(0, top - 0.05, -0.72), PURPLE)
-	b.prism(Vector3(0.5, 0.14, 0.03), Vector3(0, top - 0.43, -0.72), PURPLE, Vector3(0, 0, 180))
+	# 정면 난간의 깃발(색·문양은 꾸미기)
+	b.box(Vector3(0.5, 0.62, 0.03), Vector3(0, top - 0.05, -0.72), flag_c)
+	b.prism(Vector3(0.5, 0.14, 0.03), Vector3(0, top - 0.43, -0.72), flag_c, Vector3(0, 0, 180))
 	b.box(Vector3(0.1, 0.06, 0.05), Vector3(0.2, top + 0.27, -0.72), SILVER_DARK)
 	b.box(Vector3(0.1, 0.06, 0.05), Vector3(-0.2, top + 0.27, -0.72), SILVER_DARK)
-	_emblem(b, Vector3(0, top, -0.745), -1.0, 1.3)
+	_emblem(b, String(d.emblem), Vector3(0, top, -0.745), -1.0, 1.3)
 	# 후면 중앙 사다리(난간 개구부와 연결)
 	for sx in [-1.0, 1.0]:
 		b.box(Vector3(0.06, top + 0.35, 0.06), Vector3(0.17 * sx, (top + 0.35) * 0.5, 0.86), WOOD, Vector3(-8, 0, 0))
@@ -258,6 +367,38 @@ static func defense_tower() -> Node3D:
 	badge.position = Vector3(0.55, top + 0.95, 0)
 	badge.visible = false
 	r.add_child(badge)
+	return r
+
+
+# ------------------------------------------------------------------ 공사 비계(점유 영역 크기)
+## 모서리 기둥·가로 발판·대각 가새·바닥 자재. 건물 몸체가 진행률만큼 올라오는 동안 둘러싼다.
+static func scaffold(fp: Vector2i) -> Node3D:
+	var r := _root("Scaffold")
+	var b := MeshBatch.new()
+	var hx := fp.x * 0.5 - 0.12
+	var hz := fp.y * 0.5 - 0.12
+	var h := 1.5 if fp.x <= 2 else 2.0
+	for sx in [-1.0, 1.0]:
+		for sz in [-1.0, 1.0]:
+			b.box(Vector3(0.07, h, 0.07), Vector3(hx * sx, h * 0.5, hz * sz), WOOD_LIGHT)
+	for y in [0.55, 1.1, h - 0.05]:
+		b.box(Vector3(hx * 2 + 0.1, 0.05, 0.12), Vector3(0, y, -hz), WOOD)
+		b.box(Vector3(hx * 2 + 0.1, 0.05, 0.12), Vector3(0, y, hz), WOOD)
+		b.box(Vector3(0.12, 0.05, hz * 2 + 0.1), Vector3(-hx, y, 0), WOOD)
+		b.box(Vector3(0.12, 0.05, hz * 2 + 0.1), Vector3(hx, y, 0), WOOD)
+	var diag := rad_to_deg(atan2(0.55, hx * 2))
+	b.box(Vector3(hx * 2.2, 0.035, 0.035), Vector3(0, 0.83, -hz - 0.02), WOOD_DARK, Vector3(0, 0, diag))
+	b.box(Vector3(0.035, 0.035, hz * 2.2), Vector3(hx + 0.02, 0.83, 0), WOOD_DARK, Vector3(diag, 0, 0))
+	# 바닥 자재: 판자 더미·돌
+	b.box(Vector3(0.5, 0.08, 0.18), Vector3(hx - 0.1, 0.04, -hz - 0.25), WOOD_LIGHT)
+	b.box(Vector3(0.5, 0.08, 0.18), Vector3(hx - 0.12, 0.12, -hz - 0.25), WOOD)
+	b.box(Vector3(0.18, 0.14, 0.18), Vector3(-hx + 0.05, 0.07, -hz - 0.22), STONE)
+	# 바닥 테두리(공사 표시)
+	b.box(Vector3(fp.x - 0.05, 0.02, 0.06), Vector3(0, 0.01, -fp.y * 0.5 + 0.03), Color("e8b84a"))
+	b.box(Vector3(fp.x - 0.05, 0.02, 0.06), Vector3(0, 0.01, fp.y * 0.5 - 0.03), Color("e8b84a"))
+	b.box(Vector3(0.06, 0.02, fp.y - 0.05), Vector3(-fp.x * 0.5 + 0.03, 0.01, 0), Color("e8b84a"))
+	b.box(Vector3(0.06, 0.02, fp.y - 0.05), Vector3(fp.x * 0.5 - 0.03, 0.01, 0), Color("e8b84a"))
+	r.add_child(b.instance("ScaffoldMesh"))
 	return r
 
 
