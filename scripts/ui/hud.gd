@@ -9,6 +9,10 @@ signal fence_pressed
 signal build_menu_closed
 signal move_pressed
 signal upgrade_pressed
+signal decor_pressed
+signal decor_option(part_id: String, option_id: String)
+signal decor_done
+signal decor_cancel
 signal info_closed
 signal edit_cancel
 signal edit_rotate
@@ -56,6 +60,10 @@ var info_title: Label
 var info_desc: Label
 var info_move: Button
 var info_upgrade: Button
+var info_decor: Button
+var decor_panel: PanelContainer
+var _decor_box: VBoxContainer
+var _decor_chips: Dictionary = {}     # part_id -> {option_id: Button}
 var edit_bar: PanelContainer
 var edit_icon: UiIcon
 var edit_title: Label
@@ -89,6 +97,7 @@ func _ready() -> void:
 	root.add_child(frame)
 	_build_top()
 	_build_bottom()
+	_build_decor_panel()
 	_build_overlay()
 	get_viewport().size_changed.connect(_apply_safe_area)
 	_apply_safe_area()
@@ -409,6 +418,9 @@ func _build_bottom() -> void:
 	info_upgrade = _button("강화 · 목재 60", "green", "tower")
 	info_upgrade.pressed.connect(func(): upgrade_pressed.emit())
 	ihb.add_child(info_upgrade)
+	info_decor = _button("꾸미기", "ivory", "house")
+	info_decor.pressed.connect(func(): decor_pressed.emit())
+	ihb.add_child(info_decor)
 	var iclose := _button("", "ivory", "x", BTN_H)
 	iclose.pressed.connect(func(): info_closed.emit())
 	ihb.add_child(iclose)
@@ -449,6 +461,102 @@ func _build_bottom() -> void:
 	edit_bar.add_child(ehb)
 	_anchor(edit_bar, Control.PRESET_CENTER_BOTTOM, Control.GROW_DIRECTION_BOTH, Control.GROW_DIRECTION_BEGIN)
 	edit_bar.visible = false
+
+
+# ------------------------------------------------------------------ 꾸미기 패널(오른쪽)
+
+func _build_decor_panel() -> void:
+	decor_panel = _panel()
+	_decor_box = VBoxContainer.new()
+	_decor_box.add_theme_constant_override("separation", 8)
+	decor_panel.add_child(_decor_box)
+	_anchor(decor_panel, Control.PRESET_CENTER_RIGHT, Control.GROW_DIRECTION_BEGIN, Control.GROW_DIRECTION_BOTH)
+	decor_panel.visible = false
+
+
+func show_decor(type: String, title: String, deco: Dictionary) -> void:
+	for c in _decor_box.get_children():
+		_decor_box.remove_child(c)
+		c.queue_free()
+	_decor_chips.clear()
+	var head := _label("%s 꾸미기" % title, 28)
+	_decor_box.add_child(head)
+	var sub := _label("외형만 바뀌어요 · 무료", 19, C_TEXT_SOFT, true)
+	_decor_box.add_child(sub)
+	for p in Decor.parts(type):
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		var l := _label(String(p.label), 22)
+		l.custom_minimum_size = Vector2(104, 0)
+		l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(l)
+		var chips := {}
+		for o in p.options:
+			var chip := _chip(String(o.label), Color(String(o.color)) if o.has("color") else Color(0, 0, 0, 0))
+			var pid := String(p.id)
+			var oid := String(o.id)
+			chip.pressed.connect(func(): decor_option.emit(pid, oid))
+			row.add_child(chip)
+			chips[oid] = chip
+		_decor_chips[String(p.id)] = chips
+		_decor_box.add_child(row)
+	var hb := HBoxContainer.new()
+	hb.alignment = BoxContainer.ALIGNMENT_END
+	hb.add_theme_constant_override("separation", 12)
+	var cancel := _button("취소", "ivory", "x")
+	cancel.pressed.connect(func(): decor_cancel.emit())
+	hb.add_child(cancel)
+	var done := _button("완료", "green", "check")
+	done.pressed.connect(func(): decor_done.emit())
+	hb.add_child(done)
+	_decor_box.add_child(hb)
+	set_decor_selection(deco)
+	decor_panel.visible = true
+	decor_panel.reset_size()
+	decor_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT, Control.PRESET_MODE_MINSIZE)
+
+
+## 선택한 부품은 초록 테두리·굵은 표시
+func set_decor_selection(deco: Dictionary) -> void:
+	for pid in _decor_chips:
+		for oid in _decor_chips[pid]:
+			var chip: Button = _decor_chips[pid][oid]
+			var on: bool = String(deco.get(pid, "")) == oid
+			var st := _style(Color("e6f6e2") if on else Color("fffaf0"), C_GREEN if on else C_IVORY_EDGE, 14, 4 if on else 2, false)
+			st.content_margin_left = 10
+			st.content_margin_right = 10
+			chip.add_theme_stylebox_override("normal", st)
+			chip.add_theme_stylebox_override("hover", st)
+			chip.add_theme_stylebox_override("pressed", st)
+
+
+func hide_decor() -> void:
+	decor_panel.visible = false
+
+
+func _chip(text: String, swatch: Color) -> Button:
+	var b := Button.new()
+	b.focus_mode = Control.FOCUS_NONE
+	b.custom_minimum_size = Vector2(84, 64)
+	_apply_variant(b, "ivory")
+	var hb := HBoxContainer.new()
+	hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hb.alignment = BoxContainer.ALIGNMENT_CENTER
+	hb.set_anchors_preset(Control.PRESET_FULL_RECT)
+	hb.add_theme_constant_override("separation", 6)
+	if swatch.a > 0.0:
+		var sw := ColorRect.new()
+		sw.color = swatch
+		sw.custom_minimum_size = Vector2(20, 20)
+		sw.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		sw.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		hb.add_child(sw)
+	var l := _label(text, 21)
+	hb.add_child(l)
+	b.add_child(hb)
+	var w := _font_bold.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 21).x + (26 if swatch.a > 0.0 else 0) + 26
+	b.custom_minimum_size.x = maxf(84, w)
+	return b
 
 
 # ------------------------------------------------------------------ 가운데 덮개(일시정지·결과·안내)
@@ -676,6 +784,7 @@ func show_info(b: Dictionary, state: GameState) -> void:
 	info_desc.text = desc
 	info_move.visible = bool(def.get("movable", false))
 	info_upgrade.visible = b.type == "defense_tower"
+	info_decor.visible = Decor.has_parts(b.type)
 	if b.type == "defense_tower":
 		var up := state.check_upgrade(b.id)
 		var cost := state.upgrade_cost(b)
@@ -726,7 +835,7 @@ func hide_edit() -> void:
 func is_over_ui(pos: Vector2) -> bool:
 	if overlay.visible:
 		return true
-	for c in [raid_panel, battle_panel, pause_btn, menu_btn, build_btn, build_menu, info_panel, edit_bar]:
+	for c in [raid_panel, battle_panel, pause_btn, menu_btn, build_btn, build_menu, info_panel, edit_bar, decor_panel]:
 		var ctl: Control = c
 		if ctl.is_visible_in_tree() and ctl.get_global_rect().has_point(pos):
 			return true

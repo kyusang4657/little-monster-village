@@ -179,6 +179,7 @@ func _sequence() -> void:
 	check(s.mode == GameState.MODE_VILLAGE and not s.raid_ready and s.ready_stage == 2, "승리 후 다음 예고 대기")
 
 	await _construction_checks(s)
+	await _decor_checks(s)
 
 	_lines.append("RESULT: %d passed, %d failed" % [_pass, _fail])
 	print("\n".join(_lines))
@@ -230,3 +231,27 @@ func _construction_checks(s: GameState) -> void:
 		if w.target != "" or w.state == WorkerCrew.STATE_WORK:
 			home = false
 	check(home, "완성 후 일꾼 복귀")
+
+
+func _decor_checks(s: GameState) -> void:
+	var before: Dictionary = s.get_building("house_01").deco.duplicate()
+	main._begin_decor("house_01")
+	await _wait(2)
+	check(main.hud.decor_panel.visible and s.mode == GameState.MODE_BUILD, "꾸미기 패널 열림")
+	main._on_decor_option("roof_color", "red")
+	await _wait(2)
+	check(s.get_building("house_01").deco == before, "미리보기는 확정 전 저장 안 됨")
+	check(String(main.world.building_node("house_01").get_meta("deco_key")).contains("roof_color=red"), "미리보기 모델 교체")
+	main._cancel_edit()
+	await _wait(3)
+	check(String(main.world.building_node("house_01").get_meta("deco_key")) == Decor.key(before), "취소 시 원래 외형")
+	main._begin_decor("house_01")
+	main._on_decor_option("window", "arch")
+	main._confirm_edit()
+	await _wait(2)
+	var snap := GameState.new()
+	SaveManager.new(main.saver.dir).load_into(snap)
+	check(snap.get_building("house_01").deco.window == "arch", "완료 시 건물별 저장")
+	main._begin_decor("castle_01")
+	await _wait(1)
+	check(main.edit.is_empty(), "성은 꾸미기 없음")

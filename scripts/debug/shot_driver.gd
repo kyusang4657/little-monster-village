@@ -14,6 +14,8 @@ func run(p_main, p_out: String, scenario: String = "full") -> void:
 	match scenario:
 		"construction":
 			_construction()
+		"decor":
+			_decor()
 		_:
 			_sequence()
 
@@ -216,3 +218,42 @@ func _sequence() -> void:
 	f.store_string("\n".join(log_lines))
 	f.close()
 	get_tree().quit()
+
+
+func _decor() -> void:
+	await _wait(20)
+	var s: GameState = main.state
+	main._select("house_01")
+	await _wait(4)
+	await _shot("30-house-info-decor-button")
+	main._begin_decor("house_01")
+	await _wait(4)
+	await _shot("31-decor-panel-default")
+	for pair in [["roof_color", "teal"], ["roof_shape", "steep"], ["window", "round"], ["chimney", "back_left"], ["flag", "star"]]:
+		main._on_decor_option(pair[0], pair[1])
+		await _wait(2)
+	await _shot("32-decor-preview")
+	main._confirm_edit()
+	await _wait(4)
+	_log("저장된 꾸미기: %s" % str(s.get_building("house_01").deco))
+	main._begin_decor("house_02")
+	await _wait(2)
+	for pair in [["roof_color", "red"], ["roof_shape", "hip"], ["window", "arch"], ["flag", "moon"]]:
+		main._on_decor_option(pair[0], pair[1])
+		await _wait(2)
+	main._confirm_edit()
+	main._begin_decor("tower_02")
+	await _wait(2)
+	main._on_decor_option("flag_color", "teal")
+	main._on_decor_option("emblem", "moon")
+	await _wait(3)
+	await _shot("33-decor-tower")
+	main._confirm_edit()
+	main._begin_decor("lumber_01")
+	main._on_decor_option("roof_color", "green")
+	main._confirm_edit()
+	await _wait(2)
+	main.world.reset_camera()
+	await _wait(4)
+	await _shot("34-decorated-village")
+	_finish_log()

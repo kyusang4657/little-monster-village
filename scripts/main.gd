@@ -90,6 +90,10 @@ func _connect_hud() -> void:
 	hud.fence_pressed.connect(_begin_fence)
 	hud.move_pressed.connect(func(): _begin_move(selected_id))
 	hud.upgrade_pressed.connect(_upgrade_selected)
+	hud.decor_pressed.connect(func(): _begin_decor(selected_id))
+	hud.decor_option.connect(_on_decor_option)
+	hud.decor_done.connect(_confirm_edit)
+	hud.decor_cancel.connect(_cancel_edit)
 	hud.info_closed.connect(_deselect)
 	hud.edit_cancel.connect(_cancel_edit)
 	hud.edit_rotate.connect(_rotate_edit)
@@ -256,6 +260,40 @@ func _begin_fence() -> void:
 	_update_edit()
 
 
+## 꾸미기: 작업 사본을 미리보고 '완료'에서 한 번에 저장(무료). '취소'는 원래 외형으로.
+func _begin_decor(id: String) -> void:
+	if not _can_edit():
+		return
+	var b := state.get_building(id)
+	if b.is_empty() or not Decor.has_parts(b.type):
+		return
+	_deselect()
+	hud.hide_build_menu()
+	edit = {kind = "deco", id = id, type = b.type, deco = Decor.sanitize(b.type, b.get("deco", {})), was_ready = state.raid_ready}
+	state.mode = GameState.MODE_BUILD
+	hud.set_village_controls(false)
+	hud.show_decor(b.type, GameConfig.type_label(b.type), edit.deco)
+	# 패널이 오른쪽을 가리므로 건물을 화면 왼쪽 가운데로 옮겨 보여 준다
+	var vp := get_viewport().get_visible_rect().size
+	var c := WorldView.building_center(b.type, b.x, b.z)
+	world.pan_by_screen(world.camera.unproject_position(c), Vector2(vp.x * 0.3, vp.y * 0.52))
+	world.show_selection(b)
+
+
+func _on_decor_option(part_id: String, option_id: String) -> void:
+	if edit.is_empty() or edit.kind != "deco":
+		return
+	edit.deco[part_id] = option_id
+	edit.deco = Decor.sanitize(edit.type, edit.deco)
+	hud.set_decor_selection(edit.deco)
+	var preview := state.get_building(edit.id).duplicate()
+	preview.deco = edit.deco
+	var list: Array = []
+	for b in state.buildings:
+		list.append(preview if b.id == edit.id else b)
+	world.sync_buildings(list)
+
+
 func _rotate_edit() -> void:
 	if edit.is_empty() or edit.kind == "fence":
 		return
@@ -326,6 +364,10 @@ func _confirm_edit() -> void:
 			r = state.commit_fences(edit.add, edit.remove)
 			if r.ok:
 				hud.toast("울타리를 바꿨어요" + (" · 목재 -%d" % int(r.cost) if int(r.cost) > 0 else ""))
+		"deco":
+			r = state.commit_decor(edit.id, edit.deco)
+			if r.ok:
+				hud.toast("새 모습으로 꾸몄어요")
 	if not r.ok:
 		hud.toast(String(r.reason))
 		_update_edit()
@@ -350,7 +392,9 @@ func _end_edit() -> void:
 	world.hide_footprint()
 	world.clear_fence_plan()
 	world.set_grid_visible(false)
+	world.show_selection({})
 	hud.hide_edit()
+	hud.hide_decor()
 	state.mode = state.idle_mode()
 	_sync_world()
 	_last_ui = ""
@@ -654,7 +698,7 @@ func _pointer_down(pos: Vector2) -> void:
 	_press_pos = pos
 	_last_pos = pos
 	_drag_kind = "pan"
-	if edit.is_empty():
+	if edit.is_empty() or edit.kind == "deco":
 		return
 	if edit.kind == "fence":
 		_drag_kind = "fence"
@@ -724,6 +768,8 @@ func _pointer_up(pos: Vector2) -> void:
 
 
 func _tap(pos: Vector2) -> void:
+	if not edit.is_empty() and edit.kind == "deco":
+		return
 	if not edit.is_empty():
 		if edit.kind == "fence":
 			_toggle_fence_at(pos)
