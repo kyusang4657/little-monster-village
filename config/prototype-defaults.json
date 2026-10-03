@@ -143,7 +143,38 @@
       "castle_hp_decreased",
       "enemy_removed"
     ],
-    "no_progress_behavior": "abort_to_prebattle_ready_without_reward_and_show_error"
+    "no_progress_behavior": "abort_to_prebattle_ready_without_reward_and_show_error",
+    "spread": {
+      "enabled": true,
+      "max_detour_cells": 4,
+      "slot_offsets": [
+        [
+          0,
+          0
+        ],
+        [
+          -0.26,
+          -0.18
+        ],
+        [
+          0.26,
+          -0.18
+        ],
+        [
+          0,
+          0.24
+        ],
+        [
+          -0.26,
+          0.22
+        ],
+        [
+          0.26,
+          0.22
+        ]
+      ]
+    },
+    "target_policy_note": "castle_only; 기사는 등장 순서대로 도달 가능한 공격 칸(최단+4칸 이내)에 나뉘어 배정되고, 칸 안에서도 자리를 나눠 선다"
   },
   "raids": {
     "first_ready_immediately": true,

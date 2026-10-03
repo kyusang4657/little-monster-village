@@ -592,7 +592,7 @@ func _clear_overlay() -> void:
 		c.queue_free()
 
 
-func _overlay(title: String, lines: Array, buttons: Array, icon: String = "", icon_color: Color = C_PURPLE, extra_rows: Array = []) -> void:
+func _overlay(title: String, lines: Array, buttons: Array, icon: String = "", icon_color: Color = C_PURPLE, extra_rows: Array = [], tips: Array = []) -> void:
 	_clear_overlay()
 	if icon != "":
 		var ic := UiIcon.new(icon, 72, icon_color)
@@ -607,6 +607,24 @@ func _overlay(title: String, lines: Array, buttons: Array, icon: String = "", ic
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		l.custom_minimum_size.x = 460
 		overlay_box.add_child(l)
+	if not tips.is_empty():
+		var tp := PanelContainer.new()
+		var tst := _style(Color("f3ecff"), Color("c9b4ef"), 14, 2, false)
+		tp.add_theme_stylebox_override("panel", tst)
+		var tvb := VBoxContainer.new()
+		tvb.add_theme_constant_override("separation", 4)
+		var th := HBoxContainer.new()
+		th.add_theme_constant_override("separation", 8)
+		th.add_child(UiIcon.new("shield", 26, C_PURPLE))
+		th.add_child(_label("다음 판 조언", 22, C_PURPLE_EDGE))
+		tvb.add_child(th)
+		for tip in tips:
+			var l := _label("· " + String(tip), 20, C_TEXT, true)
+			l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			l.custom_minimum_size.x = 520
+			tvb.add_child(l)
+		tp.add_child(tvb)
+		overlay_box.add_child(tp)
 	for row in extra_rows + [buttons]:
 		var hb := HBoxContainer.new()
 		hb.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -632,24 +650,24 @@ func show_pause() -> void:
 	_overlay("일시정지", ["전투가 멈춰 있어요.", "준비되면 계속하기를 눌러 주세요."], [["계속하기", "green", "play", func(): resume_pressed.emit()]], "pause", C_PURPLE)
 
 
-func show_result(won: bool, stage_label: String, reward: int, wanted: int, final_stage: bool, next_text: String) -> void:
+func show_result(won: bool, stage_label: String, reward: int, wanted: int, final_stage: bool, next_text: String, tips: Array = []) -> void:
+	var n := GameConfig.stage_count()
 	if won and final_stage:
-		_overlay("첫 시험 완료!", [
+		_overlay("모든 습격 완료!", [
 			"%s을 막아냈어요." % stage_label,
 			"목재 +%d%s" % [reward, "" if reward == wanted else " (창고 한도)"],
-			"세 번의 습격을 모두 이겼어요. 같은 단계로 다시 도전할 수 있어요.",
-		], [["3단계 다시 도전", "purple", "shield", func(): result_closed.emit("replay")], ["마을로", "green", "check", func(): result_closed.emit("village")]], "check")
+			"%d번의 습격을 모두 이겼어요. 마지막 단계에 다시 도전할 수 있어요." % n,
+		], [["%d단계 다시 도전" % n, "purple", "shield", func(): result_closed.emit("replay")], ["마을로", "green", "check", func(): result_closed.emit("village")]], "check", C_PURPLE, [], tips)
 	elif won:
 		_overlay("승리!", [
-			"%s을 막아냈어요." % stage_label,
-			"목재 +%d%s" % [reward, "" if reward == wanted else " (창고 한도)"],
+			"%s을 막아냈어요. 목재 +%d%s" % [stage_label, reward, "" if reward == wanted else " (창고 한도)"],
 			next_text,
-		], [["확인", "green", "check", func(): result_closed.emit("village")]], "check")
+		], [["확인", "green", "check", func(): result_closed.emit("village")]], "check", C_PURPLE, [], tips)
 	else:
 		_overlay("성이 함락됐어요", [
 			"마을은 그대로예요. 건물·울타리·목재는 잃지 않았어요.",
 			"배치를 바꾸거나 방어탑을 강화한 뒤 무료로 다시 도전해 보세요.",
-		], [["마을로", "ivory", "x", func(): result_closed.emit("village")], ["다시 도전", "green", "shield", func(): result_closed.emit("retry")]], "ban")
+		], [["마을로", "ivory", "x", func(): result_closed.emit("village")], ["다시 도전", "green", "shield", func(): result_closed.emit("retry")]], "ban", C_PURPLE, [], tips)
 
 
 func show_dialog(title: String, message: String) -> void:
@@ -658,6 +676,7 @@ func show_dialog(title: String, message: String) -> void:
 
 ## 메뉴의 현재 설정 표시용(main 이 갱신)
 var shadows_on := true
+var assist_on := false
 var fps_on := false
 var fps_label: Label
 
@@ -670,6 +689,7 @@ func _show_menu() -> void:
 	], "menu", C_PURPLE, [[
 		["그림자 끄기" if shadows_on else "그림자 켜기", "ivory", "menu", func(): hide_overlay(); menu_action.emit("shadows")],
 		["FPS 숨기기" if fps_on else "FPS 표시", "ivory", "clock", func(): hide_overlay(); menu_action.emit("fps")],
+		["도움 모드 끄기" if assist_on else "도움 모드 켜기", "ivory", "heart", func(): hide_overlay(); menu_action.emit("assist")],
 	]])
 
 
@@ -710,11 +730,13 @@ func set_wood(wood: int, cap: int, producing: bool) -> void:
 		wood_sub.text = "생산 멈춤"
 
 
-func set_raid(ready: bool, label: String, knights: int, timer: float, visible_flag: bool) -> void:
+func set_raid(ready: bool, label: String, knights: int, timer: float, visible_flag: bool, assist_pct: int = 0) -> void:
 	raid_panel.visible = visible_flag
 	if ready:
 		raid_icon.set_kind("shield", C_PURPLE)
 		raid_label.text = "%s · 기사 %d명 접근" % [label, knights]
+		if assist_pct > 0:
+			raid_label.text += " · 도움 모드 체력 -%d%%" % assist_pct
 		raid_btn.visible = true
 	else:
 		raid_icon.set_kind("clock", C_PURPLE)

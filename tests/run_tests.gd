@@ -17,7 +17,7 @@ func _init() -> void:
 		"test_battle_bolts_and_counts", "test_battle_stages_2_3_reachable", "test_watchdog_and_long_route",
 		"test_battle_pause_no_catchup",
 		"test_construction_basic", "test_construction_battle_and_rules", "test_save_v2_and_migration",
-		"test_decor", "test_assist_mode",
+		"test_decor", "test_assist_mode", "test_knight_spread", "test_advisor",
 	]
 	for t in tests:
 		var before := _fail
@@ -661,3 +661,56 @@ func test_assist_mode() -> void:
 	var bc := s.begin_battle()
 	s.resolve_battle(bc.battle_id, 1, true)
 	check(s.consecutive_losses == 0, "승리 시 초기화")
+
+
+func test_knight_spread() -> void:
+	var s := fresh()
+	var b := sim(s, 2)
+	check(b.lanes.size() >= 2, "공격 칸 여러 갈래 (%d)" % b.lanes.size())
+	var lanes := {}
+	for k in b.knights:
+		lanes[k.lane] = true
+	check(lanes.size() >= 2, "기사들이 여러 공격 칸으로 나뉨 (%d칸)" % lanes.size())
+	var finals := {}
+	var dup := false
+	for k in b.knights:
+		var last: Vector2 = k.waypoints[k.waypoints.size() - 1]
+		var key := "%.2f,%.2f" % [last.x, last.y]
+		if finals.has(key):
+			dup = true
+		finals[key] = true
+	check(not dup, "같은 지점에 겹쳐 서지 않음")
+	for k in b.knights:
+		var last: Vector2 = k.waypoints[k.waypoints.size() - 1]
+		var cell := Vector2i(int(floor(last.x)), int(floor(last.y)))
+		check(GridLogic.attack_cells(s.buildings, s.all_edges()).has(cell), "최종 자리는 공격 칸 안 %s" % cell)
+		check(k.waypoints.size() <= b.route.size() + 4, "우회는 최단+4칸 이내")
+	var c := sim(fresh(), 2)
+	var same := c.outcome == b.outcome and c.castle_hp == b.castle_hp and is_equal_approx(c.time, b.time)
+	for i in b.knights.size():
+		same = same and (b.knights[i].pos as Vector2).is_equal_approx(c.knights[i].pos)
+	check(same, "결정적(같은 입력 → 같은 결과)")
+
+
+func test_advisor() -> void:
+	var lose := fresh()
+	for p in GameConfig.layout().qa_examples.loss_layout_tower_positions:
+		lose.commit_move(String(p.id), int(p.x), int(p.z), 0)
+	var b := sim(lose, 1)
+	var tips := BattleAdvisor.advise(b, lose)
+	print("  [조언·패배 배치] ", tips)
+	check(tips.size() >= 1 and tips.size() <= 3, "조언 1~3개")
+	var joined := " ".join(tips)
+	check(joined.contains("방어탑이 닿지 않아요") or joined.contains("쏘지 못했어요"), "사거리 밖 길·놀고 있는 탑 지적")
+	check(BattleAdvisor.advise(b, lose) == tips, "같은 기록 → 같은 조언")
+	var win := fresh()
+	var w := sim(win, 1)
+	var wt := BattleAdvisor.advise(w, win)
+	print("  [조언·기본 승리] ", wt)
+	check(" ".join(wt).contains("다음 습격은 기사 6명"), "승리 시 다음 습격 안내")
+	var c := fresh()
+	c.wood = 500
+	c.commit_new_building("defense_tower", 7, 1, 0)
+	var cs := sim(c, 1)
+	check(BattleAdvisor.advise(cs, c)[0].contains("공사 중이던 방어탑 1개"), "공사 중 탑 조언 우선")
+	check(BattleAdvisor.place_words(Vector2(1, 1)) == "정문 쪽 왼쪽" and BattleAdvisor.place_words(Vector2(11, 7)) == "성 앞 오른쪽", "위치 말")

@@ -23,6 +23,9 @@ var bolts: Array = []
 var events: Array = []
 
 var route: Array[Vector2i] = []
+## 기사들이 나눠 갈 공격 칸별 경로 [{cell, path, castle_cell}] (짧은 순)
+var lanes: Array = []
+var _lane_counts: Dictionary = {}
 ## 도움 모드 적용 배율(1.0 = 정상)
 var hp_multiplier: float = 1.0
 ## 공사 중이라 전투에 참여하지 않은 방어탑 ID
@@ -49,6 +52,7 @@ func setup(buildings: Array, edges: Dictionary, p_stage: int, p_hp_multiplier: f
 	var castle := GridLogic.castle_of(buildings)
 	var cfp := GameConfig.footprint("castle")
 	castle_center = Vector2(castle.x + cfp.x * 0.5, castle.z + cfp.y * 0.5)
+	_build_lanes(buildings, edges, castle)
 	towers = []
 	for b in buildings:
 		if b.type != "defense_tower":
@@ -104,6 +108,12 @@ func step(dt: float) -> void:
 	for k in knights:
 		if not k.alive:
 			continue
+		for t in towers:
+			if (t.center as Vector2).distance_to(k.pos) <= float(t.range):
+				k.time_in_range = float(k.get("time_in_range", 0.0)) + dt
+				break
+		if k.state == "attack":
+			k.reached = true
 		if k.state == "walk":
 			var before: float = k.remaining_dist
 			var move := speed * dt
@@ -125,7 +135,8 @@ func step(dt: float) -> void:
 			if k.wp >= k.waypoints.size():
 				k.state = "attack"
 				k.attack_timer = float(_c.knight_first_attack_after_seconds)
-				k.facing = (castle_center - k.pos).normalized()
+				var cc: Vector2i = k.get("castle_cell", Vector2i(int(castle_center.x), int(castle_center.y)))
+				k.facing = (Vector2(cc.x + 0.5, cc.y + 0.5) - k.pos).normalized()
 				events.append({type = "arrive", knight = k.id})
 		elif k.state == "attack":
 			k.attack_timer -= dt
@@ -141,6 +152,7 @@ func step(dt: float) -> void:
 		t.target_id = -1 if target.is_empty() else int(target.id)
 		if target.is_empty():
 			continue
+		t.engaged_time = float(t.get("engaged_time", 0.0)) + dt
 		t.aim = (target.pos - t.center).normalized()
 		if t.cooldown_left <= 0.0:
 			t.cooldown_left = t.cooldown
@@ -165,6 +177,7 @@ func step(dt: float) -> void:
 			bolt.pos = tk.pos
 			bolt.alive = false
 			tk.hp -= int(bolt.damage)
+			tk.damage_taken = int(tk.get("damage_taken", 0)) + int(bolt.damage)
 			progress = true
 			events.append({type = "hit", bolt = bolt.id, knight = tk.id, damage = bolt.damage})
 			if tk.hp <= 0 and tk.alive:
@@ -197,15 +210,66 @@ func _abort(reason: String) -> void:
 	push_warning("전투 중단: %s" % reason)
 
 
+## 성의 공격 칸마다 최단 경로를 구해, 가장 짧은 길보다 max_detour 칸 이내인 칸들을 '갈래'로 쓴다.
+func _build_lanes(buildings: Array, edges: Dictionary, castle: Dictionary) -> void:
+	lanes = []
+	if route.is_empty():
+		return
+	var sp: Dictionary = _c.get("spread", {})
+	if not bool(sp.get("enabled", false)):
+		lanes.append({cell = route[route.size() - 1], path = route, castle_cell = _castle_neighbor(route[route.size() - 1], castle, edges)})
+		return
+	var goals := GridLogic.attack_cells(buildings, edges)
+	var cand: Array = []
+	for g in goals:
+		var p := GridLogic.find_path(buildings, edges, GameConfig.entry_cell(), {g: true})
+		if not p.is_empty():
+			cand.append({cell = g, path = p, castle_cell = _castle_neighbor(g, castle, edges)})
+	cand.sort_custom(func(a, b):
+		if a.path.size() != b.path.size():
+			return a.path.size() < b.path.size()
+		if a.cell.y != b.cell.y:
+			return a.cell.y < b.cell.y
+		return a.cell.x < b.cell.x)
+	var limit: int = route.size() + int(sp.get("max_detour_cells", 0))
+	for c in cand:
+		if c.path.size() <= limit:
+			lanes.append(c)
+	if lanes.is_empty():
+		lanes.append({cell = route[route.size() - 1], path = route, castle_cell = _castle_neighbor(route[route.size() - 1], castle, edges)})
+
+
+func _castle_neighbor(cell: Vector2i, castle: Dictionary, edges: Dictionary) -> Vector2i:
+	var cells := GridLogic.footprint_cells(castle)
+	for d in GridLogic.DIRS:
+		var n: Vector2i = cell + d
+		if n in cells and not GridLogic.blocks(edges, cell, n):
+			return n
+	return Vector2i(int(castle_center.x), int(castle_center.y))
+
+
 func _spawn_knight() -> void:
 	var spawn := GameConfig.spawn_world()
 	var wps: Array = []
-	for c in route:
+	var lane: Dictionary = lanes[spawned % lanes.size()] if not lanes.is_empty() else {path = route, castle_cell = Vector2i.ZERO}
+	for c in lane.path:
 		wps.append(Vector2(c.x + 0.5, c.y + 0.5))
+	# 같은 칸에 몰리지 않도록 칸 안의 자리(slot)를 나눈다
+	var key := str(lane.get("cell", Vector2i.ZERO))
+	var slot := int(_lane_counts.get(key, 0))
+	_lane_counts[key] = slot + 1
+	var offsets: Array = _c.get("spread", {}).get("slot_offsets", [[0, 0]])
+	var off: Array = offsets[slot % offsets.size()]
+	if not wps.is_empty():
+		var last: Vector2 = wps[wps.size() - 1]
+		var toward := (Vector2(lane.castle_cell.x + 0.5, lane.castle_cell.y + 0.5) - last).normalized()
+		var side := Vector2(-toward.y, toward.x)
+		wps[wps.size() - 1] = last + side * float(off[0]) + toward * -float(off[1])
 	var k := {
 		id = spawned + 1, hp = knight_hp, max_hp = knight_hp, pos = spawn,
 		waypoints = wps, wp = 0, state = "walk", attack_timer = 0.0, alive = true,
-		facing = Vector2(0, 1), remaining_dist = 0.0,
+		facing = Vector2(0, 1), remaining_dist = 0.0, castle_cell = lane.castle_cell, lane = key,
+		damage_taken = 0, time_in_range = 0.0,
 	}
 	k.remaining_dist = _remaining_dist(k)
 	knights.append(k)

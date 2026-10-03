@@ -165,10 +165,12 @@ func _refresh_hud() -> void:
 	if state.highest_cleared >= stage_id and state.raid_ready:
 		label += " 다시 도전"
 	var knights := int(GameConfig.stage(stage_id).knight_count)
-	var key := "%s|%s|%s|%d|%s|%s" % [m, state.raid_ready, label, int(ceil(state.raid_timer)), sim != null, hud.info_panel.visible]
+	var assist_pct := int(round((1.0 - state.assist_multiplier()) * 100.0))
+	hud.assist_on = state.assist_enabled
+	var key := "%s|%s|%s|%d|%s|%s|%d" % [m, state.raid_ready, label, int(ceil(state.raid_timer)), sim != null, hud.info_panel.visible, assist_pct]
 	if key != _last_ui:
 		_last_ui = key
-		hud.set_raid(state.raid_ready, label, knights, state.raid_timer, not battle_like)
+		hud.set_raid(state.raid_ready, label, knights, state.raid_timer, not battle_like, assist_pct)
 		# 선택 정보 패널이 열려 있으면 좁은 화면에서 겹치지 않게 건설 버튼을 숨긴다
 		hud.set_village_controls((m == GameState.MODE_VILLAGE or m == GameState.MODE_RAID_READY) and not hud.info_panel.visible)
 	if sim != null and (m == GameState.MODE_BATTLE or m == GameState.MODE_PAUSED):
@@ -466,7 +468,9 @@ func _finish_battle() -> void:
 	var next_text := ""
 	if won and not final_stage:
 		next_text = "다음: %s · 마을에서 약 %d초 뒤 준비돼요" % [state.stage_label(stage_id + 1), int(ceil(state.raid_timer))]
-	hud.show_result(won, state.stage_label(stage_id), int(res.reward), wanted, final_stage, next_text)
+	var tips := BattleAdvisor.advise(sim, state)
+	print("조언: ", tips)
+	hud.show_result(won, state.stage_label(stage_id), int(res.reward), wanted, final_stage, next_text, tips)
 	_last_ui = ""
 
 
@@ -507,6 +511,11 @@ func _on_menu_action(action: String) -> void:
 		"fps":
 			hud.fps_on = not hud.fps_on
 			_save_settings()
+		"assist":
+			state.assist_enabled = not state.assist_enabled
+			saver.save(state)
+			_last_ui = ""
+			hud.toast("도움 모드를 켰어요: 같은 단계에서 %d번 이상 지면 기사 체력이 조금 줄어요" % int(GameConfig.raids().assist.after_losses) if state.assist_enabled else "도움 모드를 껐어요", 3.0)
 		"reset":
 			if not edit.is_empty():
 				_end_edit()
