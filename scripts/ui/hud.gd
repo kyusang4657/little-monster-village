@@ -166,6 +166,7 @@ func _make_theme() -> Theme:
 func _button(text: String, variant: String, icon: String = "", min_w: float = 0.0) -> Button:
 	var b := Button.new()
 	b.focus_mode = Control.FOCUS_NONE
+	b.pressed.connect(func(): Sound.play("click"))
 	b.custom_minimum_size = Vector2(min_w, BTN_H)
 	b.add_theme_font_size_override("font_size", 28)
 	_apply_variant(b, variant)
@@ -364,6 +365,7 @@ func _build_bottom() -> void:
 	for item in [["house", "고블린 주택", "house"], ["defense_tower", "방어탑", "tower"], ["fence", "울타리", "fence"]]:
 		var card := Button.new()
 		card.focus_mode = Control.FOCUS_NONE
+		card.pressed.connect(func(): Sound.play("click"))
 		card.custom_minimum_size = Vector2(196, 128)
 		_apply_variant(card, "ivory")
 		card.add_theme_stylebox_override("normal", _style(Color("fffaf0"), C_IVORY_EDGE, 16))
@@ -537,6 +539,7 @@ func hide_decor() -> void:
 func _chip(text: String, swatch: Color) -> Button:
 	var b := Button.new()
 	b.focus_mode = Control.FOCUS_NONE
+	b.pressed.connect(func(): Sound.play("click"))
 	b.custom_minimum_size = Vector2(84, 64)
 	_apply_variant(b, "ivory")
 	var hb := HBoxContainer.new()
@@ -686,10 +689,20 @@ func _show_menu() -> void:
 		["카메라 초기화", "ivory", "rotate", func(): hide_overlay(); menu_action.emit("recenter")],
 		["새 게임", "purple", "x", func(): _confirm_reset()],
 		["닫기", "green", "check", func(): hide_overlay()],
-	], "menu", C_PURPLE, [[
+	], "", C_PURPLE, [[
 		["그림자 끄기" if shadows_on else "그림자 켜기", "ivory", "menu", func(): hide_overlay(); menu_action.emit("shadows")],
 		["FPS 숨기기" if fps_on else "FPS 표시", "ivory", "clock", func(): hide_overlay(); menu_action.emit("fps")],
+	], [
 		["도움 모드 끄기" if assist_on else "도움 모드 켜기", "ivory", "heart", func(): hide_overlay(); menu_action.emit("assist")],
+		["안내 다시 보기", "ivory", "play", func(): hide_overlay(); menu_action.emit("tutorial")],
+	], [
+		["배경음 −", "ivory", "", func(): menu_action.emit("music_down")],
+		["배경음 %d%%" % int(round(Sound.music_volume * 100)), "ivory", "", func(): pass],
+		["배경음 +", "ivory", "", func(): menu_action.emit("music_up")],
+	], [
+		["효과음 −", "ivory", "", func(): menu_action.emit("sfx_down")],
+		["효과음 %d%%" % int(round(Sound.sfx_volume * 100)), "ivory", "", func(): pass],
+		["효과음 +", "ivory", "", func(): menu_action.emit("sfx_up")],
 	]])
 
 

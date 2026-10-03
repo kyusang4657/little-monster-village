@@ -153,8 +153,12 @@ func _animate(w: Dictionary, site: Dictionary, active: bool) -> void:
 			leg_l.rotation.x = 0.0
 			leg_r.rotation.x = 0.0
 			arm_l.rotation.x = 0.2
-			# 망치질: 들어 올렸다 내려친다
+			# 망치질: 들어 올렸다 내려친다(내려치는 순간 '똑')
 			arm_r.rotation.x = 0.4 + absf(sin(t * 4.2)) * 1.7 if active else 0.6
+			var strike := int(floor(t * 4.2 / PI))
+			if active and strike != int(w.get("strike", -1)):
+				w.strike = strike
+				Sound.play("hammer", -10.0, randf_range(0.9, 1.15))
 			if not site.is_empty():
 				var fp := GameConfig.footprint(site.type)
 				var c := Vector2(site.x + fp.x * 0.5, site.z + fp.y * 0.5)

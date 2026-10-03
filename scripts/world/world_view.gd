@@ -587,6 +587,7 @@ func update_battle(sim: BattleSim, delta: float, castle_id: String) -> void:
 			"spawn":
 				_make_knight(sim.knights[e.knight - 1])
 			"fire":
+				Sound.play("bow", -6.0, randf_range(0.92, 1.08))
 				var t := _tower_node(e.tower)
 				if t:
 					var cb: Node3D = t.get_node("Turret/Crossbow")
@@ -595,10 +596,12 @@ func update_battle(sim: BattleSim, delta: float, castle_id: String) -> void:
 				_battle_root.add_child(bn)
 				_bolt_nodes[e.bolt] = {node = bn}
 			"hit":
+				Sound.play("hit", -4.0, randf_range(0.9, 1.1))
 				if _knight_nodes.has(e.knight):
 					_knight_nodes[e.knight].flash = 0.12
 				_floater("-%d" % int(e.damage), _knight_pos(sim, e.knight) + Vector3(0, 1.2, 0), Color("fff1a8"))
 			"kill":
+				Sound.play("knight_down", -2.0)
 				if _knight_nodes.has(e.knight):
 					var kn: Dictionary = _knight_nodes[e.knight]
 					var dead: Dictionary = sim.knights[e.knight - 1]
@@ -607,6 +610,7 @@ func update_battle(sim: BattleSim, delta: float, castle_id: String) -> void:
 					_dying.append({node = kn.node, t = 0.0})
 					_knight_nodes.erase(e.knight)
 			"castle_hit":
+				Sound.play("castle_hit", -3.0)
 				_castle_shake = 0.18
 				if _knight_nodes.has(e.knight):
 					_knight_nodes[e.knight].swing = 0.3

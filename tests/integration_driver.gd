@@ -180,6 +180,7 @@ func _sequence() -> void:
 
 	await _construction_checks(s)
 	await _decor_checks(s)
+	await _tutorial_checks()
 
 	_lines.append("RESULT: %d passed, %d failed" % [_pass, _fail])
 	print("\n".join(_lines))
@@ -255,3 +256,25 @@ func _decor_checks(s: GameState) -> void:
 	main._begin_decor("castle_01")
 	await _wait(1)
 	check(main.edit.is_empty(), "성은 꾸미기 없음")
+
+
+func _tutorial_checks() -> void:
+	var tut: Tutorial = main.tutorial
+	tut.start()
+	await _wait(2)
+	check(tut.active() and tut.current_id() == "welcome", "안내 시작")
+	tut.advance()
+	tut.advance()
+	check(tut.current_id() == "open_build", "다음 버튼으로 진행")
+	tut.notify("upgraded")
+	check(tut.current_id() == "open_build", "기다리는 사건이 아니면 그대로")
+	main._open_build_menu()
+	await _wait(1)
+	check(tut.current_id() == "pick", "건설 메뉴를 열면 다음 단계")
+	main.hud.hide_build_menu()
+	tut.end(true)
+	await _wait(1)
+	var cf := ConfigFile.new()
+	cf.load(main.saver.dir + "settings.cfg")
+	check(not tut.active() and bool(cf.get_value("progress", "tutorial_done", false)), "건너뛰기 후 완료 기록 저장")
+	check(AudioServer.get_bus_index("Music") >= 0 and AudioServer.get_bus_index("SFX") >= 0, "음악·효과음 버스")

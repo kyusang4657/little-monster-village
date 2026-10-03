@@ -75,13 +75,12 @@ static func advise(sim: BattleSim, state: GameState) -> Array[String]:
 			break
 	if not won:
 		# 4. 화력 부족: 강화·추가 건설
-		var lv1 := 0
+		var low := 99
 		for t in sim.towers:
-			if int(t.level) < 2:
-				lv1 += 1
-		var cost_up := int(GameConfig.tower_level(2).get("upgrade_cost", 60))
-		if lv1 > 0:
-			tips.append("방어탑을 강화하면 공격력이 %d→%d로 올라요(목재 %d)." % [int(GameConfig.tower_level(1).damage), int(GameConfig.tower_level(2).damage), cost_up])
+			low = mini(low, int(t.level))
+		var nxt := GameConfig.tower_level(low + 1)
+		if low < 99 and not nxt.is_empty():
+			tips.append("방어탑을 Lv.%d로 강화하면 공격력이 %d→%d로 올라요(목재 %d)." % [low + 1, int(GameConfig.tower_level(low).damage), int(nxt.damage), int(nxt.upgrade_cost)])
 		if state.count_type("defense_tower") < state.max_count("defense_tower"):
 			tips.append("방어탑을 하나 더 지으면(목재 %d) 훨씬 든든해요." % state.build_cost("defense_tower"))
 		if state.interior_fences.is_empty():

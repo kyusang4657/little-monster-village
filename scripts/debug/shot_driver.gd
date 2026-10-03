@@ -16,6 +16,8 @@ func run(p_main, p_out: String, scenario: String = "full") -> void:
 			_construction()
 		"decor":
 			_decor()
+		"tutorial":
+			_tutorial()
 		_:
 			_sequence()
 
@@ -256,4 +258,55 @@ func _decor() -> void:
 	main.world.reset_camera()
 	await _wait(4)
 	await _shot("34-decorated-village")
+	_finish_log()
+
+
+func _tutorial() -> void:
+	await _wait(20)
+	var tut: Tutorial = main.tutorial
+	if not tut.active():
+		tut.start()
+	await _wait(4)
+	await _shot("40-tutorial-welcome")
+	tut.advance()
+	await _wait(4)
+	await _shot("41-tutorial-wood")
+	tut.advance()
+	await _wait(4)
+	await _shot("42-tutorial-build-button")
+	main._open_build_menu()
+	await _wait(4)
+	await _shot("43-tutorial-pick-house")
+	main._begin_new("house")
+	await _wait(4)
+	await _shot("44-tutorial-place")
+	main._confirm_edit()
+	await _wait(4)
+	await _shot("45-tutorial-construction")
+	await _advance_village(12.0)
+	await _wait(4)
+	await _shot("46-tutorial-select-tower")
+	main._select("tower_01")
+	await _wait(4)
+	await _shot("47-tutorial-upgrade")
+	main._upgrade_selected()
+	await _wait(4)
+	await _shot("48-tutorial-start")
+	_log("안내 단계: %s" % tut.current_id())
+	main._start_raid()
+	await _wait(3)
+	_log("전투 시작 후 안내 활성: %s" % tut.active())
+	await _fast_battle(9.0)
+	for i in 20:
+		await _wait(1)
+	await _shot("49-battle-spread")
+	await _fast_battle(400.0)
+	for i in 6:
+		await _wait(1)
+	await _shot("50-result-with-advice")
+	main._on_result_closed("village")
+	await _wait(4)
+	main.hud._show_menu()
+	await _wait(4)
+	await _shot("51-menu-audio")
 	_finish_log()

@@ -17,7 +17,7 @@ func _init() -> void:
 		"test_battle_bolts_and_counts", "test_battle_stages_2_3_reachable", "test_watchdog_and_long_route",
 		"test_battle_pause_no_catchup",
 		"test_construction_basic", "test_construction_battle_and_rules", "test_save_v2_and_migration",
-		"test_decor", "test_assist_mode", "test_knight_spread", "test_advisor",
+		"test_decor", "test_assist_mode", "test_knight_spread", "test_advisor", "test_stage_curve",
 	]
 	for t in tests:
 		var before := _fail
@@ -114,7 +114,9 @@ func test_purchase_limits_and_cost() -> void:
 	check(not over.ok and s.count_type("house") == 4 and s.wood == 470, "주택 한도 4")
 	check(s.commit_new_building("defense_tower", 1, 4, 0).ok and s.wood == 390, "탑 80")
 	check(s.commit_new_building("defense_tower", 11, 4, 0).ok, "탑 4번째")
-	check(not s.commit_new_building("defense_tower", 11, 0, 0).ok, "탑 한도 4")
+	s.wood = 500
+	check(s.commit_new_building("defense_tower", 11, 0, 0).ok and s.commit_new_building("defense_tower", 1, 0, 0).ok, "탑 5·6번째")
+	check(s.count_type("defense_tower") == 6 and not s.commit_new_building("defense_tower", 12, 5, 0).ok, "탑 한도 6")
 	check(not s.check_new_building("lumber_camp", 11, 0, 0).ok, "벌목소 구매 불가")
 	check(not s.check_new_building("castle", 11, 0, 0).ok, "성 구매 불가")
 	check(s.wood >= 0, "음수 없음")
@@ -127,7 +129,9 @@ func test_upgrade() -> void:
 	check(r.ok and s.wood == 40 and s.get_building("tower_01").level == 2, "60 차감·Lv.2")
 	check(GameConfig.tower_level(2).damage == 15 and GameConfig.tower_level(1).damage == 10, "피해 10→15")
 	s.wood = 500
-	check(not s.commit_upgrade("tower_01").ok and s.wood == 500, "Lv.3 없음")
+	var r3 := s.commit_upgrade("tower_01")
+	check(r3.ok and s.wood == 380 and s.get_building("tower_01").level == 3 and GameConfig.tower_level(3).damage == 22, "Lv.3 강화 120·피해 22")
+	check(not s.commit_upgrade("tower_01").ok and s.wood == 380, "Lv.4 없음")
 	check(not s.commit_upgrade("house_01").ok, "주택 강화 없음")
 	s.wood = 59
 	check(not s.commit_upgrade("tower_02").ok and s.wood == 59, "목재 부족 강화 불가")
@@ -270,10 +274,12 @@ func test_reward_once() -> void:
 	check(r3.reward == 0 and s.wood == w2 and s.ready_stage == 2 and s.raid_ready, "패배 보상 0·같은 단계 준비")
 	# 3단계 승리 후 4단계 없음
 	s.leave_result()
-	s.ready_stage = 3
+	var last := GameConfig.stage_count()
+	check(last == 10, "습격 10단계")
+	s.ready_stage = last
 	var b3 := s.begin_battle()
-	var r4 := s.resolve_battle(b3.battle_id, 3, true)
-	check(r4.applied and s.ready_stage == 3 and s.raid_ready and s.highest_cleared == 3, "3단계 후 수동 반복")
+	var r4 := s.resolve_battle(b3.battle_id, last, true)
+	check(r4.applied and s.ready_stage == last and s.raid_ready and s.highest_cleared == last, "마지막 단계 후 수동 반복(가상의 다음 단계 없음)")
 	s.leave_result()
 	var b4 := s.begin_battle()
 	check(b4.ok and b4.battle_id != b3.battle_id, "다시 도전은 새 전투 ID")
@@ -714,3 +720,51 @@ func test_advisor() -> void:
 	var cs := sim(c, 1)
 	check(BattleAdvisor.advise(cs, c)[0].contains("공사 중이던 방어탑 1개"), "공사 중 탑 조언 우선")
 	check(BattleAdvisor.place_words(Vector2(1, 1)) == "정문 쪽 왼쪽" and BattleAdvisor.place_words(Vector2(11, 7)) == "성 앞 오른쪽", "위치 말")
+
+
+## 기준 배치(탑 수·레벨·울타리 미로)를 만들어 둔다. 공사는 끝난 상태.
+func reference_layout(towers: int, level: int, maze: bool) -> GameState:
+	var s := fresh()
+	var extra := [Vector2i(7, 1), Vector2i(7, 3), Vector2i(11, 3), Vector2i(1, 2)]
+	for i in towers - 2:
+		s.wood = 500
+		check(s.commit_new_building("defense_tower", extra[i].x, extra[i].y, 0).ok, "기준 배치 탑 %s" % extra[i])
+	if maze:
+		var add := {}
+		for x in range(5, 13):
+			add["h:%d:3" % x] = true
+		s.wood = 500
+		check(s.commit_fences(add, {}).ok, "기준 미로 울타리")
+	finish_construction(s)
+	for b in s.buildings:
+		if b.type == "defense_tower":
+			while int(b.level) < level:
+				s.wood = 500
+				s.commit_upgrade(b.id)
+	return s
+
+
+## 단계 곡선: 각 단계는 '그 단계까지 모을 수 있는 범위'의 기준 배치로 이길 수 있고,
+## 처음 배치(Lv.1 탑 2개)로는 2단계부터 어렵다(성장이 필요).
+func test_stage_curve() -> void:
+	var plans := {
+		4: [3, 2, false], 5: [4, 2, false], 6: [4, 2, false],
+		7: [4, 3, true], 8: [4, 3, true], 9: [6, 3, true], 10: [6, 3, true],
+	}
+	var line := "  [단계 곡선]"
+	for st in range(1, GameConfig.stage_count() + 1):
+		var base := sim(fresh(), st)
+		var res := "기본 %s" % ("승" if base.outcome == "win" else "패")
+		if plans.has(st):
+			var p: Array = plans[st]
+			var b := sim(reference_layout(p[0], p[1], p[2]), st)
+			res += " / 탑%d Lv%d%s %s HP%d" % [p[0], p[1], " 미로" if p[2] else "", "승" if b.outcome == "win" else "패", b.castle_hp]
+			check(b.outcome == "win", "%d단계: 기준 배치(탑 %d·Lv.%d%s)로 클리어 가능" % [st, p[0], p[1], "·미로" if p[2] else ""])
+		if st >= 2:
+			check(base.outcome == "lose", "%d단계: 처음 배치로는 패배(성장 필요)" % st)
+		line += "  %d:%s" % [st, res]
+		var cur := GameConfig.stage(st)
+		if st > 1:
+			var prev := GameConfig.stage(st - 1)
+			check(int(cur.knight_count) * int(cur.knight_hp) > int(prev.knight_count) * int(prev.knight_hp), "%d단계 총 체력 증가" % st)
+	print(line)

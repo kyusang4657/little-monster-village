@@ -8,6 +8,8 @@ var state: GameState
 var saver: SaveManager
 var world: WorldView
 var hud: Hud
+var tutorial: Tutorial
+var _tutorial_done := false
 var sim: BattleSim = null
 
 var selected_id := ""
@@ -48,6 +50,11 @@ func _ready() -> void:
 	hud = Hud.new()
 	hud.name = "Hud"
 	add_child(hud)
+	tutorial = Tutorial.new()
+	tutorial.name = "Tutorial"
+	add_child(tutorial)
+	tutorial.setup(hud)
+	tutorial.finished.connect(_on_tutorial_finished)
 	_connect_hud()
 	var res := saver.load_into(state)
 	if res.status == "new":
@@ -58,8 +65,11 @@ func _ready() -> void:
 	_load_settings()
 	_sync_world()
 	_refresh_hud()
+	Sound.play_music("village")
 	if String(res.message) != "":
 		hud.show_dialog("저장 데이터 안내", res.message)
+	if not _tutorial_done and not _args.has("no-tutorial") and String(res.message) == "":
+		tutorial.start()
 	if _args.has("integration"):
 		var it = load("res://tests/integration_driver.gd").new()
 		add_child(it)
@@ -131,6 +141,11 @@ func _process(delta: float) -> void:
 				world.update_battle(sim, dt, _castle_id)
 				if sim.outcome != "":
 					_finish_battle()
+	if tutorial.current_id() == "select_tower" and selected_id == "" and edit.is_empty():
+		for b in state.buildings:
+			if b.type == "defense_tower":
+				world.show_selection(b)
+				break
 	_refresh_hud()
 
 
@@ -146,6 +161,8 @@ func _on_construction_finished(id: String) -> void:
 	if b.is_empty():
 		return
 	hud.toast("%s 완성!" % GameConfig.type_label(b.type))
+	tutorial.notify("construction_finished")
+	Sound.play("build_done")
 	saver.save(state)
 	_on_state_changed()
 
@@ -184,6 +201,8 @@ func _refresh_hud() -> void:
 func _select(id: String) -> void:
 	selected_id = id
 	var b := state.get_building(id)
+	if b.get("type", "") == "defense_tower":
+		tutorial.notify("selected_tower")
 	world.show_selection(b)
 	hud.hide_build_menu()
 	hud.show_info(b, state)
@@ -204,6 +223,7 @@ func _open_build_menu() -> void:
 		return
 	_deselect()
 	hud.show_build_menu(state)
+	tutorial.notify("build_menu_opened")
 
 
 func _begin_move(id: String) -> void:
@@ -233,6 +253,7 @@ func _begin_new(type: String) -> void:
 	edit.was_ready = state.raid_ready
 	state.mode = GameState.MODE_BUILD
 	_update_edit()
+	tutorial.notify("build_preview")
 
 
 func _find_spot(type: String) -> Vector2i:
@@ -360,6 +381,7 @@ func _confirm_edit() -> void:
 			var cost := state.build_cost(edit.type)
 			r = state.commit_new_building(edit.type, edit.x, edit.z, edit.rot)
 			if r.ok:
+				tutorial.notify("building_placed")
 				var secs := int(GameState.build_seconds(edit.type))
 				hud.toast(("%s 공사 시작! 목재 -%d · %d초 뒤 완성" % [GameConfig.type_label(edit.type), cost, secs]) if secs > 0 else ("%s 완성! 목재 -%d" % [GameConfig.type_label(edit.type), cost]))
 		"fence":
@@ -375,6 +397,7 @@ func _confirm_edit() -> void:
 		_update_edit()
 		return
 	saver.save(state)
+	Sound.play("place")
 	_end_edit()
 
 
@@ -413,6 +436,8 @@ func _upgrade_selected() -> void:
 		world.sync_buildings(state.buildings)
 		var b := state.get_building(selected_id)
 		hud.toast("방어탑 Lv.%d! 공격력 %d" % [int(b.level), int(GameConfig.tower_level(int(b.level)).damage)])
+		tutorial.notify("upgraded")
+		Sound.play("upgrade")
 		hud.show_info(b, state)
 	else:
 		hud.toast(String(r.reason))
@@ -437,6 +462,9 @@ func _start_raid() -> void:
 	world.clear_battle()
 	sim = BattleSim.new()
 	sim.setup(state.buildings, state.all_edges(), int(r.stage), float(r.get("hp_multiplier", 1.0)))
+	tutorial.notify("battle_started")
+	Sound.play("raid_start")
+	Sound.play_music("battle")
 	if not sim.constructing_towers.is_empty():
 		hud.toast("공사 중인 방어탑 %d개는 이번 전투에 참여하지 않아요" % sim.constructing_towers.size(), 3.0)
 	_last_ui = ""
@@ -454,6 +482,7 @@ func _finish_battle() -> void:
 		world.clear_battle()
 		print("전투 중단 기록: ", reason)
 		hud.show_dialog("전투를 멈췄어요", "%s\n보상 없이 준비 상태로 돌아갔어요." % reason)
+		Sound.play_music("village")
 		_last_ui = ""
 		return
 	var stage_id := sim.stage_id
@@ -468,6 +497,8 @@ func _finish_battle() -> void:
 	var next_text := ""
 	if won and not final_stage:
 		next_text = "다음: %s · 마을에서 약 %d초 뒤 준비돼요" % [state.stage_label(stage_id + 1), int(ceil(state.raid_timer))]
+	Sound.play_music("")
+	Sound.play("victory" if won else "defeat")
 	var tips := BattleAdvisor.advise(sim, state)
 	print("조언: ", tips)
 	hud.show_result(won, state.stage_label(stage_id), int(res.reward), wanted, final_stage, next_text, tips)
@@ -480,6 +511,7 @@ func _on_result_closed(action: String) -> void:
 	world.clear_battle()
 	state.leave_result()
 	_last_ui = ""
+	Sound.play_music("village")
 	if action == "retry" or action == "replay":
 		_start_raid()
 
@@ -511,6 +543,22 @@ func _on_menu_action(action: String) -> void:
 		"fps":
 			hud.fps_on = not hud.fps_on
 			_save_settings()
+		"tutorial":
+			if not edit.is_empty():
+				_cancel_edit()
+			if state.mode == GameState.MODE_VILLAGE or state.mode == GameState.MODE_RAID_READY:
+				_deselect()
+				tutorial.start()
+		"music_down", "music_up", "sfx_down", "sfx_up":
+			var step := 0.1 if action.ends_with("up") else -0.1
+			if action.begins_with("music"):
+				Sound.music_volume = clampf(snappedf(Sound.music_volume + step, 0.1), 0.0, 1.0)
+			else:
+				Sound.sfx_volume = clampf(snappedf(Sound.sfx_volume + step, 0.1), 0.0, 1.0)
+			Sound.apply_volumes()
+			Sound.play("click")
+			_save_settings()
+			hud._show_menu()
 		"assist":
 			state.assist_enabled = not state.assist_enabled
 			saver.save(state)
@@ -537,11 +585,23 @@ func _settings_path() -> String:
 	return saver.dir + "settings.cfg"
 
 
+func _on_tutorial_finished(skipped: bool) -> void:
+	_tutorial_done = true
+	_save_settings()
+	world.show_selection(state.get_building(selected_id) if selected_id != "" else {})
+	if skipped:
+		hud.toast("안내는 메뉴(≡)에서 다시 볼 수 있어요")
+
+
 func _load_settings() -> void:
 	var cf := ConfigFile.new()
 	if cf.load(_settings_path()) == OK:
 		hud.shadows_on = bool(cf.get_value("display", "shadows", true))
 		hud.fps_on = bool(cf.get_value("display", "show_fps", false))
+		_tutorial_done = bool(cf.get_value("progress", "tutorial_done", false))
+		Sound.music_volume = float(cf.get_value("audio", "music", 0.7))
+		Sound.sfx_volume = float(cf.get_value("audio", "sfx", 0.8))
+	Sound.apply_volumes()
 	world.set_shadows(hud.shadows_on)
 
 
@@ -549,6 +609,9 @@ func _save_settings() -> void:
 	var cf := ConfigFile.new()
 	cf.set_value("display", "shadows", hud.shadows_on)
 	cf.set_value("display", "show_fps", hud.fps_on)
+	cf.set_value("progress", "tutorial_done", _tutorial_done)
+	cf.set_value("audio", "music", Sound.music_volume)
+	cf.set_value("audio", "sfx", Sound.sfx_volume)
 	cf.save(_settings_path())
 
 
@@ -563,6 +626,7 @@ func _notification(what: int) -> void:
 		NOTIFICATION_APPLICATION_RESUMED, NOTIFICATION_APPLICATION_FOCUS_IN:
 			if _background:
 				_background = false
+				Sound.set_background(false)
 				_skip_frame = true
 		NOTIFICATION_WM_CLOSE_REQUEST:
 			if state != null and state.mode != GameState.MODE_BATTLE and state.mode != GameState.MODE_PAUSED:
@@ -575,6 +639,7 @@ func _enter_background() -> void:
 	if _background or state == null:
 		return
 	_background = true
+	Sound.set_background(true)
 	_pressing = false
 	_touches.clear()
 	_gesture = false
@@ -606,7 +671,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		var st := event as InputEventScreenTouch
 		if st.pressed:
-			if not hud.is_over_ui(st.position):
+			if not hud.is_over_ui(st.position) and not tutorial.is_over(st.position):
 				_touches[st.index] = st.position
 		else:
 			_touches.erase(st.index)
