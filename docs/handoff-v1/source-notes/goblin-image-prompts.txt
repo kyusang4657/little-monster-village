@@ -1,0 +1,52 @@
+MODE: Built-in ImageGen (image_gen.imagegen), not CLI/API fallback.
+OUTPUT TYPE: Opaque-background character reference sheet; not a transparent sprite or a completed animation.
+
+GENERATION 1
+Reference image 1: 02-village-style-reference.png
+Reference image 2: 03-house-scale-reference.png
+transparent_background: false
+Prompt:
+
+Use case: stylized-concept.
+Create ONE polished CHARACTER MODEL REFERENCE SHEET for the next production asset of an original mobile monster-village building and defense game: a LEVEL-1 GOBLIN WORKER who can help build the village and defend it with a wooden mallet.
+Reference image 1 is the approved village STYLE and CHARACTER inspiration: use the cute green goblins and the friendly brass-goggle goblin portrait, while creating an internally consistent original full-body design.
+Reference image 2 is the approved goblin-house art sheet: match its bright toy-like 3D finish, rounded shapes, restrained textures, warm wood, purple palette and clean reference-sheet presentation. Do NOT put the house or village into this character sheet.
+
+Canvas: landscape 3:2, warm off-white background, SIX clean generous panels in a 3-column x 2-row grid. Clear title at top. Each panel shows the SAME full-body character, completely visible from ears to boots and mallet, not cropped. Equal character scale and consistent ground baseline. Fine pale-gray panel boundaries, no elaborate decoration.
+
+CHARACTER DESIGN — SAME IN EVERY PANEL:
+A tiny friendly mischievous lime-green goblin, approximately 2.5 heads tall, big rounded head, very large pointed ears with warmer green inner ears, round cheeks, a small rounded nose, large warm dark-brown eyes and a gentle cheeky smile with two very small lower tusks. A tiny three-point dark-brown hair tuft rises above the forehead. NO horns, no tail.
+Round brass-framed aviator/workshop goggles with warm brown leather strap sit ON THE FOREHEAD, never covering the eyes. Goggles wrap consistently around the back of the head with a plain brown strap.
+Simple short-sleeved PURPLE worker tunic with a modest V neckline and a slightly uneven hem, warm brown leather belt with one simple brass square buckle, tan short trousers, chunky brown ankle boots with folded cuffs. No armor, no cape, no backpack, no pouch, no extra jewelry. Bare green forearms and simple clearly formed cartoon hands, matching on both sides.
+One small WOODEN MALLET in the character's anatomical RIGHT HAND only: short brown handle, chunky rounded rectangular honey-colored wooden head. It is roughly one third of the character's total height. The same mallet shape and scale in every panel. No metal spikes or sharp blades. No other weapon. The mallet should not obscure the face or most of the costume.
+The art is bright, soft, adorable and clean, with smooth beveled volumes, simple material separation and subtle warm highlights. Match the approved game style without realistic skin pores, frightening monster anatomy or gritty detail.
+
+PANELS:
+TOP LEFT: front orthographic full-body neutral modeling stance, feet planted shoulder-width, arms slightly away from torso, right hand loosely holding mallet down at side. The right-hand mallet appears on the viewer's LEFT. No dynamic action.
+TOP MIDDLE: the exact character's RIGHT-SIDE orthographic profile, facing toward the LEFT of the panel. Clearly show profile of nose, goggles on forehead, ear, belt and boots. Same neutral stance, same right-hand mallet on near side.
+TOP RIGHT: rear orthographic view of the same neutral stance. Show the goggles' leather head strap, back of tunic and belt, ears and boots, no front face features. The right-hand mallet is now on the viewer's RIGHT.
+BOTTOM LEFT: GAME CAMERA IDLE pose, fixed high front-right quarter-view, orthographic camera about 55 degrees downward and 45 degrees around the character. Friendly relaxed stance, right-hand mallet held down.
+BOTTOM MIDDLE: WALKING representative pose, EXACT SAME game camera angle and character facing direction as bottom-left, one foot ahead and one behind, left arm gently counter-swinging, same mallet securely in the right hand. No running blur, no foot trails.
+BOTTOM RIGHT: ATTACK representative pose, EXACT SAME game camera angle and facing direction. Knees slightly bent and torso leaning as the character delivers a clear downward/forward mallet strike with its RIGHT HAND; left hand balancing the body. Keep mallet and limbs individually readable. No victim, no enemy, no blood, no impact particles covering the body.
+
+All three bottom panels use the SAME projection, orientation, framing and soft upper-left lighting. They are discrete pose references, not a claim to be a complete animation. No background scenery, no floor tile, no pedestal, no UI icons, no health bars, no ground grid. A very soft small contact shadow under boots is acceptable.
+
+TEXT (accurate Korean, clean dark charcoal rounded sans serif):
+Title exactly: "고블린 일꾼 · Lv.1"
+Top panel labels, left to right: "정면", "오른쪽", "후면"
+Bottom panel labels, left to right: "게임 시점 · 대기", "이동", "공격"
+Small footer exactly: "캐릭터 제작 기준 시안 · 동작별 대표 자세"
+No other text, no logo, no watermark.
+Prioritize the consistency of ears, face, goggles, clothes, proportions and handedness across ALL SIX views.
+
+CORRECTION 2 — FINAL SELECTED OUTPUT
+Reference: the sheet produced by Generation 1
+transparent_background: false
+Prompt:
+
+Use case: precise-object-edit.
+Make ONE targeted anatomical handedness correction in this six-panel goblin character reference sheet. Edit ONLY the TOP MIDDLE panel labeled "오른쪽".
+This panel shows the character's RIGHT-SIDE profile, facing left. The wooden mallet must be held by the character's anatomical RIGHT hand, which is the NEAR, visible arm on this right-side view.
+Currently the near arm hangs empty while the far hand appears to hold the mallet. Correct this: make the near visible right forearm and right hand grasp the mallet handle naturally beside the right hip and slightly forward of the body. The hand-to-handle connection must be clearly visible. The far left arm must be empty and may be partially hidden by the body. Keep exactly two arms and two hands, and one mallet.
+Retain the same mallet head, proportions, short wooden handle, friendly face, left-facing nose, goggles, ears, hair, clothes, boots, neutral standing pose and panel scale. Do not mirror the whole character.
+Keep EVERY OTHER PANEL and ALL Korean text, borders, title, footer, background, colors and layout visually unchanged. In particular, do not change the front/back/game-angle views, which already hold the mallet in the correct anatomical right hand. This is a small technical correction, not a redesign.

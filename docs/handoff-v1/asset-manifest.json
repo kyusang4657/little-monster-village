@@ -1,0 +1,155 @@
+{
+  "schema_version": 1,
+  "created_date": "2026-09-27",
+  "asset_count": 7,
+  "screen_count": 3,
+  "notes": "All files are opaque reference images, not finished models, sprites, animation or implemented UI. New unified rules override historical notes. Original files are unchanged.",
+  "assets": [
+    {
+      "id": "castle",
+      "kind": "asset",
+      "label": "마물 성 Lv.1",
+      "path": "references/assets/castle.png",
+      "usage": "reference_only_not_runtime_asset",
+      "footprint_cells": [
+        3,
+        3
+      ],
+      "width": 1448,
+      "height": 1086,
+      "bytes": 1459482,
+      "sha256": "c55c5ff07ca53e3b5c4ce42bd16c1f7258d886b5db6c88f01813d2a65ec76384",
+      "historical_notes": "source-notes/castle-README.md",
+      "generation_prompt": "source-notes/castle-image-prompts.txt"
+    },
+    {
+      "id": "house",
+      "kind": "asset",
+      "label": "고블린 주택 Lv.1",
+      "path": "references/assets/house.png",
+      "usage": "reference_only_not_runtime_asset",
+      "footprint_cells": [
+        2,
+        2
+      ],
+      "width": 1448,
+      "height": 1086,
+      "bytes": 1567033,
+      "sha256": "d5595fb4a199190f035a36e77f7d2522474e72c6b0f174622c912ab59955545b",
+      "historical_notes": "source-notes/house-README.md",
+      "generation_prompt": "source-notes/house-image-prompts.txt"
+    },
+    {
+      "id": "lumber_camp",
+      "kind": "asset",
+      "label": "고블린 벌목소 Lv.1",
+      "path": "references/assets/lumber-camp.png",
+      "usage": "reference_only_not_runtime_asset",
+      "footprint_cells": [
+        2,
+        2
+      ],
+      "width": 1448,
+      "height": 1086,
+      "bytes": 1478637,
+      "sha256": "175128b0f41fb8b72e9faa8f5d17960ef48c9bc14d32023fcadcea121bd0cc9a",
+      "historical_notes": "source-notes/lumber_camp-README.md",
+      "generation_prompt": "source-notes/lumber_camp-image-prompts.txt"
+    },
+    {
+      "id": "defense_tower",
+      "kind": "asset",
+      "label": "고블린 방어탑 Lv.1",
+      "path": "references/assets/defense-tower.png",
+      "usage": "reference_only_not_runtime_asset",
+      "footprint_cells": [
+        2,
+        2
+      ],
+      "width": 1448,
+      "height": 1086,
+      "bytes": 1481952,
+      "sha256": "ab5e1ca53040aaafc1d563a698dc35c89af22f92584704eb8d302224b00e8748",
+      "historical_notes": "source-notes/defense_tower-README.md",
+      "generation_prompt": "source-notes/defense_tower-image-prompts.txt"
+    },
+    {
+      "id": "fence",
+      "kind": "asset",
+      "label": "나무 울타리 Lv.1",
+      "path": "references/assets/fence.png",
+      "usage": "reference_only_not_runtime_asset",
+      "width": 1536,
+      "height": 1024,
+      "bytes": 1603728,
+      "sha256": "c7785dfb8a9807808cb2b76398e304e139cb1aab63f58d8481460b751c8b9d44",
+      "historical_notes": "source-notes/fence-README.md",
+      "generation_prompt": "source-notes/fence-image-prompts.txt"
+    },
+    {
+      "id": "goblin",
+      "kind": "asset",
+      "label": "고블린 일꾼 Lv.1",
+      "path": "references/assets/goblin.png",
+      "usage": "reference_only_not_runtime_asset",
+      "width": 1536,
+      "height": 1024,
+      "bytes": 1726304,
+      "sha256": "30f19579aed7b39c96b19550fddb75e97f79f0b3ed3518950940cec596419520",
+      "historical_notes": "source-notes/goblin-README.md",
+      "generation_prompt": "source-notes/goblin-image-prompts.txt"
+    },
+    {
+      "id": "knight",
+      "kind": "asset",
+      "label": "인간 기사 Lv.1",
+      "path": "references/assets/knight.png",
+      "usage": "reference_only_not_runtime_asset",
+      "width": 1536,
+      "height": 1024,
+      "bytes": 1786033,
+      "sha256": "38d15fca2f6462c2cb95ac3a25e122ed8199bad3c8e9f511e326cd97847e0f0b",
+      "historical_notes": "source-notes/knight-README.md",
+      "generation_prompt": "source-notes/knight-image-prompts.txt"
+    },
+    {
+      "id": "village",
+      "kind": "screen",
+      "label": "초반 마을",
+      "path": "references/screens/village.png",
+      "usage": "reference_only_not_runtime_asset",
+      "width": 1672,
+      "height": 941,
+      "bytes": 2901067,
+      "sha256": "8b439dd3a878331df3e939fe17130565c134b56adceaa49e0616974a5c50c5dc",
+      "historical_notes": "source-notes/village-README.md",
+      "generation_prompt": "source-notes/village-image-prompts.txt"
+    },
+    {
+      "id": "build_mode",
+      "kind": "screen",
+      "label": "건설 모드",
+      "path": "references/screens/build-mode.png",
+      "usage": "reference_only_not_runtime_asset",
+      "width": 1672,
+      "height": 941,
+      "bytes": 2589198,
+      "sha256": "02c863df26f0c79221726a276c4241fd8edda50a4c62adb8ae3f3ef7a9951ee9",
+      "historical_notes": "source-notes/build_mode-README.md",
+      "generation_prompt": "source-notes/build_mode-image-prompts.txt"
+    },
+    {
+      "id": "defense_mode",
+      "kind": "screen",
+      "label": "방어 모드",
+      "path": "references/screens/defense-mode.png",
+      "usage": "reference_only_not_runtime_asset",
+      "width": 1672,
+      "height": 941,
+      "bytes": 2662380,
+      "sha256": "8552ea6c3fab3862ae9a0bc3c9f1b2efa2f41172f3124160ea320467854d8474",
+      "historical_notes": "source-notes/defense_mode-README.md",
+      "generation_prompt": "source-notes/defense_mode-image-prompts.txt"
+    }
+  ]
+}

@@ -1,0 +1,215 @@
+{
+  "schema_version": 1,
+  "status": "provisional_design_not_game_tested",
+  "game_title_working": "마물의 작은 마을",
+  "target": {
+    "platform": "Android",
+    "delivery": "debug_apk",
+    "orientation": "landscape",
+    "language": "ko",
+    "engine_proposal": "Godot 4.x stable",
+    "scripting": "GDScript",
+    "renderer_proposal": "Compatibility",
+    "rendering": "real_time_3d",
+    "network_required": false
+  },
+  "camera": {
+    "projection": "orthographic",
+    "initial_azimuth_degrees": 30,
+    "initial_elevation_degrees": 50,
+    "pan": true,
+    "pinch_zoom": true,
+    "orbit": false
+  },
+  "grid": {
+    "width": 14,
+    "depth": 10,
+    "cell_world_units": 1,
+    "movement": "four_neighbors",
+    "fences_block_edges": true,
+    "gate_width_edges": 2,
+    "gate_always_open": true,
+    "roads_are_cosmetic": true,
+    "require_spawn_to_castle_route": true
+  },
+  "economy": {
+    "resource": "wood",
+    "starting_amount": 100,
+    "capacity": 500,
+    "income_per_second": 1,
+    "income_states": [
+      "VILLAGE",
+      "BUILD",
+      "RAID_READY"
+    ],
+    "offline_income": false,
+    "battle_income": false,
+    "move_cost": 0,
+    "build_time_seconds": 0,
+    "charge_on": "valid_placement_commit",
+    "per_kill_reward": 0
+  },
+  "buildings": {
+    "castle": {
+      "footprint": [
+        3,
+        3
+      ],
+      "max_count": 1,
+      "max_level": 1,
+      "movable": false,
+      "deletable": false,
+      "hp": 180
+    },
+    "house": {
+      "footprint": [
+        2,
+        2
+      ],
+      "build_cost": 30,
+      "max_count": 4,
+      "max_level": 1,
+      "movable": true,
+      "deletable": false,
+      "role": "decoration_only"
+    },
+    "lumber_camp": {
+      "footprint": [
+        2,
+        2
+      ],
+      "max_count": 1,
+      "max_level": 1,
+      "movable": true,
+      "deletable": false,
+      "role": "passive_wood_source"
+    },
+    "defense_tower": {
+      "footprint": [
+        2,
+        2
+      ],
+      "build_cost": 80,
+      "max_count": 4,
+      "max_level": 2,
+      "movable": true,
+      "deletable": false,
+      "levels": {
+        "1": {
+          "damage": 10,
+          "range_cells": 4.5,
+          "cooldown_seconds": 1.2
+        },
+        "2": {
+          "damage": 15,
+          "range_cells": 4.5,
+          "cooldown_seconds": 1.2,
+          "upgrade_cost": 60
+        }
+      }
+    }
+  },
+  "fences": {
+    "edge_build_cost": 2,
+    "interior_removal_refund": 0,
+    "perimeter_editable": false,
+    "interior_editable": true,
+    "hp": null,
+    "destructible": false
+  },
+  "combat": {
+    "target_policy": "castle_only",
+    "tower_target_policy": "nearest_living_enemy_then_smallest_spawn_id",
+    "range_metric": "xz_euclidean_from_tower_footprint_center",
+    "line_of_sight_required": false,
+    "bolt_speed_cells_per_second": 8,
+    "damage_on": "single_projectile_hit",
+    "knight_move_cells_per_second": 0.6,
+    "knight_attack_damage": 6,
+    "knight_attack_interval_seconds": 1,
+    "knight_first_attack_after_seconds": 1,
+    "enemies_block_each_other": false,
+    "spawn_interval_seconds": 3,
+    "unspawned_enemies_in_remaining_count": true,
+    "ground_goblins_are_ambient": true,
+    "no_route_behavior": "abort_to_prebattle_ready_without_reward",
+    "progress_watchdog_seconds": 15,
+    "progress_events": [
+      "enemy_spawned",
+      "remaining_path_distance_decreased",
+      "enemy_hp_decreased",
+      "castle_hp_decreased",
+      "enemy_removed"
+    ],
+    "no_progress_behavior": "abort_to_prebattle_ready_without_reward_and_show_error"
+  },
+  "raids": {
+    "first_ready_immediately": true,
+    "auto_start": false,
+    "pending_limit": 1,
+    "next_ready_delay_seconds": [
+      30,
+      60
+    ],
+    "timer_states": [
+      "VILLAGE",
+      "BUILD"
+    ],
+    "loss_retry_immediately": true,
+    "restore_castle_after_battle": true,
+    "preserve_village_on_loss": true,
+    "stages": [
+      {
+        "id": 1,
+        "label": "첫 번째 습격",
+        "knight_count": 4,
+        "knight_hp": 90,
+        "win_wood": 40
+      },
+      {
+        "id": 2,
+        "label": "두 번째 습격",
+        "knight_count": 6,
+        "knight_hp": 105,
+        "win_wood": 60
+      },
+      {
+        "id": 3,
+        "label": "세 번째 습격",
+        "knight_count": 8,
+        "knight_hp": 120,
+        "win_wood": 80
+      }
+    ],
+    "after_stage_3": "manual_replay_stage_3"
+  },
+  "persistence": {
+    "version": 1,
+    "offline_simulation": false,
+    "save_only_committed_placement": true,
+    "battle_restore": "prebattle_snapshot_as_raid_ready",
+    "reward_transaction": "once_per_unique_battle_id",
+    "background_behavior": "pause_then_explicit_resume"
+  },
+  "performance_targets": {
+    "minimum_test_fps": 30,
+    "phone_soak_minutes": 10,
+    "minimum_touch_target_dp": 48
+  },
+  "exclusions": [
+    "PvP",
+    "clans",
+    "server",
+    "login",
+    "ads",
+    "IAP",
+    "gacha",
+    "expedition_map",
+    "offline_production",
+    "multiple_resources",
+    "hero_skills",
+    "fence_siege",
+    "ground_worker_combat",
+    "store_publication"
+  ]
+}

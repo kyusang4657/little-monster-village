@@ -1,0 +1,31 @@
+MONSTER CASTLE LV.1 — EXACT IMAGE PROMPT
+Mode: built-in image_gen; opaque reference sheet.
+Reference order: 02-village-style-reference.png; 03-house-style-reference.png.
+Final selected output: 01-monster-castle-reference.png.
+No correction pass.
+
+=== GENERATION ===
+Use case: stylized-concept.
+Asset type: ONE coherent building reference sheet for "마물 성 · Lv.1", the small starting central castle of a cute monster village in a landscape mobile village-building and defense game.
+Input image roles: image 1 is the approved village, use the CENTRAL castle's warm ivory stone, vivid purple roofs, cyan doorway, friendly monster symbols and rounded toy-like 3D materials. This sheet is a deliberately SMALLER, SIMPLER level-one version of that castle, not the full upgraded village castle. Image 2 is the house sheet, use its clear four-panel layout, matching world materials, clean Korean typography and soft lighting.
+Composition: landscape 4:3 reference board, warm offwhite studio background. 2 columns by 2 rows with thin light-gray rounded panel borders. Large centered navy title. Each panel depicts the SAME building at the SAME development level. No characters, no landscape or UI.
+BUILDING IDENTITY:
+A low, wide square ivory-stone keep with a FLAT roof terrace edged by simple chunky rounded crenellations. Exactly TWO identical short round towers attached at the FRONT LEFT and FRONT RIGHT corners, never at rear corners. Each front tower has the SAME low purple conical tiled roof with a small gold finial, same height and diameter. The two roof tips are higher than the central keep's terrace. NO central tower, no rear towers, no additional miniature turrets, no domes, no courtyard or separate outer wall. Compact pleasant starter castle, not grand palace.
+At the exact center of the FRONT wall: one large cyan arched double door with a simple small round brass handle on each leaf, a pale stone arch and TWO low broad pale-stone entrance steps. Above the entrance one small friendly ivory horned-skull relief, softly shaded and easy to read. On each front tower's outward FRONT face hangs ONE matching small purple banner with a simple pale friendly skull motif; two banners total, fixed to the same front faces in all views.
+Each SIDE wall has ONE small centered arched amber-lit window; the REAR wall has TWO small evenly-spaced arched amber-lit windows and no door, crest or hanging banners. Keep window locations consistent.
+ONE slim wooden flagpole rises from the rear center of the flat roof, carrying one small purple triangular pennant with a gold tip. This is only a flagpole, not a third tower.
+Simple large rounded ivory stone blocks and pale gray foundation band. No grass, no vines, no piles of coins, no flowers, no props, no weapons, no spikes, no moat, no bridge, no damage. Original cozy monster home: bright and approachable rather than sinister.
+VIEWS:
+Top left: FRONT elevation, centered cyan door, two identical front towers framing it, two front banners, flat keep roof behind and single flagpole.
+Top right: RIGHT SIDE elevation, the building's FRONT is screen LEFT. Near front tower therefore at screen LEFT; low square keep extends to the RIGHT toward its rear. One amber side window. Front-facing door and banners are hidden or only visible edge-on, never relocated to the side. Far front tower naturally occluded.
+Bottom left: REAR elevation, broad low rear wall with two amber windows, NO rear entrance, no banners on rear face. The two FRONT turrets remain at their real front corners, their roofs or outer edges can peek from behind the keep; do not relocate them to the rear. Rear-center flagpole visible.
+Bottom right: GAME CAMERA view, high fixed isometric, roughly 45 degrees around and 50 degrees downward, looking at FRONT and RIGHT sides. Front door faces screen bottom-left, show two front turrets and right side window, flat terrace and rear flag. Beneath the building a subtle dashed ground-square footprint marked as a 3 by 3 grid with exactly TWO equally spaced interior lines in EACH direction. Foundation and entrance steps fit fully inside footprint. This is a conceptual placement indicator, not a floating platform. All of castle visible with generous margin.
+Rendering: polished bright mobile strategy art, soft upper-left light, rounded chunky toy-like shapes, rich purple ceramic roof tiles, warm ivory stone, teal-cyan painted door, very small brass accents. Clear silhouette at small size; avoid fussy decoration. All four panels must be physically consistent, not different castles.
+Exact Korean text:
+Title: "마물 성 · Lv.1"
+Top left label: "정면"
+Top right label: "오른쪽"
+Bottom left label: "후면"
+Bottom right label: "게임 시점"
+Footer: "점유 면적 3×3칸 · 제작 기준 시안"
+No other text, no logo or watermark. This is a visual production reference, not finished game sprites or engineering plans.

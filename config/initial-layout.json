@@ -1,0 +1,662 @@
+{
+  "schema_version": 1,
+  "status": "proposed_implementation_layout_not_pixel_measurement",
+  "coordinate_system": {
+    "plane": "XZ",
+    "x": "left_to_right_on_logical_map",
+    "z": "front_to_back_on_logical_map",
+    "building_position": "minimum_footprint_corner",
+    "front": "negative_z",
+    "rotation_quarters": "clockwise_from_above_in_90_degree_steps",
+    "world_anchor": "footprint_center_at_ground"
+  },
+  "grid": {
+    "width": 14,
+    "depth": 10,
+    "cell_world_units": 1
+  },
+  "buildings": [
+    {
+      "id": "castle_01",
+      "type": "castle",
+      "x": 5,
+      "z": 6,
+      "level": 1,
+      "rotation_quarters": 0
+    },
+    {
+      "id": "house_01",
+      "type": "house",
+      "x": 3,
+      "z": 4,
+      "level": 1,
+      "rotation_quarters": 0
+    },
+    {
+      "id": "house_02",
+      "type": "house",
+      "x": 9,
+      "z": 4,
+      "level": 1,
+      "rotation_quarters": 0
+    },
+    {
+      "id": "lumber_01",
+      "type": "lumber_camp",
+      "x": 1,
+      "z": 7,
+      "level": 1,
+      "rotation_quarters": 0
+    },
+    {
+      "id": "tower_01",
+      "type": "defense_tower",
+      "x": 3,
+      "z": 1,
+      "level": 1,
+      "rotation_quarters": 0
+    },
+    {
+      "id": "tower_02",
+      "type": "defense_tower",
+      "x": 9,
+      "z": 1,
+      "level": 1,
+      "rotation_quarters": 0
+    }
+  ],
+  "gates": [
+    {
+      "id": "gate_01",
+      "from": [
+        6,
+        0
+      ],
+      "to": [
+        8,
+        0
+      ],
+      "open": true,
+      "locked": true
+    }
+  ],
+  "fixed_fence_edges": [
+    {
+      "from": [
+        0,
+        0
+      ],
+      "to": [
+        1,
+        0
+      ]
+    },
+    {
+      "from": [
+        0,
+        10
+      ],
+      "to": [
+        1,
+        10
+      ]
+    },
+    {
+      "from": [
+        1,
+        0
+      ],
+      "to": [
+        2,
+        0
+      ]
+    },
+    {
+      "from": [
+        1,
+        10
+      ],
+      "to": [
+        2,
+        10
+      ]
+    },
+    {
+      "from": [
+        2,
+        0
+      ],
+      "to": [
+        3,
+        0
+      ]
+    },
+    {
+      "from": [
+        2,
+        10
+      ],
+      "to": [
+        3,
+        10
+      ]
+    },
+    {
+      "from": [
+        3,
+        0
+      ],
+      "to": [
+        4,
+        0
+      ]
+    },
+    {
+      "from": [
+        3,
+        10
+      ],
+      "to": [
+        4,
+        10
+      ]
+    },
+    {
+      "from": [
+        4,
+        0
+      ],
+      "to": [
+        5,
+        0
+      ]
+    },
+    {
+      "from": [
+        4,
+        10
+      ],
+      "to": [
+        5,
+        10
+      ]
+    },
+    {
+      "from": [
+        5,
+        0
+      ],
+      "to": [
+        6,
+        0
+      ]
+    },
+    {
+      "from": [
+        5,
+        10
+      ],
+      "to": [
+        6,
+        10
+      ]
+    },
+    {
+      "from": [
+        6,
+        10
+      ],
+      "to": [
+        7,
+        10
+      ]
+    },
+    {
+      "from": [
+        7,
+        10
+      ],
+      "to": [
+        8,
+        10
+      ]
+    },
+    {
+      "from": [
+        8,
+        0
+      ],
+      "to": [
+        9,
+        0
+      ]
+    },
+    {
+      "from": [
+        8,
+        10
+      ],
+      "to": [
+        9,
+        10
+      ]
+    },
+    {
+      "from": [
+        9,
+        0
+      ],
+      "to": [
+        10,
+        0
+      ]
+    },
+    {
+      "from": [
+        9,
+        10
+      ],
+      "to": [
+        10,
+        10
+      ]
+    },
+    {
+      "from": [
+        10,
+        0
+      ],
+      "to": [
+        11,
+        0
+      ]
+    },
+    {
+      "from": [
+        10,
+        10
+      ],
+      "to": [
+        11,
+        10
+      ]
+    },
+    {
+      "from": [
+        11,
+        0
+      ],
+      "to": [
+        12,
+        0
+      ]
+    },
+    {
+      "from": [
+        11,
+        10
+      ],
+      "to": [
+        12,
+        10
+      ]
+    },
+    {
+      "from": [
+        12,
+        0
+      ],
+      "to": [
+        13,
+        0
+      ]
+    },
+    {
+      "from": [
+        12,
+        10
+      ],
+      "to": [
+        13,
+        10
+      ]
+    },
+    {
+      "from": [
+        13,
+        0
+      ],
+      "to": [
+        14,
+        0
+      ]
+    },
+    {
+      "from": [
+        13,
+        10
+      ],
+      "to": [
+        14,
+        10
+      ]
+    },
+    {
+      "from": [
+        0,
+        0
+      ],
+      "to": [
+        0,
+        1
+      ]
+    },
+    {
+      "from": [
+        14,
+        0
+      ],
+      "to": [
+        14,
+        1
+      ]
+    },
+    {
+      "from": [
+        0,
+        1
+      ],
+      "to": [
+        0,
+        2
+      ]
+    },
+    {
+      "from": [
+        14,
+        1
+      ],
+      "to": [
+        14,
+        2
+      ]
+    },
+    {
+      "from": [
+        0,
+        2
+      ],
+      "to": [
+        0,
+        3
+      ]
+    },
+    {
+      "from": [
+        14,
+        2
+      ],
+      "to": [
+        14,
+        3
+      ]
+    },
+    {
+      "from": [
+        0,
+        3
+      ],
+      "to": [
+        0,
+        4
+      ]
+    },
+    {
+      "from": [
+        14,
+        3
+      ],
+      "to": [
+        14,
+        4
+      ]
+    },
+    {
+      "from": [
+        0,
+        4
+      ],
+      "to": [
+        0,
+        5
+      ]
+    },
+    {
+      "from": [
+        14,
+        4
+      ],
+      "to": [
+        14,
+        5
+      ]
+    },
+    {
+      "from": [
+        0,
+        5
+      ],
+      "to": [
+        0,
+        6
+      ]
+    },
+    {
+      "from": [
+        14,
+        5
+      ],
+      "to": [
+        14,
+        6
+      ]
+    },
+    {
+      "from": [
+        0,
+        6
+      ],
+      "to": [
+        0,
+        7
+      ]
+    },
+    {
+      "from": [
+        14,
+        6
+      ],
+      "to": [
+        14,
+        7
+      ]
+    },
+    {
+      "from": [
+        0,
+        7
+      ],
+      "to": [
+        0,
+        8
+      ]
+    },
+    {
+      "from": [
+        14,
+        7
+      ],
+      "to": [
+        14,
+        8
+      ]
+    },
+    {
+      "from": [
+        0,
+        8
+      ],
+      "to": [
+        0,
+        9
+      ]
+    },
+    {
+      "from": [
+        14,
+        8
+      ],
+      "to": [
+        14,
+        9
+      ]
+    },
+    {
+      "from": [
+        0,
+        9
+      ],
+      "to": [
+        0,
+        10
+      ]
+    },
+    {
+      "from": [
+        14,
+        9
+      ],
+      "to": [
+        14,
+        10
+      ]
+    }
+  ],
+  "interior_fence_edges": [],
+  "cosmetic_path_rects": [
+    {
+      "x": 6,
+      "z": 0,
+      "w": 2,
+      "d": 6
+    },
+    {
+      "x": 3,
+      "z": 3,
+      "w": 3,
+      "d": 1
+    },
+    {
+      "x": 8,
+      "z": 3,
+      "w": 3,
+      "d": 1
+    },
+    {
+      "x": 2,
+      "z": 3,
+      "w": 1,
+      "d": 4
+    },
+    {
+      "x": 1,
+      "z": 6,
+      "w": 2,
+      "d": 1
+    }
+  ],
+  "raid_spawn": {
+    "outside_world_position": [
+      6.5,
+      -2
+    ],
+    "entry_cell": [
+      6,
+      0
+    ]
+  },
+  "reserved_expansion": {
+    "x": 10,
+    "z": 7,
+    "w": 3,
+    "d": 3
+  },
+  "qa_examples": {
+    "valid_new_house": {
+      "x": 10,
+      "z": 7
+    },
+    "loss_layout_tower_positions": [
+      {
+        "id": "tower_01",
+        "x": 0,
+        "z": 0
+      },
+      {
+        "id": "tower_02",
+        "x": 12,
+        "z": 8
+      }
+    ],
+    "route_blocking_edges": [
+      {
+        "from": [
+          6,
+          1
+        ],
+        "to": [
+          7,
+          1
+        ]
+      },
+      {
+        "from": [
+          7,
+          1
+        ],
+        "to": [
+          8,
+          1
+        ]
+      },
+      {
+        "from": [
+          6,
+          0
+        ],
+        "to": [
+          6,
+          1
+        ]
+      },
+      {
+        "from": [
+          8,
+          0
+        ],
+        "to": [
+          8,
+          1
+        ]
+      }
+    ]
+  },
+  "initial_state": {
+    "mode": "RAID_READY",
+    "ready_stage": 1,
+    "highest_stage_cleared": 0,
+    "wood": 100,
+    "raid_timer_seconds": null,
+    "last_resolved_battle_id": null
+  }
+}

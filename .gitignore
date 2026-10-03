@@ -1,0 +1,6 @@
+# Godot
+.godot/
+*.import.tmp
+# 내보내기 중간 산출물(배포용 APK는 release/ 에 둔다)
+build/
+*.idsig

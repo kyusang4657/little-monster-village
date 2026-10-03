@@ -1,0 +1,35 @@
+MODE: Built-in ImageGen (image_gen.imagegen), not CLI/API fallback.
+OUTPUT TYPE: Opaque-background production reference sheet, not a transparent game sprite.
+
+GENERATION 1
+Reference image: 02-approved-village-direction.png (style reference only)
+transparent_background: false
+Prompt:
+
+Use case: stylized-concept.
+Create a clean professional BUILDING MODEL REFERENCE SHEET for the FIRST production asset of the attached original mobile monster village game: ONE LEVEL-1 GOBLIN HOUSE. The attached village screenshot is a STYLE REFERENCE only. Extract and refine the visual language of its small purple-roof residential cottages, not the central castle. This is a single building turnaround, NOT a village screenshot and NOT several different house designs.
+
+Canvas: landscape 3:2 or 4:3, softly off-white neutral background, elegant clean technical art sheet with a generous margin. FOUR equal large panels arranged 2x2. Each panel contains exactly the SAME house from a specified view. Top-left FRONT ORTHOGRAPHIC; top-right RIGHT-SIDE ORTHOGRAPHIC; bottom-left REAR ORTHOGRAPHIC; bottom-right HIGH GAME QUARTER-VIEW, orthographic camera about 55 degrees down and 45 degrees around the house, showing front and right side. Front/right/rear views have exactly matching scale, heights and ground baselines. No perspective on orthographic panels. Ground floor footprint is square and planned for 2x2 game cells. In the game-angle panel only, show a very faint thin dashed footprint diamond and two-by-two divisions as a drawing guide, clearly separate from the building.
+
+House construction, invariant in every panel:
+One cozy single-storey chunky cottage, square footprint, warm ivory lightly textured plaster walls on a low pale stone plinth, thick rounded honey-brown timber posts at four corners and timber beams along the wall tops. A simple PURPLE GABLED ROOF with broad soft-edged tile rows and rounded slightly curved eaves, no complex dormers. The roof ridge runs from FRONT TO REAR, so the triangular gable is on the front and rear elevations and the long eave is on the right elevation.
+FRONT facade: one centered round-top honey-brown wooden entrance door with simple black hinges, two low stone entry steps; a small square warm amber window on EACH side of the door; and ONE small circular amber attic window centered in the front gable.
+RIGHT facade: TWO identical square amber windows evenly spaced, no door.
+REAR facade: ONE centered square amber window on the ground-floor wall; NO door, NO stairs, and NO attic window.
+A single short simple cream-stone chimney sits near the REAR RIGHT corner of the roof, with a dark square opening on top, no smoke. Ensure it appears in the geometrically correct position and is occluded when appropriate.
+No horns, no skulls, no flags, no banners, no furniture or inhabitants; monster character comes from the cute whimsical craftsmanship and purple palette.
+Keep the house small, friendly and simple enough for an initial game asset. Big smooth shapes, restrained broad textures, soft bevels, minimal tiny details, bright toy-like cartoon 3D finish matching the screenshot. Soft neutral studio illumination makes geometry readable; gently glowing windows with no dramatic bloom. No detailed realistic stones, no distressed gritty surfaces.
+
+No large grass base, no garden, no plants, no barrels, no fence, no landscape, no characters, no interface, no embedded resource icons. Small soft grounding shadows only. All building parts fully visible and uncropped with clear separation from the sheet labels.
+
+Typography: title at the top exactly "고블린 주택 · Lv.1". Each panel has a simple legible Korean sans-serif label below the view, respectively "정면", "오른쪽", "후면", "게임 시점". One small readable footer exactly "점유 면적 2×2칸 · 제작 기준 시안". Use dark charcoal typography and minimal fine light-gray panel separators. No other text, no logos, no watermark.
+
+Most important: this is ONE internally consistent object seen from FOUR directions, not a collection of different cottages. Match roof, window placement, timber construction, door, chimney and colors faithfully across the panels.
+
+
+CORRECTION 2 — FINAL SELECTED OUTPUT
+Reference image: the sheet produced by Generation 1
+transparent_background: false
+Prompt:
+
+Use case: precise-object-edit. Correct ONE geometric consistency issue in this building turnaround reference sheet. Edit ONLY the bottom-left panel labeled "후면": move its chimney from the RIGHT SIDE of the rear roof to the LEFT SIDE of the rear roof. It is a rear elevation, so the same physical chimney that appears on the right in the front view must appear on the left when viewed from behind. Remove the existing chimney on the right cleanly and place the identical cream-stone chimney on the left at the mirrored horizontal position, correctly behind the roof silhouette. Keep exactly one chimney in that rear panel. Keep the entire rest of the image PIXEL-ALIGNED and visually unchanged: do not alter the front view, the right-side view, the game-angle view, any roof shapes, window counts, colors, lighting, typography, spacing or layout. Preserve all Korean labels and title. This is a technical consistency repair, not a redesign.

@@ -1,0 +1,21 @@
+시작: 목재 101, 모드 RAID_READY, 건물 6
+캡처 01-village (1600x720)
+캡처 02-select-house (1600x720)
+이동 미리보기: (10,7) 확정상태 house_02=(9,4)
+캡처 03-build-move-valid (1600x720)
+캡처 04-build-move-rotated (1600x720)
+캡처 05-build-move-invalid (1600x720)
+취소 후 house_02=(9,4) rot 0, 주택 수 2
+캡처 06-build-menu (1600x720)
+캡처 07-build-new-tower (1600x720)
+새 탑 취소 후 탑 수 2, 목재 106
+캡처 08-fence-plan (1600x720)
+캡처 09-tower-info (1600x720)
+캡처 10-battle (1600x720)
+캡처 11-pause (1600x720)
+1단계 결과: 목재 149, 단계 2, 남은 대기 53.4
+캡처 12-result-win (1600x720)
+캡처 13-village-timer (1600x720)
+캡처 14-result-defeat (1600x720)
+패배 후: 목재 150, 단계 2, 준비 true
+캡처 15-menu (1600x720)
