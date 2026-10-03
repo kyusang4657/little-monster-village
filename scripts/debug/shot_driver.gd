@@ -24,6 +24,10 @@ func run(p_main, p_out: String, scenario: String = "full") -> void:
 			_art()
 		"chapter":
 			_chapter()
+		"perf":
+			_perf()
+		"perf_base":
+			_perf_base()
 		_:
 			_sequence()
 
@@ -425,7 +429,7 @@ func _chapter() -> void:
 	for lv in [1, 2, 3, 4]:
 		await _set_level([0, 3, 6, 9][lv - 1])
 		await _focus(Vector2(6.5, 7.0), 6.0)
-		main.world.cam_target.y = 1.6
+		main.world.cam_target.y = 2.8
 		main.world._apply_camera()
 		await _wait(3)
 		await _shot("7%d-castle-lv%d" % [lv - 1, lv])
@@ -520,7 +524,7 @@ func _chapter() -> void:
 		for k in main.sim.knights:
 			if k.alive and String(k.get("kind", "")) == "hero":
 				hero_pos = k.pos
-		await _focus(hero_pos, 4.5)
+		await _focus(hero_pos, 3.2)
 		for i in 4:
 			await _wait(1)
 		await _shot("87-boss-battle")
@@ -532,4 +536,190 @@ func _chapter() -> void:
 		main._on_result_closed("village")
 		await _story_shot("90-story-ending")
 		await _skip_story()
+	_finish_log()
+
+
+## 가장 무거운 화면 측정: 최대 지도(24×18)·성 Lv.4·건물 한도·10단계 용사 파티(16명) + 일꾼 2 + 탑 조작수 6.
+## 데스크톱 Xvfb + 소프트웨어 렌더러 수치이며 휴대폰 측정이 아니다.
+func _build_max_village() -> void:
+	var s: GameState = main.state
+	await _set_level(9)
+	for dir in ["east", "west", "north", "south"]:
+		s.wood = s.capacity()
+		s.commit_expand(dir)
+	main._sync_world()
+	var gate := GameConfig.entry_cell_for(s.bounds())
+	for type in ["defense_tower", "defense_tower", "defense_tower", "defense_tower", "lumber_camp", "outpost"]:
+		main.world.cam_target = WorldView.W(gate.x + 0.5, 0, gate.y + 4.0)
+		s.wood = s.capacity()
+		var c: Vector2i = main._find_spot(type)
+		var r := s.commit_new_building(type, c.x, c.y, 0)
+		_log("%s (%d,%d) %s" % [type, c.x, c.y, "ok" if r.ok else String(r.reason)])
+	for type in ["house", "house", "house", "house", "house", "house", "flowerbed", "flowerbed", "flowerbed", "lantern", "lantern", "lantern"]:
+		main.world.cam_target = WorldView.W(6.5, 0, 9.0)
+		s.wood = s.capacity()
+		var c: Vector2i = main._find_spot(type)
+		s.commit_new_building(type, c.x, c.y, 0)
+	for b in s.buildings:
+		b.build_left = 0.0
+		if b.type == "defense_tower":
+			b.level = 3
+	main._sync_world()
+	_log("건물 %d동, 지도 %s" % [s.buildings.size(), str(s.bounds())])
+	await _wait(5)
+
+
+func _measure(label: String, seconds: float) -> void:
+	var frames := 0
+	var worst := 0.0
+	var t := 0.0
+	var max_calls := 0
+	var max_tris := 0
+	var max_chars := 0
+	var last := Time.get_ticks_usec()
+	while t < seconds:
+		await get_tree().process_frame
+		var now := Time.get_ticks_usec()
+		var dt := float(now - last) / 1000000.0
+		last = now
+		t += dt
+		frames += 1
+		worst = maxf(worst, dt)
+		max_calls = maxi(max_calls, int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)))
+		max_tris = maxi(max_tris, int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)))
+		if main.sim != null:
+			max_chars = maxi(max_chars, main.sim.alive_knights().size())
+	_log("[성능] %s: 평균 %.1f FPS, 최악 프레임 %.0fms, 그리기 호출 최대 %d, 삼각형 최대 %d, 동시 적 최대 %d (%.1f초, %d프레임)" % [label, frames / maxf(t, 0.001), worst * 1000.0, max_calls, max_tris, max_chars, t, frames])
+
+
+func _perf() -> void:
+	await _wait(20)
+	Engine.max_fps = 0
+	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+	await _skip_story()
+	main.tutorial.end(true)
+	await _build_max_village()
+	main.world.reset_camera()
+	await _wait(5)
+	_tri_report(main.world)
+	await _measure("마을(최대 지도, 일꾼 2)", 5.0)
+	await _shot("95-perf-village")
+	await _ready_raid(10)
+	main._start_raid()
+	await _skip_story()
+	await _wait(2)
+	if main.sim == null:
+		_log("전투 시작 실패")
+		_finish_log()
+		return
+	main.sim.castle_hp = 100000
+	main.sim.castle_max = 100000
+	# 16명이 모두 살아 있는 상태로 측정(탑 사격은 끄고 화면 부하만 잰다)
+	var towers: Array = main.sim.towers
+	main.sim.towers = []
+	var guard := 0
+	while main.sim.spawned < main.sim.total and guard < 3000:
+		main.sim.advance(0.1)
+		guard += 1
+	main.sim.towers = towers
+	for k in main.sim.knights:
+		k.hp = k.max_hp * 50
+		k.max_hp = k.max_hp * 50
+	await _wait(3)
+	await _measure("10단계 전투, 그림자 켬", 10.0)
+	await _shot("96-perf-battle")
+	main.world.set_shadows(false)
+	await _measure("10단계 전투, 그림자 끔", 10.0)
+	main.world.set_shadows(true)
+	_finish_log()
+
+
+func _tris_of(n: Node) -> int:
+	var t := 0
+	if n is MeshInstance3D and (n as MeshInstance3D).mesh != null and (n as MeshInstance3D).visible:
+		var m: Mesh = (n as MeshInstance3D).mesh
+		for si in m.get_surface_count():
+			var arr := m.surface_get_arrays(si)
+			var idx = arr[Mesh.ARRAY_INDEX]
+			if idx != null and (idx as PackedInt32Array).size() > 0:
+				t += (idx as PackedInt32Array).size() / 3
+			else:
+				t += (arr[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() / 3
+	elif n is MultiMeshInstance3D and (n as MultiMeshInstance3D).multimesh != null:
+		var mm: MultiMesh = (n as MultiMeshInstance3D).multimesh
+		var per := 0
+		for si in mm.mesh.get_surface_count():
+			var arr := mm.mesh.surface_get_arrays(si)
+			var idx = arr[Mesh.ARRAY_INDEX]
+			per += ((idx as PackedInt32Array).size() if idx != null and (idx as PackedInt32Array).size() > 0 else (arr[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()) / 3
+		t += per * mm.instance_count
+	for c in n.get_children():
+		t += _tris_of(c)
+	return t
+
+
+func _tri_report(root: Node) -> void:
+	for c in root.get_children():
+		var t := _tris_of(c)
+		if t > 2000:
+			_log("  삼각형 %s: %d" % [c.name, t])
+			if t > 20000:
+				for cc in c.get_children():
+					var t2 := _tris_of(cc)
+					if t2 > 3000:
+						_log("    - %s: %d" % [cc.name, t2])
+
+
+## 같은 조건 비교용(이전 버전과 동일 코드): 처음 배치 마을 5초 + 9단계 기사 16명 전투 10초
+func _pbm(label: String, seconds: float) -> void:
+	var frames := 0
+	var worst := 0.0
+	var t := 0.0
+	var max_calls := 0
+	var max_tris := 0
+	var max_k := 0
+	var last := Time.get_ticks_usec()
+	while t < seconds:
+		await get_tree().process_frame
+		var now := Time.get_ticks_usec()
+		var dt := float(now - last) / 1000000.0
+		last = now
+		t += dt
+		frames += 1
+		worst = maxf(worst, dt)
+		max_calls = maxi(max_calls, int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)))
+		max_tris = maxi(max_tris, int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)))
+		if main.sim != null:
+			max_k = maxi(max_k, main.sim.alive_knights().size())
+	_log("[성능비교] %s: 평균 %.1f FPS, 최악 %.0fms, 그리기 호출 최대 %d, 삼각형 최대 %d, 동시 기사 %d" % [label, frames / maxf(t, 0.001), worst * 1000.0, max_calls, max_tris, max_k])
+
+
+func _perf_base() -> void:
+	await _wait(20)
+	Engine.max_fps = 0
+	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+	if main.get("story_view") != null:
+		while main.story_view.active():
+			main.story_view.advance()
+	main.tutorial.end(true)
+	main.world.reset_camera()
+	await _wait(10)
+	await _pbm("처음 배치 마을", 5.0)
+	var s = main.state
+	s.ready_stage = 9
+	s.raid_ready = true
+	s.mode = GameState.MODE_RAID_READY
+	main._start_raid()
+	await _wait(2)
+	main.sim.castle_hp = 100000
+	main.sim.towers = []
+	var guard := 0
+	while main.sim.spawned < main.sim.total and guard < 3000:
+		main.sim.advance(0.1)
+		guard += 1
+	await _wait(3)
+	await _pbm("9단계 전투(그림자 켬)", 10.0)
+	await _shot("97-perf-base-battle")
+	main.world.set_shadows(false)
+	await _pbm("9단계 전투(그림자 끔)", 10.0)
 	_finish_log()

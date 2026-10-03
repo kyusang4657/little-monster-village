@@ -619,7 +619,7 @@ func _overlay(title: String, lines: Array, buttons: Array, icon: String = "", ic
 		var l := _label(line, 24, C_TEXT, true)
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		l.custom_minimum_size.x = 460
+		l.custom_minimum_size.x = 640
 		overlay_box.add_child(l)
 	if not tips.is_empty():
 		var tp := PanelContainer.new()

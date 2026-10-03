@@ -362,7 +362,20 @@
   "performance_targets": {
     "minimum_test_fps": 30,
     "phone_soak_minutes": 10,
-    "minimum_touch_target_dp": 48
+    "minimum_touch_target_dp": 48,
+    "low_fps_hint": {
+      "below_fps": 24,
+      "window_seconds": 8,
+      "note": "그림자가 켜진 채 이 시간 동안 FPS 가 낮으면 한 번만 '메뉴에서 그림자 끄기' 안내를 띄운다(설정은 바꾸지 않음)"
+    },
+    "budgets": {
+      "character_triangles_max": 3000,
+      "boss_triangles_max": 4500,
+      "character_draw_calls_max": 2,
+      "scene_draw_calls_max": 500,
+      "scene_triangles_regression_ceiling": 400000,
+      "note": "캐릭터 예산은 tests/character_checks.gd 가 확인. 장면 값은 예산이 아니라 회귀 감시 상한: 최대 부하(24×18, 건물 24동, 10단계 16명) 측정 그리기 호출 272·삼각형 37.6만(그림자 켬). 데스크톱 소프트웨어 렌더러 수치, 실기기 미검증"
+    }
   },
   "exclusions": [
     "PvP",

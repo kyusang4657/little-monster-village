@@ -143,6 +143,7 @@ func _process(delta: float) -> void:
 	var dt := minf(delta, 0.25)
 	if hud.fps_on or hud.fps_label != null:
 		hud.set_fps_text("FPS %d · %.1fms" % [Engine.get_frames_per_second(), delta * 1000.0])
+	_check_low_fps(delta)
 	match state.mode:
 		GameState.MODE_VILLAGE, GameState.MODE_RAID_READY, GameState.MODE_BUILD:
 			state.tick(dt)
@@ -165,6 +166,27 @@ func _process(delta: float) -> void:
 				world.show_selection(b)
 				break
 	_refresh_hud()
+
+
+## 그림자가 켜진 채 FPS 가 계속 낮으면 한 번만 그림자 끄기를 안내한다(설정은 사용자가 직접 바꾼다)
+var _low_fps_t := 0.0
+var _low_fps_hinted := false
+
+
+func _check_low_fps(delta: float) -> void:
+	if _low_fps_hinted or not hud.shadows_on or _args.has("integration") or _args.has("shots"):
+		return
+	if not state.mode in [GameState.MODE_VILLAGE, GameState.MODE_RAID_READY, GameState.MODE_BATTLE]:
+		return
+	var cfg: Dictionary = GameConfig.defaults().get("performance_targets", {}).get("low_fps_hint", {})
+	var fps := Engine.get_frames_per_second()
+	if fps > 0 and fps < float(cfg.get("below_fps", 24)):
+		_low_fps_t += delta
+	else:
+		_low_fps_t = maxf(0.0, _low_fps_t - delta)
+	if _low_fps_t >= float(cfg.get("window_seconds", 8)):
+		_low_fps_hinted = true
+		hud.toast("화면이 조금 느려요. 메뉴(≡)에서 그림자를 끄면 빨라져요", 4.0)
 
 
 func _on_state_changed() -> void:
