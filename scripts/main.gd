@@ -72,6 +72,7 @@ func _ready() -> void:
 	_castle_id = String(GridLogic.castle_of(state.buildings).get("id", "castle_01"))
 	state.changed.connect(_on_state_changed)
 	state.construction_finished.connect(_on_construction_finished)
+	world.outpost_fell.connect(func(_id: String): hud.toast("앞마당이 점령당했어요! 생산만 멈추고, 전투 뒤 수리할 수 있어요", 3.0))
 	_load_settings()
 	_sync_world()
 	_refresh_hud()

@@ -349,6 +349,15 @@ func _chapter_checks(s: GameState) -> void:
 	await _wait(2)
 	check(not bool(s.get_building(op).get("damaged", false)) and not String(main.world.building_node(op).get_meta("model_key")).ends_with("|x"), "수리 완료 후 원래 모습")
 	main._deselect()
+	# 전투 중 점령 연출: 바로 무너진 모습, 저장 상태가 멀쩡하면 다음 동기화에서 원래 모습
+	var toasted := [false]
+	main.world.outpost_fell.connect(func(_id: String): toasted[0] = true, CONNECT_ONE_SHOT)
+	main.world.update_battle(_fake_sim_with_event({type = "outpost_captured", outpost = op}, op), 0.016, main._castle_id)
+	await _wait(2)
+	check(String(main.world.building_node(op).get_meta("model_key")).ends_with("|x") and toasted[0], "전투 중 점령 즉시 무너진 모습·알림")
+	main._sync_world()
+	await _wait(2)
+	check(not String(main.world.building_node(op).get_meta("model_key")).ends_with("|x"), "저장 상태 기준으로 다시 맞춤")
 	# 이야기 다시 보기
 	main._on_menu_action("story")
 	await _wait(2)
@@ -360,3 +369,10 @@ func _chapter_checks(s: GameState) -> void:
 	main.story_view._finish()
 	await _wait(1)
 	check(not main.story_view.active(), "건너뛰기로 닫힘")
+
+
+func _fake_sim_with_event(e: Dictionary, outpost_id: String) -> BattleSim:
+	var sim := BattleSim.new()
+	sim.outpost = {id = outpost_id, hp = 0, max_hp = 150, captured = true}
+	sim.events = [e]
+	return sim

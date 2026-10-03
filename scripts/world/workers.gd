@@ -15,7 +15,8 @@ var _time := 0.0
 func setup(count: int, speed: float) -> void:
 	_speed = speed
 	for i in count:
-		var g := Models.goblin(true)
+		var g := CharacterRig.goblin(i % 3, true)
+		g.seed_id = 11 + i * 5
 		g.name = "Worker%d" % i
 		add_child(g)
 		workers.append({node = g, state = STATE_IDLE, target = "", site_key = "", path = [], pos = Vector2(-99, -99), face = Vector2(0, -1), idx = i})
@@ -53,7 +54,7 @@ func update_crew(buildings: Array, edges: Dictionary, delta: float, active: bool
 			_plan(w, buildings, edges, site, home_cells)
 		if active and w.state == STATE_WALK:
 			_walk(w, delta)
-		_animate(w, site, active)
+		_animate(w, site, active, delta)
 		g.position = WorldView.W(w.pos.x, 0, w.pos.y)
 
 
@@ -134,39 +135,33 @@ func _walk(w: Dictionary, delta: float) -> void:
 		w.state = STATE_WORK if w.target != "" else STATE_IDLE
 
 
-func _animate(w: Dictionary, site: Dictionary, active: bool) -> void:
-	var g: Node3D = w.node
-	var leg_l: Node3D = g.get_node("LegL")
-	var leg_r: Node3D = g.get_node("LegR")
-	var arm_r: Node3D = g.get_node("ArmR")
-	var arm_l: Node3D = g.get_node("ArmL")
+## 자세: 걷기(pose_walk)·망치질(pose_hammer, 온몸)·쉬기(pose_idle). 내려치는 순간(위상 0)에 '똑' 소리.
+func _animate(w: Dictionary, site: Dictionary, active: bool, delta: float) -> void:
+	var g: CharacterRig = w.node
 	var t: float = _time + w.idx * 0.37
+	var speed := 0.0
 	match w.state:
 		STATE_WALK:
-			var s := sin(t * 10.0) if active else 0.0
-			leg_l.rotation.x = s * 0.6
-			leg_r.rotation.x = -s * 0.6
-			arm_l.rotation.x = -s * 0.4
-			arm_r.rotation.x = s * 0.4
+			if active:
+				g.pose_walk(t * CharacterRig.WALK_RATE * 1.3)
+				speed = 1.0
+			else:
+				g.pose_idle(t)
 			g.rotation.y = WorldView.yaw_for_dir(w.face)
 		STATE_WORK:
-			leg_l.rotation.x = 0.0
-			leg_r.rotation.x = 0.0
-			arm_l.rotation.x = 0.2
-			# 망치질: 들어 올렸다 내려친다(내려치는 순간 '똑')
-			arm_r.rotation.x = 0.4 + absf(sin(t * 4.2)) * 1.7 if active else 0.6
-			var strike := int(floor(t * 4.2 / PI))
-			if active and strike != int(w.get("strike", -1)):
-				w.strike = strike
-				Sound.play("hammer", -10.0, randf_range(0.9, 1.15))
+			if active:
+				g.pose_hammer(fposmod(t * CharacterRig.HAMMER_RATE, 1.0))
+				var strike := CharacterRig.impact_index(t)
+				if strike != int(w.get("strike", -1)):
+					w.strike = strike
+					Sound.play("hammer", -10.0, randf_range(0.9, 1.15))
+			else:
+				g.pose_hammer(0.3)
 			if not site.is_empty():
 				var fp := GameConfig.footprint(site.type)
 				var c := Vector2(site.x + fp.x * 0.5, site.z + fp.y * 0.5)
 				g.rotation.y = WorldView.yaw_for_dir(c - w.pos)
 		_:
-			leg_l.rotation.x = 0.0
-			leg_r.rotation.x = 0.0
-			arm_r.rotation.x = 0.3
-			arm_l.rotation.x = 0.0
-			arm_l.rotation.z = -0.2 - absf(sin(t * 1.5)) * 0.4
-			g.get_node("Head").rotation.y = sin(t * 0.8) * 0.4
+			g.pose_idle(t)
+	g.update_secondary(delta if active else 0.0, speed)
+	g.update_blink(t)
