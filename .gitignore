@@ -11,3 +11,7 @@ build/
 
 # 에이전트 작업 공간(워크트리)
 .claude/
+
+# 검토용 임시 탐침 스크립트
+tests/_probe*
+tests/_dbg*
