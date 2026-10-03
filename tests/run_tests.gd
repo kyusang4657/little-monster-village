@@ -20,7 +20,7 @@ func _init() -> void:
 		"test_decor", "test_assist_mode", "test_knight_spread", "test_advisor", "test_stage_curve",
 		"test_castle_levels", "test_boss_units", "test_expansion", "test_resource_sites_and_props",
 		"test_outpost_battle", "test_outpost_repair", "test_save_v3_migration", "test_story_data",
-		"test_review_fixes_core",
+		"test_review_fixes_core", "test_castle_models",
 	]
 	for t in tests:
 		var before := _fail
@@ -1187,3 +1187,35 @@ func test_review_fixes_core() -> void:
 	check(pt.story_pending == ["chapter_end:1", "chapter_start:2"], "대기 장면 복원")
 	# 6) 조언 위치 말: 남쪽으로 넓히면 정문 쪽 기준도 앞으로
 	check(BattleAdvisor.place_words(Vector2(6.5, -3.0), -4) == "정문 쪽 가운데" and BattleAdvisor.place_words(Vector2(6.5, 1.0), -4) == "마을 한가운데", "넓힌 지도의 위치 말")
+
+
+func _aabb_of(n: Node3D, xf: Transform3D, acc: Array) -> void:
+	var t := xf * n.transform
+	if n is MeshInstance3D and (n as MeshInstance3D).mesh != null:
+		var a := t * (n as MeshInstance3D).mesh.get_aabb()
+		acc[0] = a if acc[0] == null else (acc[0] as AABB).merge(a)
+	for c in n.get_children():
+		if c is Node3D:
+			_aabb_of(c, t, acc)
+
+
+## 성 모델은 레벨마다 커지지만 3×3 차지 칸 안(지붕·장식 약간 허용)에 있고 기준점(바닥 중앙)이 그대로
+func test_castle_models() -> void:
+	var fp := GameConfig.footprint("castle")
+	var heights: Array = []
+	for lv in range(1, GameConfig.max_castle_level() + 1):
+		var n := Models.build("castle", {}, lv)
+		var acc: Array = [null]
+		_aabb_of(n, Transform3D.IDENTITY, acc)
+		var a: AABB = acc[0]
+		var half := Vector2(fp.x, fp.y) * 0.5 + Vector2(0.35, 0.35)
+		check(a.position.x >= -half.x and a.end.x <= half.x and a.position.z >= -half.y and a.end.z <= half.y, "성 Lv.%d 모델이 %d×%d칸 안 (%s)" % [lv, fp.x, fp.y, str(a)])
+		check(absf(a.position.y) <= 0.05, "성 Lv.%d 바닥이 기준점 높이 (%.2f)" % [lv, a.position.y])
+		heights.append(a.end.y)
+		n.free()
+	print("  [성 모델 높이 Lv.1~4] %s" % str(heights.map(func(h): return snappedf(h, 0.01))))
+	check(heights[1] > heights[0] and heights[2] > heights[1] and heights[3] > heights[2], "레벨마다 성이 높아짐 %s" % str(heights))
+	# 전투 규칙(공격 칸)은 성 레벨과 무관
+	var s1 := at_level(0)
+	var s4 := at_level(9)
+	check(GridLogic.attack_cells(s1.buildings, s1.all_edges()) == GridLogic.attack_cells(s4.buildings, s4.all_edges()), "성 레벨이 바뀌어도 공격 칸 동일")

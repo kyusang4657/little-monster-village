@@ -495,5 +495,17 @@ func _review_ui_checks(s: GameState) -> void:
 	s.assist_enabled = keep[2]
 	s.consecutive_losses = keep[3]
 	main._last_ui = ""
+	# 10) 첫 실행 흐름: 프롤로그가 끝나야 안내가 시작된다
+	main._args.erase("no-story")
+	s.story_seen.erase("prologue")
+	main._queue_story(["new_game"], func(): main.tutorial.start())
+	await _wait(2)
+	check(main.story_view.active() and main.story_view.current_id() == "prologue" and not main.tutorial.active(), "프롤로그 먼저, 안내는 아직")
+	main.story_view._finish()
+	await _wait(2)
+	check(main.tutorial.active() and s.story_seen.has("prologue"), "프롤로그 뒤 안내 시작")
+	main.tutorial.end(true)
+	await _wait(1)
+	main._args["no-story"] = true
 	# 9) 지도가 넓어지면 축소 한계도 넓어진다
 	check(main.world.cam_max >= 20.0 * WorldView._map_grow(s.bounds()) - 0.01, "넓힌 지도 축소 한계 %.1f" % main.world.cam_max)

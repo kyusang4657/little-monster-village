@@ -139,8 +139,9 @@ scripts/ui/                      hud(패널·꾸미기 패널·넓히기·이야
 scripts/audio/sound.gd           자동 로드 Sound(버스·효과음·배경음)
 scripts/main.gd                  흐름·입력·저장 시점·앱 상태
 scripts/debug/shot_driver.gd     실행 화면 자동 캡처(내보내기 제외)
-tests/run_tests.gd               규칙·밸런스 자동 검사 241개(헤드리스)
-tests/integration_driver.gd      실제 장면 통합 검사 47개(디스플레이 필요)
+tests/run_tests.gd               규칙·밸런스 자동 검사 532개(헤드리스)
+tests/character_checks.gd        캐릭터 관절·비율·동작·예산 검사 447개(헤드리스)
+tests/integration_driver.gd      실제 장면 통합 검사 83개(디스플레이 필요)
 tools/make_sounds.py             효과음·배경음 합성기(CC0)
 docs/store, docs/release         스토어 자료, 출시 안내
 ```
@@ -150,12 +151,14 @@ docs/store, docs/release         스토어 자료, 출시 안내
 ```bash
 godot --headless --path . --import                                  # 최초 1회
 godot --headless --path . --script res://tests/run_tests.gd         # 규칙 검사
+godot --headless --path . --script res://tests/character_checks.gd  # 캐릭터 검사
 xvfb-run -a godot --path . --rendering-driver opengl3 --resolution 1280x720 -- \
     --integration --no-tutorial --no-story --save-dir=user://itest/ --fresh --no-focus-pause
 xvfb-run -a godot --path . --rendering-driver opengl3 --resolution 1920x1080 -- \
     --shots=/tmp/shots --scenario=construction --no-tutorial --no-story --save-dir=user://shots/ --fresh --no-focus-pause
     # scenario: full, construction, decor, tutorial(안내 켠 채), closeup, art(아이콘·대표 이미지 원본),
-    #           chapter(성 레벨·땅 넓히기·앞마당·이야기·보스, --no-story 없이 실행)
+    #           chapter(성 레벨·땅 넓히기·앞마당·이야기·보스, --no-story 없이 실행),
+    #           perf(최대 지도·10단계 성능), perf_base(이전 버전과 같은 조건 비교)
 godot --headless --path . --export-debug "Android" build/android/monster-village-debug.apk
 godot --headless --path . --export-release "Web" build/web/index.html
 python3 tools/make_sounds.py                                         # 소리 다시 만들기(numpy, oggenc)
@@ -182,3 +185,6 @@ Android 내보내기 도구 구성(Godot 4.4.1 공식 템플릿, Gradle 미사�
 - Google Play 업로드 전 대상 API 36 대응(Gradle 빌드 또는 Godot 업그레이드)이 필요합니다.
 - 일꾼 2명은 외형 전용입니다. 현장이 하나면 둘 다 그곳으로 가고, 현장이 3곳 이상이면 세 번째 현장에는 일꾼이 가지 않습니다(공사는 시간 기준이라 진행은 됩니다).
 - 모델은 직접 만든 기본 도형 로우폴리입니다. 외부 CC0 에셋으로 바꾸려면 CREDITS의 안내를 따르세요.
+- **3차 성능:** 최대 지도(24×18)·10단계에서 그리기 호출 272, 삼각형 약 37.6만(그림자 켬)입니다. 데스크톱 소프트웨어 렌더러에서는 v0.2와 같은 조건일 때 느려지지 않았지만, 휴대전화 30FPS는 확인하지 못했습니다. 느리면 메뉴에서 그림자를 꺼 주세요(게임이 한 번 안내합니다).
+- 캐릭터는 스킨 메시(뼈대)라 정점 변형을 GPU가 하지 않는 환경에서는 비용이 큽니다. 소프트웨어 렌더러에서 캐릭터만 잰 FPS는 약 9% 낮았습니다(그리기 호출은 6분의 1).
+- 앞마당은 처음 울타리 밖의 넓힌 땅에 있는 숲 자원 지점에만 지을 수 있습니다. 넓힌 뒤에는 새 바깥 울타리 안쪽이 됩니다(기사 입구를 하나로 유지하기 위한 결정, `docs/DESIGN-v0.3.md`).
