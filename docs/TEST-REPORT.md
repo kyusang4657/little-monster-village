@@ -17,8 +17,8 @@
 | 검수 일시 / 담당 | 2026-10-03 / 제작 AI(Claude Code). 코드 검토는 별도 검토 에이전트 3회(규칙, 화면·흐름, 수정 검증) |
 | 소스 | 브랜치 `claude/new-session-2moi3q`, 앱 0.3.0 (versionCode 3) |
 | 엔진 | Godot 4.4.1-stable / GDScript / GL Compatibility |
-| APK | `release/monster-village-0.3.0-debug.apk`(arm64-v8a + armeabi-v7a), 대화로 arm64 전용판 전달. 0.1.0·0.2.0과 같은 패키지·디버그 서명 |
-| 웹 | `build/web`(Web 프리셋) |
+| APK | `release/monster-village-0.3.0-debug.apk`(약 58MB, arm64-v8a + armeabi-v7a) **생성됨**. 같은 패키지·서명의 arm64 전용판(약 29MiB)은 대화로 전달. 두 파일 모두 `apksigner verify` 통과, versionCode 3, 인증서 SHA-256 f6ef3b…d396(0.1.0·0.2.0과 같음), 추가 권한 없음 |
+| 웹 | `build/web`(Web 프리셋) **생성됨**, 압축본 약 12.7MB. 헤드리스 Chromium에서 프롤로그 → 안내 진행 확인 |
 | 실행 환경 | ① 헤드리스 규칙 검사 `tests/run_tests.gd` ② 헤드리스 캐릭터 검사 `tests/character_checks.gd` ③ Linux + Xvfb + Mesa llvmpipe(소프트웨어 OpenGL) 1280×720 통합 검사 `tests/integration_driver.gd`, 1280×720·1600×720 화면 캡처와 성능 측정 `scripts/debug/shot_driver.gd` |
 | 실기기 | **미검증**: 휴대전화·에뮬레이터 없음 |
 | 증거 | 아래 검사 출력, `docs/screenshots/v0.3/` |

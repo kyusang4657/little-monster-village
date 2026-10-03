@@ -7,8 +7,8 @@
 
 | 항목 | 내용 |
 | --- | --- |
-| 설치 파일 | [`release/monster-village-0.3.0-debug.apk`](release/monster-village-0.3.0-debug.apk) (**디버그용 APK**, arm64-v8a + armeabi-v7a) |
-| 웹(itch.io용) | `godot --headless --path . --export-release "Web" build/web/index.html` → `build/web` 압축(약 12MB). 안내: [`docs/release/ITCH-IO.md`](docs/release/ITCH-IO.md) |
+| 설치 파일 | [`release/monster-village-0.3.0-debug.apk`](release/monster-village-0.3.0-debug.apk) (**디버그용 APK**, arm64-v8a + armeabi-v7a, 약 58MB) |
+| 웹(itch.io용) | `godot --headless --path . --export-release "Web" build/web/index.html` → `build/web` 압축(약 12.7MB). 안내: [`docs/release/ITCH-IO.md`](docs/release/ITCH-IO.md) |
 | 패키지 ID / 버전 | `io.github.kyusang4657.monstervillage` / 0.3.0 (versionCode 3). 0.1.0·0.2.0과 같은 디버그 서명이라 덮어 설치하면 저장이 이어집니다 |
 | 엔진 | Godot **4.4.1-stable** · GDScript · **Compatibility** 렌더러 · 실시간 3D |
 | 권한 | 추가 권한 없음(인터넷·위치·카메라·연락처 사용 안 함) |
