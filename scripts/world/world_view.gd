@@ -224,7 +224,7 @@ func _build_ground() -> void:
 	for i in 70:
 		var p := Vector2(rng.randf_range(-8.0, w + 8.0), rng.randf_range(-8.0, d + 7.0))
 		var r := rng.randf_range(0.35, 1.1)
-		var c := Color("7fb84c") if i % 2 == 0 else Color("9ad366")
+		var c := Color("89bf56") if i % 2 == 0 else Color("93ca5e")
 		g.cyl(r, r, 0.012, W(p.x, 0.006, p.y), c, Vector3.ZERO, 10)
 	# 길 가장자리 자갈
 	for rr in GameConfig.layout().cosmetic_path_rects:

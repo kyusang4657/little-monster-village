@@ -20,6 +20,8 @@ func run(p_main, p_out: String, scenario: String = "full") -> void:
 			_tutorial()
 		"closeup":
 			_closeup()
+		"art":
+			_art()
 		_:
 			_sequence()
 
@@ -335,4 +337,28 @@ func _closeup() -> void:
 	await _shot("62-close-knights")
 	await _focus(Vector2(4.0, 2.0), 3.5)
 	await _shot("63-close-tower")
+	_finish_log()
+
+
+## 스토어·아이콘용: UI 를 숨기고 장면만 찍는다
+func _art() -> void:
+	await _wait(20)
+	main.hud.visible = false
+	main.tutorial.visible = false
+	var s: GameState = main.state
+	s.commit_decor("house_02", {roof_color = "teal"})
+	main._sync_world()
+	var vp := get_viewport().get_visible_rect().size
+	if vp.x <= vp.y * 1.2:
+		# 정사각형: 아이콘(성 확대)
+		await _focus(Vector2(6.5, 6.6), 4.4)
+		await _shot("icon-raw")
+	else:
+		# 가로 대표 이미지: 전투 장면
+		main._start_raid()
+		await _fast_battle(12.5)
+		await _focus(Vector2(6.8, 4.6), 9.5)
+		for i in 8:
+			await _wait(1)
+		await _shot("feature-raw")
 	_finish_log()
