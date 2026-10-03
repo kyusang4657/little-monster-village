@@ -35,7 +35,6 @@ pointing/emulate_mouse_from_touch=true
 [internationalization]
 
 locale/fallback="ko"
-locale/include_text_server_data=true
 
 [rendering]
 

@@ -9,7 +9,7 @@
 | 검수 일시 / 담당 | 2026-10-03 / 제작 AI(Claude Code) |
 | 소스 버전 / 빌드 식별자 | 브랜치 `claude/new-session-2moi3q`, 앱 버전 0.1.0 (versionCode 1) |
 | 엔진 / 버전 / 렌더러 | Godot 4.4.1-stable 공식 빌드 / GDScript / GL Compatibility |
-| APK 파일 / 빌드 결과 | `release/monster-village-0.1.0-debug.apk`(약 57MB, arm64-v8a + armeabi-v7a). **생성됨.** `apksigner verify` 결과 v1·v2·v3 서명 검증 통과. 패키지 `io.github.kyusang4657.monstervillage`, minSdk 21 / targetSdk 34, `screenOrientation=userLandscape`, 추가 권한 없음(aapt 확인) |
+| APK 파일 / 빌드 결과 | `release/monster-village-0.1.0-debug.apk`(약 54MB, arm64-v8a + armeabi-v7a). 같은 패키지·서명의 arm64 전용 판(약 28MB)도 만듦. **생성됨.** `apksigner verify` 결과 v1·v2·v3 서명 검증 통과. 패키지 `io.github.kyusang4657.monstervillage`, minSdk 21 / targetSdk 34, `screenOrientation=userLandscape`, 추가 권한 없음(aapt 확인) |
 | Android 기기 / OS / 화면 크기 | **미검증**: 빌드 환경에서 실기기·에뮬레이터를 쓸 수 없었습니다(Android 시스템 이미지 서버 접근 차단). |
 | 실행 환경 | ① 헤드리스 자동 검사(`tests/run_tests.gd`, 디스플레이 없음) ② 데스크톱 실행: Linux + Xvfb + Mesa llvmpipe(OpenGL 4.5, Compatibility 렌더러), 1280×720·1600×720 창(`tests/integration_driver.gd`, `scripts/debug/shot_driver.gd`) |
 | 밸런스 설정 버전 | `config/prototype-defaults.json` schema 1. 전투·경제 수치 변경 없음, 카메라 방위만 45→30 |

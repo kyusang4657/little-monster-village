@@ -11,7 +11,7 @@ Android 휴대전화에서 가로 화면으로 즐기는 작은 마을 건설·�
 | 설치 파일 | [`release/monster-village-0.1.0-debug.apk`](release/monster-village-0.1.0-debug.apk) (**디버그용 APK**, 스토어 출시 파일 아님) |
 | 패키지 ID | `io.github.kyusang4657.monstervillage` (후속 테스트 빌드에서도 유지) |
 | 엔진 | Godot **4.4.1-stable** (공식 빌드) · GDScript · **Compatibility** 렌더러 · 실시간 3D |
-| 지원 | Android 5.0(API 21)+, arm64-v8a / armeabi-v7a, 가로 화면(센서 가로), 오프라인 |
+| 지원 | Android 5.0(API 21)+, arm64-v8a / armeabi-v7a(저장소의 APK는 두 구조 모두 포함, 약 54MB. 대화로 전달한 `-arm64` APK는 64비트 전용 약 28MB이며 패키지·서명이 같음), 가로 화면(센서 가로), 오프라인 |
 | 권한 | 추가 권한 없음(인터넷·위치·카메라·연락처 사용 안 함), 광고·결제·로그인 없음 |
 | 실제 실행 화면 | [`docs/screenshots/`](docs/screenshots) (게임을 실행해 캡처한 화면, 이미지 시안 아님) |
 
@@ -169,4 +169,5 @@ godot --headless --path . --export-debug "Android" build/android/monster-village
 - 모델은 기본 도형으로 만든 임시 입체 모델입니다. 구조와 색은 기준 시트를 따랐지만 세부 장식(창틀, 문양 등)은 단순화했습니다. 애니메이션은 걷기, 공격, 피격 깜빡임, 쓰러짐 정도로 간단합니다.
 - 소리와 음악이 없습니다.
 - 디버그 APK라서 출시용 서명, AAB, 스토어 등록은 범위 밖입니다.
+- APK 크기를 줄이려고 Godot의 선택 텍스트 데이터(ICU 줄바꿈 사전, 약 2.8MB)는 넣지 않았습니다. 한글 글자 조합에는 영향이 없고 줄바꿈은 띄어쓰기 기준으로 됩니다. 실기기에서 긴 안내 문장이 어색하게 끊기면 `project.godot`에 `locale/include_text_server_data=true`를 다시 넣어 주세요.
 - 밸런스 참고: 2단계는 Lv.1 탑 두 개로 지고, 두 탑을 모두 강화하면 이깁니다. 3단계는 기본 배치로 지고, 탑 4개를 모두 Lv.2로 길 근처에 두면 이깁니다(성 HP 180/180). 재미와 난이도는 실제 플레이 의견을 받은 뒤 조정할 항목입니다.
