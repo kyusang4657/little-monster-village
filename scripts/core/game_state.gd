@@ -176,6 +176,8 @@ static func build_seconds(type: String) -> float:
 ## 0~1 공사 진행률(완성 = 1)
 func build_progress(b: Dictionary) -> float:
 	var total := build_seconds(b.type)
+	if bool(b.get("repairing", false)):
+		total = float(GameConfig.building_def(b.type).get("repair_seconds", total))
 	if total <= 0.0:
 		return 1.0
 	return clampf(1.0 - float(b.get("build_left", 0.0)) / total, 0.0, 1.0)
