@@ -461,7 +461,8 @@ func _start_raid() -> void:
 	saver.save(state)
 	world.clear_battle()
 	sim = BattleSim.new()
-	sim.setup(state.buildings, state.all_edges(), int(r.stage), float(r.get("hp_multiplier", 1.0)))
+	sim.setup(state.buildings, state.all_edges(), int(r.stage), float(r.get("hp_multiplier", 1.0)),
+		{castle_hp = int(r.castle_hp), bounds = r.bounds})
 	tutorial.notify("battle_started")
 	Sound.play("raid_start")
 	Sound.play_music("battle")

@@ -18,6 +18,8 @@ func _init() -> void:
 		"test_battle_pause_no_catchup",
 		"test_construction_basic", "test_construction_battle_and_rules", "test_save_v2_and_migration",
 		"test_decor", "test_assist_mode", "test_knight_spread", "test_advisor", "test_stage_curve",
+		"test_castle_levels", "test_boss_units", "test_expansion", "test_resource_sites_and_props",
+		"test_outpost_battle", "test_outpost_repair", "test_save_v3_migration",
 	]
 	for t in tests:
 		var before := _fail
@@ -383,7 +385,7 @@ func finish_construction(s: GameState) -> void:
 
 func sim(s: GameState, stage: int) -> BattleSim:
 	var b := BattleSim.new()
-	b.setup(s.buildings, s.all_edges(), stage)
+	b.setup(s.buildings, s.all_edges(), stage, 1.0, {castle_hp = s.castle_hp(), bounds = s.bounds()})
 	b.run_to_end()
 	return b
 
@@ -476,7 +478,8 @@ func test_battle_bolts_and_counts() -> void:
 	d.knights = []
 	d.spawned = d.total
 	d.killed = d.total - 1
-	d.knights.append({id = 1, hp = 5, max_hp = 90, pos = Vector2(6.5, 3), waypoints = [Vector2(6.5, 3)], wp = 0, state = "walk", attack_timer = 0.0, alive = true, facing = Vector2(0, 1), remaining_dist = 1.0})
+	d.knights.append({id = 1, kind = "knight", hp = 5, max_hp = 90, pos = Vector2(6.5, 3), waypoints = [Vector2(6.5, 3)], wp = 0, state = "walk", attack_timer = 0.0, alive = true, facing = Vector2(0, 1), remaining_dist = 1.0,
+		target = "castle", speed = 0.6, attack_damage = 6, attack_interval = 1.0, castle_cell = Vector2i(6, 6)})
 	d.bolts.append({id = 90, tower_id = "tower_01", target_id = 1, pos = Vector2(4, 2), start = Vector2(4, 2), damage = 10, alive = true})
 	d.bolts.append({id = 91, tower_id = "tower_02", target_id = 1, pos = Vector2(10, 2), start = Vector2(10, 2), damage = 10, alive = true})
 	for i in 120:
@@ -753,18 +756,295 @@ func test_stage_curve() -> void:
 	}
 	var line := "  [단계 곡선]"
 	for st in range(1, GameConfig.stage_count() + 1):
-		var base := sim(fresh(), st)
+		# 그 단계에 도달했을 때의 성 레벨(체력)로 시험한다
+		var fs := fresh()
+		fs.highest_cleared = st - 1
+		fs.sync_castle_level()
+		var base := sim(fs, st)
 		var res := "기본 %s" % ("승" if base.outcome == "win" else "패")
 		if plans.has(st):
 			var p: Array = plans[st]
-			var b := sim(reference_layout(p[0], p[1], p[2]), st)
+			var rl := reference_layout(p[0], p[1], p[2])
+			rl.highest_cleared = st - 1
+			rl.sync_castle_level()
+			var b := sim(rl, st)
 			res += " / 탑%d Lv%d%s %s HP%d" % [p[0], p[1], " 미로" if p[2] else "", "승" if b.outcome == "win" else "패", b.castle_hp]
 			check(b.outcome == "win", "%d단계: 기준 배치(탑 %d·Lv.%d%s)로 클리어 가능" % [st, p[0], p[1], "·미로" if p[2] else ""])
 		if st >= 2:
 			check(base.outcome == "lose", "%d단계: 처음 배치로는 패배(성장 필요)" % st)
 		line += "  %d:%s" % [st, res]
-		var cur := GameConfig.stage(st)
 		if st > 1:
-			var prev := GameConfig.stage(st - 1)
-			check(int(cur.knight_count) * int(cur.knight_hp) > int(prev.knight_count) * int(prev.knight_hp), "%d단계 총 체력 증가" % st)
+			check(total_stage_hp(st) > total_stage_hp(st - 1), "%d단계 총 체력 증가" % st)
 	print(line)
+
+
+func total_stage_hp(st: int) -> int:
+	var n := 0
+	for u in GameConfig.stage_units(st):
+		n += int(u.hp)
+	return n
+
+
+## 장 진행에 따라 성 레벨을 맞춘 상태
+func at_level(cleared: int) -> GameState:
+	var s := fresh()
+	s.highest_cleared = cleared
+	s.ready_stage = mini(cleared + 1, GameConfig.stage_count())
+	s.sync_castle_level()
+	return s
+
+
+func test_castle_levels() -> void:
+	check(GameState.castle_level_for(0) == 1 and GameState.castle_level_for(2) == 1, "1장 진행 중 Lv.1")
+	check(GameState.castle_level_for(3) == 2 and GameState.castle_level_for(6) == 3 and GameState.castle_level_for(9) == 4, "장을 끝낼 때마다 Lv.2·3·4")
+	check(GameState.castle_level_for(10) == 4, "최종장 클리어 후에도 Lv.4(최대)")
+	check(GameConfig.castle_hp(1) == 180 and GameConfig.castle_hp(4) > GameConfig.castle_hp(3), "성 체력 Lv.1 180, 레벨마다 증가")
+	var s := at_level(2)
+	s.ready_stage = 3
+	s.raid_ready = true
+	s.mode = GameState.MODE_RAID_READY
+	var leveled := []
+	s.castle_leveled.connect(func(lv): leveled.append(lv))
+	var b := s.begin_battle()
+	check(int(b.castle_hp) == 180, "3단계 전투는 Lv.1 체력")
+	var r := s.resolve_battle(b.battle_id, 3, true)
+	check(int(r.chapter_cleared) == 1 and int(r.castle_level) == 2 and leveled == [2], "3단계 승리 → 1장 완료·성 Lv.2")
+	check(s.get_building("castle_01").level == 2 and s.castle_hp() == 220, "성 건물 레벨·체력 반영")
+	s.leave_result()
+	s.ready_stage = 3
+	s.raid_ready = true
+	s.mode = GameState.MODE_RAID_READY
+	var b2 := s.begin_battle()
+	var r2 := s.resolve_battle(b2.battle_id, 3, true)
+	check(int(r2.chapter_cleared) == 0 and leveled == [2], "같은 장 다시 클리어해도 레벨업 반복 없음")
+	# 레벨별 한도
+	var l1 := fresh()
+	check(l1.max_count("house") == 4 and l1.max_count("lumber_camp") == 1 and l1.max_count("outpost") == 0 and l1.max_count("flowerbed") == 0, "Lv.1 한도")
+	check(l1.check_new_building("flowerbed", 12, 8, 0).reason == "성 Lv.2에서 열려요", "잠긴 건물 안내")
+	var l2 := at_level(3)
+	check(l2.max_count("house") == 6 and l2.max_count("lumber_camp") == 2 and l2.max_count("flowerbed") == 12, "Lv.2 한도")
+	var l4 := at_level(9)
+	check(l4.max_count("house") == 10 and l4.max_count("outpost") == 1 and l4.max_count("defense_tower") == 6, "Lv.4 한도(방어탑은 그대로 6)")
+	l2.wood = 500
+	var lc := l2.commit_new_building("lumber_camp", 12, 7, 0)
+	check(lc.ok and l2.wood == 380, "Lv.2 벌목소 추가(목재 120)")
+	check(is_equal_approx(l2.income_rate(), 1.0), "공사 중 벌목소는 생산 안 함")
+	finish_construction(l2)
+	check(is_equal_approx(l2.income_rate(), 2.0), "완성 후 초당 2")
+
+
+func test_boss_units() -> void:
+	var u := GameConfig.stage_units(10)
+	check(u.size() == 16, "10단계 16명(기사 14 + 기사단장 + 용사)")
+	check(u[7].kind == "commander" and u[u.size() - 1].kind == "hero", "기사단장은 8번째, 용사는 마지막")
+	var kn := 0
+	for x in u:
+		if x.kind == "knight":
+			kn += 1
+	check(kn == 14, "일반 기사 14")
+	check(GameConfig.stage_units(3).size() == 8 and GameConfig.stage_units(3)[0].kind == "knight", "보통 단계는 기사만")
+	var s := at_level(9)
+	# 성이 먼저 무너지지 않게 체력을 크게 주고 등장만 확인한다
+	var b := BattleSim.new()
+	b.setup(s.buildings, s.all_edges(), 10, 1.0, {castle_hp = 100000, bounds = s.bounds()})
+	b.run_to_end()
+	var kinds := {}
+	for k in b.knights:
+		kinds[k.kind] = int(kinds.get(k.kind, 0)) + 1
+	check(int(kinds.get("hero", 0)) == 1 and int(kinds.get("commander", 0)) == 1, "보스 등장")
+	var hero: Dictionary = {}
+	for k in b.knights:
+		if k.kind == "hero":
+			hero = k
+	check(int(hero.max_hp) == int(GameConfig.stage(10).units[2].hp) and is_equal_approx(float(hero.speed), 0.5), "용사 체력·속도")
+	s.assist_enabled = true
+	s.consecutive_losses = 2
+	var c := BattleSim.new()
+	c.setup(s.buildings, s.all_edges(), 10, s.assist_multiplier(), {castle_hp = s.castle_hp(), bounds = s.bounds()})
+	c.run_to_end(5.0)
+	check(c.knights.size() >= 1 and int(c.knight_hp) == int(round(220 * 0.9)), "도움 모드는 보스 단계에도 적용")
+
+
+func test_expansion() -> void:
+	var s := fresh()
+	check(GridLogic.fixed_edges(s.bounds()).size() == 46, "처음 바깥 울타리 46변")
+	var listed := {}
+	for e in GameConfig.layout().fixed_fence_edges:
+		listed[GridLogic.edge_key(Vector2i(int(e.from[0]), int(e.from[1])), Vector2i(int(e.to[0]), int(e.to[1])))] = true
+	check(listed == GridLogic.fixed_edges(s.bounds()), "계산한 외곽 = initial-layout 목록")
+	check(s.check_expand("east").reason == "성 Lv.2에서 열려요", "Lv.1 확장 잠김")
+	var t := at_level(3)
+	t.wood = 500
+	check(t.check_expand("north").reason == "성 Lv.3에서 열려요", "북쪽은 Lv.3")
+	var w := t.wood
+	var r := t.commit_expand("east")
+	check(r.ok and t.wood == w - 60 and t.bounds() == Rect2i(0, 0, 19, 10), "동쪽 5칸 확장(목재 60)")
+	check(not t.commit_expand("east").ok, "같은 방향 두 번 불가")
+	var fx := GridLogic.fixed_edges(t.bounds())
+	check(fx.size() == 2 * 19 + 2 * 10 - 2 and not fx.has("v:14:3") and fx.has("v:19:3"), "외곽 울타리가 새 경계로 이동")
+	check(GridLogic.is_interior_edge("v:14:3", t.bounds()), "옛 경계 자리는 안쪽 변")
+	check(t.commit_new_building("house", 15, 7, 0).ok, "넓힌 땅에 주택")
+	check(t.commit_fences({"v:14:6": true}, {}).ok, "넓힌 땅 울타리")
+	var u := at_level(6)
+	u.wood = 500
+	check(u.commit_expand("south").ok, "남쪽 확장")
+	check(GameConfig.entry_cell_for(u.bounds()) == Vector2i(6, -4) and GameConfig.spawn_world_for(u.bounds()).is_equal_approx(Vector2(6.5, -6)), "정문·진입 지점이 앞으로 이동")
+	check(GridLogic.gate_edges(u.bounds()) == ["h:6:-4", "h:7:-4"], "정문 변 이동")
+	var route := GridLogic.find_route(u.buildings, u.all_edges(), u.bounds())
+	check(not route.is_empty() and route[0] == Vector2i(6, -4), "새 정문에서 성까지 길")
+	var b := BattleSim.new()
+	b.setup(u.buildings, u.all_edges(), 7, 1.0, {castle_hp = u.castle_hp(), bounds = u.bounds()})
+	b.step(BattleSim.STEP)
+	check(b.knights.size() == 1 and (b.knights[0].pos as Vector2).distance_to(Vector2(6.5, -6)) < 0.05, "기사가 새 진입 지점 (6.5,-6)에서 등장")
+	u.wood = 500
+	for d in ["west", "east", "north"]:
+		u.commit_expand(d)
+		u.wood = 500
+	var mx: Array = GameConfig.map_config().max_size
+	check(u.bounds().size == Vector2i(int(mx[0]), int(mx[1])), "네 방향 모두 넓히면 최대 크기 %s" % str(u.bounds().size))
+	# 확장 후 입구 봉쇄 금지 규칙 그대로
+	check(u.check_move("house_01", 6, -4, 0).reason == GridLogic.REASON_NO_ROUTE, "새 입구 막기 거부")
+	check(u.check_move("house_01", -5, 2, 0).ok, "서쪽 땅에 옮기기")
+	check(u.check_move("house_01", -6, 2, 0).reason == GridLogic.REASON_OUT, "새 경계 밖 거부")
+	# 저장·검증
+	var d := u.to_dict()
+	check(GameState.validate_dict(d) == "", "확장 저장본 검증 통과")
+	var v := GameState.new()
+	v.from_dict(d)
+	check(v.bounds() == u.bounds() and v.expansions.size() == 4, "확장 복원")
+	var bad := u.to_dict()
+	bad.expansions = ["east", "east"]
+	check(GameState.validate_dict(bad) != "", "중복 확장 거부")
+
+
+func test_resource_sites_and_props() -> void:
+	var s := at_level(6)
+	s.wood = 500
+	check(s.commit_new_building("outpost", 16, 2, 0).reason == GridLogic.REASON_OUT, "확장 전에는 앞마당 자리 없음")
+	s.commit_expand("east")
+	s.wood = 500
+	check(GridLogic.open_sites(s.bounds()).size() == 1, "동쪽 숲 자원 지점 열림")
+	check(s.check_new_building("house", 16, 2, 0).reason == GridLogic.REASON_SITE, "자원 지점에 다른 건물 불가")
+	check(s.check_new_building("house", 15, 1, 0).reason == GridLogic.REASON_SITE, "자원 지점에 겹쳐도 불가")
+	check(s.check_new_building("outpost", 15, 5, 0).reason == GridLogic.REASON_OUTPOST_SITE, "앞마당은 자원 지점에만")
+	var r := s.commit_new_building("outpost", 16, 2, 0)
+	check(r.ok and s.wood == 400, "앞마당 건설(목재 100)")
+	check(not s.check_new_building("outpost", 16, 2, 0).ok, "앞마당 한도 1")
+	var f := s.commit_new_building("flowerbed", 12, 8, 0)
+	check(f.ok and GameConfig.footprint("flowerbed") == Vector2i(1, 1), "1칸 꾸밈 소품")
+	check(s.check_move("house_01", 12, 8, 0).reason == GridLogic.REASON_OVERLAP, "소품도 칸을 차지")
+	check(s.commit_decor(f.id, {flower_color = "yellow"}).ok, "소품 꾸미기")
+
+
+func outpost_state(protected_outpost: bool) -> GameState:
+	var s := at_level(6)
+	s.wood = 500
+	s.commit_expand("east")
+	s.wood = 500
+	s.commit_new_building("outpost", 16, 2, 0)
+	if protected_outpost:
+		s.wood = 500
+		s.commit_new_building("defense_tower", 14, 1, 0)
+		s.wood = 500
+		s.commit_new_building("defense_tower", 14, 4, 0)
+	finish_construction(s)
+	if protected_outpost:
+		for b in s.buildings:
+			if b.type == "defense_tower":
+				while int(b.level) < 3:
+					s.wood = 500
+					s.commit_upgrade(b.id)
+	return s
+
+
+func test_outpost_battle() -> void:
+	var s := outpost_state(false)
+	var b := BattleSim.new()
+	# 앞마당 쟁탈만 보려고 성 체력은 크게
+	b.setup(s.buildings, s.all_edges(), 7, 1.0, {castle_hp = 100000, bounds = s.bounds()})
+	check(not b.outpost.is_empty() and not b.outpost_lanes.is_empty(), "앞마당 공격 갈래")
+	var captured_at := -1.0
+	var retargeted := false
+	while b.outcome == "" and b.time < 120:
+		b.step(BattleSim.STEP)
+		for e in b.events:
+			if e.type == "outpost_captured" and captured_at < 0:
+				captured_at = b.time
+		b.events.clear()
+	var raiders := 0
+	for k in b.knights:
+		if String(k.lane).begins_with("o"):
+			raiders += 1
+			if k.target == "castle":
+				retargeted = true
+	check(raiders == int(GameConfig.stage(7).knight_count) / 4, "4번째마다 앞마당 소대 (%d명)" % raiders)
+	print("  [앞마당·무방비 7단계] %s, 점령 %.1f초, 성 HP %d" % [b.outcome, captured_at, b.castle_hp])
+	check(captured_at > 0.0 and bool(b.outpost.captured), "무방비 앞마당은 점령됨")
+	check(retargeted, "점령 뒤 소대는 성으로 방향 전환")
+	var c := BattleSim.new()
+	c.setup(s.buildings, s.all_edges(), 7, 1.0, {castle_hp = 100000, bounds = s.bounds()})
+	c.run_to_end(120.0)
+	var same := c.outcome == b.outcome and c.castle_hp == b.castle_hp and int(c.outpost.hp) == int(b.outpost.hp)
+	for i in b.knights.size():
+		same = same and (b.knights[i].pos as Vector2).is_equal_approx(c.knights[i].pos)
+	check(same, "앞마당 전투도 결정적")
+	var p := outpost_state(true)
+	var d := BattleSim.new()
+	d.setup(p.buildings, p.all_edges(), 7, 1.0, {castle_hp = 100000, bounds = p.bounds()})
+	d.run_to_end()
+	print("  [앞마당·탑 2개 엄호 7단계] %s, 앞마당 HP %d/%d" % [d.outcome, int(d.outpost.hp), int(d.outpost.max_hp)])
+	check(not bool(d.outpost.captured), "방어탑으로 지킨 앞마당은 버팀")
+	var none := at_level(6)
+	var e := sim(none, 7)
+	for k in e.knights:
+		if k.target != "castle":
+			check(false, "앞마당이 없으면 모두 성으로")
+			break
+	check(e.outpost.is_empty(), "앞마당 없음")
+
+
+func test_outpost_repair() -> void:
+	var s := outpost_state(false)
+	var id: String = s.outposts()[0].id
+	check(is_equal_approx(s.income_rate(), 2.0), "앞마당 생산 +1/초")
+	s.mark_outpost_lost(id)
+	check(is_equal_approx(s.income_rate(), 1.0) and s.buildings.size() > 0 and not s.get_building(id).is_empty(), "점령되면 생산만 멈춤(건물 유지)")
+	var nb := BattleSim.new()
+	nb.setup(s.buildings, s.all_edges(), 7, 1.0, {castle_hp = s.castle_hp(), bounds = s.bounds()})
+	check(nb.outpost.is_empty(), "점령된 앞마당은 다음 전투에서 표적 아님")
+	s.wood = 10
+	check(not s.commit_repair(id).ok and s.wood == 10, "수리 목재 부족")
+	s.wood = 100
+	var r := s.commit_repair(id)
+	check(r.ok and s.wood == 80 and bool(s.get_building(id).repairing), "수리 시작(목재 20)")
+	check(is_equal_approx(s.income_rate(), 1.0), "수리 중 생산 없음")
+	var d := s.to_dict()
+	var t := GameState.new()
+	t.from_dict(d)
+	check(bool(t.get_building(id).get("repairing", false)) and float(t.get_building(id).build_left) > 0.0, "수리 상태 저장")
+	finish_construction(s)
+	check(is_equal_approx(s.income_rate(), 2.0) and not s.get_building(id).has("repairing"), "수리 완료 후 생산 재개")
+
+
+func test_save_v3_migration() -> void:
+	var s := at_level(5)
+	var d := s.to_dict()
+	d.version = 2
+	d.erase("expansions")
+	d.erase("story_seen")
+	for b in d.buildings:
+		if b.type == "castle":
+			b.level = 1
+	check(GameState.validate_dict(d) == "", "v2 저장본 허용")
+	var t := GameState.new()
+	t.from_dict(d)
+	check(t.castle_level() == 2 and t.get_building("castle_01").level == 2, "v2 → 성 레벨 자동 맞춤")
+	check(t.expansions.is_empty() and t.bounds() == GameConfig.initial_bounds(), "확장 없음으로 이전")
+	check(t.story_seen.has("prologue") and t.story_seen.has("ch1_end") and not t.story_seen.has("ch2_end"), "지나온 장면만 본 것으로 표시")
+	var u := at_level(0)
+	var e := u.to_dict()
+	e.version = 2
+	e.erase("story_seen")
+	var w := GameState.new()
+	w.from_dict(e)
+	check(not w.story_seen.has("prologue"), "새로 시작한 저장본은 프롤로그 미시청")

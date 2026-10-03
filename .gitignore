@@ -8,3 +8,6 @@ build/
 *.keystore
 *.jks
 !android/debug.keystore
+
+# 에이전트 작업 공간(워크트리)
+.claude/

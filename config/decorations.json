@@ -10,11 +10,31 @@
           "label": "지붕 색",
           "default": "purple",
           "options": [
-            { "id": "purple", "label": "보라", "color": "7a4bc4" },
-            { "id": "red", "label": "빨강", "color": "c4463e" },
-            { "id": "teal", "label": "청록", "color": "2e9c97" },
-            { "id": "green", "label": "초록", "color": "4c9a3d" },
-            { "id": "brown", "label": "갈색", "color": "8a5a30" }
+            {
+              "id": "purple",
+              "label": "보라",
+              "color": "7a4bc4"
+            },
+            {
+              "id": "red",
+              "label": "빨강",
+              "color": "c4463e"
+            },
+            {
+              "id": "teal",
+              "label": "청록",
+              "color": "2e9c97"
+            },
+            {
+              "id": "green",
+              "label": "초록",
+              "color": "4c9a3d"
+            },
+            {
+              "id": "brown",
+              "label": "갈색",
+              "color": "8a5a30"
+            }
           ]
         },
         {
@@ -22,9 +42,18 @@
           "label": "지붕 모양",
           "default": "gable",
           "options": [
-            { "id": "gable", "label": "맞배" },
-            { "id": "hip", "label": "모임" },
-            { "id": "steep", "label": "뾰족" }
+            {
+              "id": "gable",
+              "label": "맞배"
+            },
+            {
+              "id": "hip",
+              "label": "모임"
+            },
+            {
+              "id": "steep",
+              "label": "뾰족"
+            }
           ]
         },
         {
@@ -32,9 +61,18 @@
           "label": "창문",
           "default": "square",
           "options": [
-            { "id": "square", "label": "네모" },
-            { "id": "round", "label": "동그라미" },
-            { "id": "arch", "label": "아치" }
+            {
+              "id": "square",
+              "label": "네모"
+            },
+            {
+              "id": "round",
+              "label": "동그라미"
+            },
+            {
+              "id": "arch",
+              "label": "아치"
+            }
           ]
         },
         {
@@ -42,9 +80,18 @@
           "label": "굴뚝",
           "default": "back_right",
           "options": [
-            { "id": "back_right", "label": "뒤 오른쪽" },
-            { "id": "back_left", "label": "뒤 왼쪽" },
-            { "id": "none", "label": "없음" }
+            {
+              "id": "back_right",
+              "label": "뒤 오른쪽"
+            },
+            {
+              "id": "back_left",
+              "label": "뒤 왼쪽"
+            },
+            {
+              "id": "none",
+              "label": "없음"
+            }
           ]
         },
         {
@@ -52,10 +99,22 @@
           "label": "깃발",
           "default": "none",
           "options": [
-            { "id": "none", "label": "없음" },
-            { "id": "skull", "label": "해골" },
-            { "id": "moon", "label": "달" },
-            { "id": "star", "label": "별" }
+            {
+              "id": "none",
+              "label": "없음"
+            },
+            {
+              "id": "skull",
+              "label": "해골"
+            },
+            {
+              "id": "moon",
+              "label": "달"
+            },
+            {
+              "id": "star",
+              "label": "별"
+            }
           ]
         }
       ]
@@ -67,10 +126,26 @@
           "label": "깃발 색",
           "default": "purple",
           "options": [
-            { "id": "purple", "label": "보라", "color": "7a4bc4" },
-            { "id": "red", "label": "빨강", "color": "c4463e" },
-            { "id": "teal", "label": "청록", "color": "2e9c97" },
-            { "id": "green", "label": "초록", "color": "4c9a3d" }
+            {
+              "id": "purple",
+              "label": "보라",
+              "color": "7a4bc4"
+            },
+            {
+              "id": "red",
+              "label": "빨강",
+              "color": "c4463e"
+            },
+            {
+              "id": "teal",
+              "label": "청록",
+              "color": "2e9c97"
+            },
+            {
+              "id": "green",
+              "label": "초록",
+              "color": "4c9a3d"
+            }
           ]
         },
         {
@@ -78,10 +153,22 @@
           "label": "문양",
           "default": "skull",
           "options": [
-            { "id": "skull", "label": "해골" },
-            { "id": "moon", "label": "달" },
-            { "id": "star", "label": "별" },
-            { "id": "none", "label": "없음" }
+            {
+              "id": "skull",
+              "label": "해골"
+            },
+            {
+              "id": "moon",
+              "label": "달"
+            },
+            {
+              "id": "star",
+              "label": "별"
+            },
+            {
+              "id": "none",
+              "label": "없음"
+            }
           ]
         }
       ]
@@ -93,11 +180,88 @@
           "label": "지붕 색",
           "default": "purple",
           "options": [
-            { "id": "purple", "label": "보라", "color": "7a4bc4" },
-            { "id": "red", "label": "빨강", "color": "c4463e" },
-            { "id": "teal", "label": "청록", "color": "2e9c97" },
-            { "id": "green", "label": "초록", "color": "4c9a3d" },
-            { "id": "brown", "label": "갈색", "color": "8a5a30" }
+            {
+              "id": "purple",
+              "label": "보라",
+              "color": "7a4bc4"
+            },
+            {
+              "id": "red",
+              "label": "빨강",
+              "color": "c4463e"
+            },
+            {
+              "id": "teal",
+              "label": "청록",
+              "color": "2e9c97"
+            },
+            {
+              "id": "green",
+              "label": "초록",
+              "color": "4c9a3d"
+            },
+            {
+              "id": "brown",
+              "label": "갈색",
+              "color": "8a5a30"
+            }
+          ]
+        }
+      ]
+    },
+    "flowerbed": {
+      "parts": [
+        {
+          "id": "flower_color",
+          "label": "꽃 색",
+          "default": "pink",
+          "options": [
+            {
+              "id": "pink",
+              "label": "분홍",
+              "color": "f29ac0"
+            },
+            {
+              "id": "yellow",
+              "label": "노랑",
+              "color": "f5d24a"
+            },
+            {
+              "id": "white",
+              "label": "하양",
+              "color": "f7f4ec"
+            },
+            {
+              "id": "purple",
+              "label": "보라",
+              "color": "a77ee0"
+            }
+          ]
+        }
+      ]
+    },
+    "lantern": {
+      "parts": [
+        {
+          "id": "glow",
+          "label": "불빛",
+          "default": "purple",
+          "options": [
+            {
+              "id": "purple",
+              "label": "보라",
+              "color": "b689ff"
+            },
+            {
+              "id": "green",
+              "label": "초록",
+              "color": "8be37a"
+            },
+            {
+              "id": "yellow",
+              "label": "노랑",
+              "color": "ffd76a"
+            }
           ]
         }
       ]

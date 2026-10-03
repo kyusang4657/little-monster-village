@@ -56,10 +56,10 @@
         3
       ],
       "max_count": 1,
-      "max_level": 1,
+      "max_level": 4,
       "movable": false,
       "deletable": false,
-      "hp": 180
+      "hp_by_level": "castle_levels.*.hp"
     },
     "house": {
       "footprint": [
@@ -67,7 +67,7 @@
         2
       ],
       "build_cost": 30,
-      "max_count": 4,
+      "max_count": 10,
       "max_level": 1,
       "movable": true,
       "deletable": false,
@@ -79,11 +79,13 @@
         2,
         2
       ],
-      "max_count": 1,
+      "max_count": 2,
       "max_level": 1,
       "movable": true,
       "deletable": false,
-      "role": "passive_wood_source"
+      "role": "passive_wood_source",
+      "build_cost": 120,
+      "build_seconds": 20
     },
     "defense_tower": {
       "footprint": [
@@ -115,6 +117,50 @@
         }
       },
       "build_seconds": 20
+    },
+    "outpost": {
+      "footprint": [
+        2,
+        2
+      ],
+      "build_cost": 100,
+      "build_seconds": 25,
+      "max_count": 1,
+      "max_level": 1,
+      "movable": true,
+      "deletable": false,
+      "role": "forward_base_on_resource_site",
+      "income_per_second": 1,
+      "battle_hp": 150,
+      "repair_cost": 20,
+      "repair_seconds": 15,
+      "placement": "exactly_on_resource_site"
+    },
+    "flowerbed": {
+      "footprint": [
+        1,
+        1
+      ],
+      "build_cost": 5,
+      "build_seconds": 3,
+      "max_count": 12,
+      "max_level": 1,
+      "movable": true,
+      "deletable": false,
+      "role": "decoration_only"
+    },
+    "lantern": {
+      "footprint": [
+        1,
+        1
+      ],
+      "build_cost": 10,
+      "build_seconds": 4,
+      "max_count": 12,
+      "max_level": 1,
+      "movable": true,
+      "deletable": false,
+      "role": "decoration_only"
     }
   },
   "fences": {
@@ -180,7 +226,11 @@
         ]
       ]
     },
-    "target_policy_note": "castle_only; 기사는 등장 순서대로 도달 가능한 공격 칸(최단+4칸 이내)에 나뉘어 배정되고, 칸 안에서도 자리를 나눠 선다"
+    "target_policy_note": "castle_only; 기사는 등장 순서대로 도달 가능한 공격 칸(최단+4칸 이내)에 나뉘어 배정되고, 칸 안에서도 자리를 나눠 선다",
+    "outpost_raid": {
+      "every_nth": 4,
+      "note": "앞마당이 있고 멀쩡하면 4번째마다 한 명씩(보스 제외) 앞마당을 노린다. 앞마당을 점령하면 성으로 방향을 바꾼다"
+    }
   },
   "raids": {
     "first_ready_immediately": true,
@@ -263,10 +313,34 @@
       },
       {
         "id": 10,
-        "label": "열 번째 습격",
-        "knight_count": 18,
-        "knight_hp": 250,
-        "win_wood": 160
+        "label": "열 번째 습격 · 용사 파티",
+        "knight_count": 14,
+        "knight_hp": 220,
+        "win_wood": 160,
+        "boss": true,
+        "units": [
+          {
+            "kind": "knight",
+            "count": 14
+          },
+          {
+            "kind": "commander",
+            "count": 1,
+            "hp": 600,
+            "attack_damage": 10,
+            "attack_interval_seconds": 1.0,
+            "move_cells_per_second": 0.55,
+            "spawn_after": 7
+          },
+          {
+            "kind": "hero",
+            "count": 1,
+            "hp": 1000,
+            "attack_damage": 16,
+            "attack_interval_seconds": 1.0,
+            "move_cells_per_second": 0.5
+          }
+        ]
       }
     ],
     "assist": {
@@ -318,5 +392,178 @@
     "progress_requires_worker": false,
     "worker_walk_cells_per_second": 2.2,
     "worker_count": 2
+  },
+  "chapters": [
+    {
+      "id": 1,
+      "label": "1장",
+      "title": "작은 마을",
+      "first_stage": 1,
+      "last_stage": 3
+    },
+    {
+      "id": 2,
+      "label": "2장",
+      "title": "고블린 요새",
+      "first_stage": 4,
+      "last_stage": 6
+    },
+    {
+      "id": 3,
+      "label": "3장",
+      "title": "어둠의 성채",
+      "first_stage": 7,
+      "last_stage": 9
+    },
+    {
+      "id": 4,
+      "label": "최종장",
+      "title": "마왕성",
+      "first_stage": 10,
+      "last_stage": 10
+    }
+  ],
+  "castle_levels": {
+    "1": {
+      "label": "마물 성",
+      "hp": 180,
+      "max_counts": {
+        "house": 4,
+        "lumber_camp": 1,
+        "defense_tower": 6,
+        "outpost": 0,
+        "flowerbed": 0,
+        "lantern": 0
+      },
+      "expansions": [],
+      "unlock_text": []
+    },
+    "2": {
+      "label": "고블린 요새",
+      "hp": 220,
+      "max_counts": {
+        "house": 6,
+        "lumber_camp": 2,
+        "flowerbed": 12,
+        "lantern": 12
+      },
+      "expansions": [
+        "east",
+        "west"
+      ],
+      "unlock_text": [
+        "땅 넓히기: 동쪽·서쪽",
+        "벌목소 하나 더(목재 120)",
+        "고블린 주택 최대 6채",
+        "꾸밈 소품: 꽃밭·버섯 등불"
+      ]
+    },
+    "3": {
+      "label": "어둠의 성채",
+      "hp": 260,
+      "max_counts": {
+        "house": 8,
+        "outpost": 1
+      },
+      "expansions": [
+        "north",
+        "south"
+      ],
+      "unlock_text": [
+        "땅 넓히기: 북쪽·남쪽(남쪽은 정문이 앞으로 이동)",
+        "앞마당 1곳(숲 자원 지점, 목재 +1/초)",
+        "고블린 주택 최대 8채"
+      ]
+    },
+    "4": {
+      "label": "마왕성",
+      "hp": 320,
+      "max_counts": {
+        "house": 10
+      },
+      "expansions": [],
+      "unlock_text": [
+        "고블린 주택 최대 10채",
+        "최종장: 용사 파티의 습격"
+      ]
+    }
+  },
+  "map": {
+    "initial": {
+      "min_x": 0,
+      "min_z": 0,
+      "max_x": 13,
+      "max_z": 9
+    },
+    "max_size": [
+      24,
+      18
+    ],
+    "gate_x": [
+      6,
+      8
+    ],
+    "spawn_distance": 2.0,
+    "expansions": {
+      "east": {
+        "label": "동쪽 숲",
+        "side": "x+",
+        "cells": 5,
+        "cost": 60
+      },
+      "west": {
+        "label": "서쪽 언덕",
+        "side": "x-",
+        "cells": 5,
+        "cost": 60
+      },
+      "north": {
+        "label": "북쪽 들판",
+        "side": "z+",
+        "cells": 4,
+        "cost": 90
+      },
+      "south": {
+        "label": "남쪽 길목",
+        "side": "z-",
+        "cells": 4,
+        "cost": 90
+      }
+    },
+    "resource_sites": [
+      {
+        "id": "forest_east",
+        "zone": "east",
+        "kind": "forest",
+        "x": 16,
+        "z": 2,
+        "w": 2,
+        "d": 2
+      },
+      {
+        "id": "forest_west",
+        "zone": "west",
+        "kind": "forest",
+        "x": -4,
+        "z": 6,
+        "w": 2,
+        "d": 2
+      },
+      {
+        "id": "forest_north",
+        "zone": "north",
+        "kind": "forest",
+        "x": 9,
+        "z": 11,
+        "w": 2,
+        "d": 2
+      }
+    ],
+    "decor_limits": {
+      "trees": 64,
+      "rocks": 14,
+      "flowers": 160,
+      "note": "넓어진 지도에서도 장식 메시는 각각 하나로 합쳐 그리기 호출을 늘리지 않는다"
+    }
   }
 }

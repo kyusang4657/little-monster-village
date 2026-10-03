@@ -15,6 +15,13 @@ const REASON_NO_ROUTE := "성으로 가는 길을 남겨 주세요"
 const REASON_FIXED := "바깥 울타리와 정문은 바꿀 수 없어요"
 const REASON_EDGE_IN_BUILDING := "건물 안을 가르는 울타리예요"
 const REASON_DUP := "이미 있는 울타리예요"
+const REASON_SITE := "숲 자원 지점은 앞마당 자리예요"
+const REASON_OUTPOST_SITE := "앞마당은 숲 자원 지점에만 지을 수 있어요"
+
+## 지도 경계(논리 칸). size 가 0 이면 처음 지도(14×10)를 쓴다.
+## 3차부터 지도가 넓어질 수 있으므로 모든 격자 함수가 경계를 인자로 받는다.
+static func bnd(b: Rect2i) -> Rect2i:
+	return GameConfig.initial_bounds() if b.size == Vector2i.ZERO else b
 
 
 static func edge_key(a: Vector2i, b: Vector2i) -> String:
@@ -48,46 +55,67 @@ static func crossing_edge(a: Vector2i, b: Vector2i) -> String:
 	return ""
 
 
-static func in_grid(c: Vector2i) -> bool:
-	return c.x >= 0 and c.y >= 0 and c.x < GameConfig.grid_width() and c.y < GameConfig.grid_depth()
+static func in_grid(c: Vector2i, bounds: Rect2i = Rect2i()) -> bool:
+	return bnd(bounds).has_point(c)
 
 
 ## 바깥 경계가 아닌, 지도 안쪽의 변인지.
-static func is_interior_edge(key: String) -> bool:
+static func is_interior_edge(key: String, bounds: Rect2i = Rect2i()) -> bool:
 	var p := key.split(":")
 	if p.size() != 3:
 		return false
 	var x := int(p[1])
 	var z := int(p[2])
-	var w := GameConfig.grid_width()
-	var d := GameConfig.grid_depth()
+	var b := bnd(bounds)
+	var x0 := b.position.x
+	var z0 := b.position.y
+	var x1 := b.end.x - 1
+	var z1 := b.end.y - 1
 	if p[0] == "h":
-		return x >= 0 and x < w and z >= 1 and z <= d - 1
+		return x >= x0 and x <= x1 and z >= z0 + 1 and z <= z1
 	if p[0] == "v":
-		return z >= 0 and z < d and x >= 1 and x <= w - 1
+		return z >= z0 and z <= z1 and x >= x0 + 1 and x <= x1
 	return false
 
 
-static func gate_edges() -> Array[String]:
+## 정문: 앞쪽 경계(min_z)의 x = gate_x[0] .. gate_x[1] 구간. 항상 열려 있다.
+static func gate_edges(bounds: Rect2i = Rect2i()) -> Array[String]:
 	var out: Array[String] = []
-	for g in GameConfig.layout().gates:
-		var a := Vector2i(int(g.from[0]), int(g.from[1]))
-		var b := Vector2i(int(g.to[0]), int(g.to[1]))
-		var step := Vector2i(signi(b.x - a.x), signi(b.y - a.y))
-		var c := a
-		while c != b:
-			out.append(edge_key(c, c + step))
-			c += step
+	var b := bnd(bounds)
+	var g := GameConfig.gate_x()
+	for x in range(g.x, g.y):
+		out.append("h:%d:%d" % [x, b.position.y])
 	return out
 
 
-static func fixed_edges() -> Dictionary:
+## 바깥 울타리 = 현재 경계의 둘레 − 정문. 지도가 넓어지면 새 경계로 옮겨진다.
+static func fixed_edges(bounds: Rect2i = Rect2i()) -> Dictionary:
 	var out := {}
-	for e in GameConfig.layout().fixed_fence_edges:
-		var k := edge_key(Vector2i(int(e.from[0]), int(e.from[1])), Vector2i(int(e.to[0]), int(e.to[1])))
-		if k != "":
-			out[k] = true
+	var b := bnd(bounds)
+	for x in range(b.position.x, b.end.x):
+		out["h:%d:%d" % [x, b.position.y]] = true
+		out["h:%d:%d" % [x, b.end.y]] = true
+	for z in range(b.position.y, b.end.y):
+		out["v:%d:%d" % [b.position.x, z]] = true
+		out["v:%d:%d" % [b.end.x, z]] = true
+	for k in gate_edges(b):
+		out.erase(k)
 	return out
+
+
+## 경계 안에 들어온 자원 지점(앞마당 자리)
+static func open_sites(bounds: Rect2i = Rect2i()) -> Array:
+	var out: Array = []
+	var b := bnd(bounds)
+	for s in GameConfig.resource_sites():
+		var r := Rect2i(int(s.x), int(s.z), int(s.w), int(s.d))
+		if b.encloses(r):
+			out.append(s)
+	return out
+
+
+static func site_rect(s: Dictionary) -> Rect2i:
+	return Rect2i(int(s.x), int(s.z), int(s.w), int(s.d))
 
 
 static func footprint_cells(b: Dictionary) -> Array[Vector2i]:
@@ -134,16 +162,20 @@ static func blocks(edges: Dictionary, a: Vector2i, b: Vector2i) -> bool:
 
 
 ## 성에 변으로 인접하고, 그 변이 울타리로 막히지 않은 통과 가능 칸 목록.
-static func attack_cells(buildings: Array, edges: Dictionary) -> Dictionary:
-	var castle := castle_of(buildings)
+static func attack_cells(buildings: Array, edges: Dictionary, bounds: Rect2i = Rect2i()) -> Dictionary:
+	return attack_cells_for(castle_of(buildings), buildings, edges, bounds)
+
+
+## 임의 건물(성·앞마당)을 공격할 수 있는 칸
+static func attack_cells_for(target: Dictionary, buildings: Array, edges: Dictionary, bounds: Rect2i = Rect2i()) -> Dictionary:
 	var out := {}
-	if castle.is_empty():
+	if target.is_empty():
 		return out
 	var occ := occupancy(buildings)
-	for c in footprint_cells(castle):
+	for c in footprint_cells(target):
 		for d in DIRS:
 			var n: Vector2i = c + d
-			if not in_grid(n) or occ.has(n):
+			if not in_grid(n, bounds) or occ.has(n):
 				continue
 			if blocks(edges, n, c):
 				continue
@@ -152,23 +184,25 @@ static func attack_cells(buildings: Array, edges: Dictionary) -> Dictionary:
 
 
 ## 입구 칸에서 공격 가능 칸까지 4방향 최단 경로. 없으면 빈 배열.
-static func find_route(buildings: Array, edges: Dictionary) -> Array[Vector2i]:
+static func find_route(buildings: Array, edges: Dictionary, bounds: Rect2i = Rect2i()) -> Array[Vector2i]:
 	var empty: Array[Vector2i] = []
-	var start := GameConfig.entry_cell()
+	var b := bnd(bounds)
+	var start := GameConfig.entry_cell_for(b)
 	var occ := occupancy(buildings)
-	if not in_grid(start) or occ.has(start):
+	if not in_grid(start, b) or occ.has(start):
 		return empty
-	var goals := attack_cells(buildings, edges)
+	var goals := attack_cells(buildings, edges, b)
 	if goals.is_empty():
 		return empty
-	return find_path(buildings, edges, start, goals)
+	return find_path(buildings, edges, start, goals, b)
 
 
 ## 4방향 BFS 최단 경로(건물 점유 칸·울타리 변을 피함). 시작 칸은 점유되어 있어도 출발할 수 있다.
 ## 이웃 순서가 고정이라 결과가 항상 같다(결정적).
-static func find_path(buildings: Array, edges: Dictionary, start: Vector2i, goals: Dictionary) -> Array[Vector2i]:
+static func find_path(buildings: Array, edges: Dictionary, start: Vector2i, goals: Dictionary, bounds: Rect2i = Rect2i()) -> Array[Vector2i]:
 	var empty: Array[Vector2i] = []
-	if goals.is_empty() or not in_grid(start):
+	var bb := bnd(bounds)
+	if goals.is_empty() or not in_grid(start, bb):
 		return empty
 	var occ := occupancy(buildings)
 	var prev := {start: start}
@@ -184,7 +218,7 @@ static func find_path(buildings: Array, edges: Dictionary, start: Vector2i, goal
 			return path
 		for d in DIRS:
 			var n: Vector2i = cur + d
-			if not in_grid(n) or occ.has(n) or prev.has(n):
+			if not in_grid(n, bb) or occ.has(n) or prev.has(n):
 				continue
 			if blocks(edges, cur, n):
 				continue
@@ -193,25 +227,41 @@ static func find_path(buildings: Array, edges: Dictionary, start: Vector2i, goal
 	return empty
 
 
-static func all_edges(interior: Dictionary) -> Dictionary:
-	var e := fixed_edges()
+static func all_edges(interior: Dictionary, bounds: Rect2i = Rect2i()) -> Dictionary:
+	var e := fixed_edges(bounds)
 	for k in interior:
 		e[k] = true
 	return e
 
 
 ## 건물 배치 후보 검증. candidate = {id, type, x, z}. exclude_id 는 옮기는 중인 자신.
-static func validate_building(buildings: Array, interior: Dictionary, candidate: Dictionary, exclude_id: String = "") -> Dictionary:
+static func validate_building(buildings: Array, interior: Dictionary, candidate: Dictionary, exclude_id: String = "", bounds: Rect2i = Rect2i()) -> Dictionary:
+	var b0 := bnd(bounds)
 	var fp := GameConfig.footprint(candidate.type)
 	var x := int(candidate.x)
 	var z := int(candidate.z)
-	if x < 0 or z < 0 or x + fp.x > GameConfig.grid_width() or z + fp.y > GameConfig.grid_depth():
+	var rect := Rect2i(x, z, fp.x, fp.y)
+	if not b0.encloses(rect):
 		return {ok = false, reason = REASON_OUT}
 	var occ := occupancy(buildings, exclude_id)
 	for c in footprint_cells(candidate):
 		if occ.has(c):
 			return {ok = false, reason = REASON_OVERLAP}
-	var edges := all_edges(interior)
+	# 숲 자원 지점은 앞마당만 쓸 수 있고, 앞마당은 자원 지점 위에만 지을 수 있다
+	var on_site := false
+	for s in open_sites(b0):
+		var sr := site_rect(s)
+		if sr == rect:
+			on_site = true
+		elif sr.intersects(rect) and candidate.type != "outpost":
+			return {ok = false, reason = REASON_SITE}
+		elif sr.intersects(rect):
+			return {ok = false, reason = REASON_OUTPOST_SITE}
+	if candidate.type == "outpost" and not on_site:
+		return {ok = false, reason = REASON_OUTPOST_SITE}
+	if candidate.type != "outpost" and on_site:
+		return {ok = false, reason = REASON_SITE}
+	var edges := all_edges(interior, b0)
 	for k in edges:
 		if edge_inside_building(k, candidate):
 			return {ok = false, reason = REASON_FENCE_CROSS}
@@ -220,19 +270,20 @@ static func validate_building(buildings: Array, interior: Dictionary, candidate:
 		if b.id != exclude_id:
 			trial.append(b)
 	trial.append(candidate)
-	if find_route(trial, edges).is_empty():
+	if find_route(trial, edges, b0).is_empty():
 		return {ok = false, reason = REASON_NO_ROUTE}
 	return {ok = true, reason = ""}
 
 
 ## 울타리 편집 검증. add/remove 는 키 집합. cost 는 새로 추가되는 변 수 × 단가.
-static func validate_fences(buildings: Array, interior: Dictionary, add: Dictionary, remove: Dictionary) -> Dictionary:
+static func validate_fences(buildings: Array, interior: Dictionary, add: Dictionary, remove: Dictionary, bounds: Rect2i = Rect2i()) -> Dictionary:
+	var b0 := bnd(bounds)
 	var unit := int(GameConfig.defaults().fences.edge_build_cost)
-	var fixed := fixed_edges()
-	var gates := gate_edges()
+	var fixed := fixed_edges(b0)
+	var gates := gate_edges(b0)
 	var new_count := 0
 	for k in add:
-		if fixed.has(k) or gates.has(k) or not is_interior_edge(k):
+		if fixed.has(k) or gates.has(k) or not is_interior_edge(k, b0):
 			return {ok = false, reason = REASON_FIXED, cost = 0}
 		if interior.has(k):
 			return {ok = false, reason = REASON_DUP, cost = 0}
@@ -248,7 +299,7 @@ static func validate_fences(buildings: Array, interior: Dictionary, add: Diction
 		result.erase(k)
 	for k in add:
 		result[k] = true
-	if find_route(buildings, all_edges(result)).is_empty():
+	if find_route(buildings, all_edges(result, b0), b0).is_empty():
 		return {ok = false, reason = REASON_NO_ROUTE, cost = new_count * unit}
 	return {ok = true, reason = "", cost = new_count * unit, result = result}
 
