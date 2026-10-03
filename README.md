@@ -114,10 +114,11 @@ docs/store, docs/release         스토어 자료, 출시 안내
 godot --headless --path . --import                                  # 최초 1회
 godot --headless --path . --script res://tests/run_tests.gd         # 규칙 검사
 xvfb-run -a godot --path . --rendering-driver opengl3 --resolution 1280x720 -- \
-    --integration --no-tutorial --save-dir=user://itest/ --fresh --no-focus-pause
+    --integration --no-tutorial --no-story --save-dir=user://itest/ --fresh --no-focus-pause
 xvfb-run -a godot --path . --rendering-driver opengl3 --resolution 1920x1080 -- \
-    --shots=/tmp/shots --scenario=construction --no-tutorial --save-dir=user://shots/ --fresh --no-focus-pause
-    # scenario: full, construction, decor, tutorial(안내 켠 채), closeup, art(아이콘·대표 이미지 원본)
+    --shots=/tmp/shots --scenario=construction --no-tutorial --no-story --save-dir=user://shots/ --fresh --no-focus-pause
+    # scenario: full, construction, decor, tutorial(안내 켠 채), closeup, art(아이콘·대표 이미지 원본),
+    #           chapter(성 레벨·땅 넓히기·앞마당·이야기·보스, --no-story 없이 실행)
 godot --headless --path . --export-debug "Android" build/android/monster-village-debug.apk
 godot --headless --path . --export-release "Web" build/web/index.html
 python3 tools/make_sounds.py                                         # 소리 다시 만들기(numpy, oggenc)

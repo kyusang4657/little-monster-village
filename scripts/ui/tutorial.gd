@@ -57,8 +57,13 @@ func setup(p_hud: Hud) -> void:
 	_bubble.add_theme_stylebox_override("panel", st)
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 10)
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 10)
+	head.add_child(UiIcon.new("chief", 48, Color(String(Story.character("chief").get("color", "4c9a3d")))))
 	_count = hud._label("", 18, Hud.C_TEXT_SOFT, true)
-	vb.add_child(_count)
+	_count.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	head.add_child(_count)
+	vb.add_child(head)
 	_text = hud._label("", 24, Hud.C_TEXT)
 	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_text.custom_minimum_size = Vector2(430, 0)
@@ -126,8 +131,8 @@ func current_id() -> String:
 
 func _show_step() -> void:
 	var s: Dictionary = STEPS[step]
-	_text.text = String(s.text)
-	_count.text = "안내 %d / %d" % [step + 1, STEPS.size()]
+	_text.text = Story.tutorial_text(String(s.id), String(s.text))
+	_count.text = "%s · 안내 %d / %d" % [Story.name_of("chief"), step + 1, STEPS.size()]
 	_next_btn.visible = String(s.wait) == "" or bool(s.get("allow_next", false)) or String(s.id) == "construct"
 	_bubble.reset_size()
 

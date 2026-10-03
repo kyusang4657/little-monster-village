@@ -9,6 +9,11 @@ var saver: SaveManager
 var world: WorldView
 var hud: Hud
 var tutorial: Tutorial
+var story_view: StoryView
+var _story_queue: Array = []
+var _story_then: Callable
+## 결과 화면을 닫은 뒤 이어서 보여 줄 장면(장 완료·앞마당 점령 등)
+var _after_result_story: Array = []
 var _tutorial_done := false
 var sim: BattleSim = null
 
@@ -55,6 +60,11 @@ func _ready() -> void:
 	add_child(tutorial)
 	tutorial.setup(hud)
 	tutorial.finished.connect(_on_tutorial_finished)
+	story_view = StoryView.new()
+	story_view.name = "Story"
+	add_child(story_view)
+	story_view.setup(hud)
+	story_view.finished.connect(func(_id): _story_next())
 	_connect_hud()
 	var res := saver.load_into(state)
 	if res.status == "new":
@@ -68,7 +78,11 @@ func _ready() -> void:
 	Sound.play_music("village")
 	if String(res.message) != "":
 		hud.show_dialog("저장 데이터 안내", res.message)
-	if not _tutorial_done and not _args.has("no-tutorial") and String(res.message) == "":
+	var start_tutorial := not _tutorial_done and not _args.has("no-tutorial") and String(res.message) == ""
+	if not _args.has("no-story") and String(res.message) == "" and state.highest_cleared == 0:
+		# 첫 실행: 프롤로그 → 안내
+		_queue_story(["new_game"], func(): if start_tutorial: tutorial.start())
+	elif start_tutorial:
 		tutorial.start()
 	if _args.has("integration"):
 		var it = load("res://tests/integration_driver.gd").new()
@@ -104,6 +118,9 @@ func _connect_hud() -> void:
 	hud.decor_option.connect(_on_decor_option)
 	hud.decor_done.connect(_confirm_edit)
 	hud.decor_cancel.connect(_cancel_edit)
+	hud.expand_pressed.connect(_open_expand_menu)
+	hud.expand_selected.connect(_begin_expand)
+	hud.story_replay.connect(_replay_story)
 	hud.info_closed.connect(_deselect)
 	hud.edit_cancel.connect(_cancel_edit)
 	hud.edit_rotate.connect(_rotate_edit)
@@ -160,6 +177,8 @@ func _on_construction_finished(id: String) -> void:
 	var b := state.get_building(id)
 	if b.is_empty():
 		return
+	if b.type == "outpost" and not _args.has("no-story"):
+		_queue_story(["outpost_built"], Callable())
 	hud.toast("%s 완성!" % GameConfig.type_label(b.type))
 	tutorial.notify("construction_finished")
 	Sound.play("build_done")
@@ -168,20 +187,24 @@ func _on_construction_finished(id: String) -> void:
 
 
 func _sync_world() -> void:
+	world.set_map(state.bounds())
 	world.sync_buildings(state.buildings)
 	world.rebuild_fences(state.all_edges())
 
 
 func _refresh_hud() -> void:
 	var m := state.mode
-	var producing: bool = m in GameConfig.economy().income_states and state.count_type("lumber_camp") > 0
-	hud.set_wood(state.wood, state.capacity(), producing)
+	var producing: bool = m in GameConfig.economy().income_states and state.income_rate() > 0.0
+	hud.set_wood(state.wood, state.capacity(), producing, state.income_rate())
 	var battle_like := m == GameState.MODE_BATTLE or m == GameState.MODE_PAUSED or m == GameState.MODE_RESULT
 	var stage_id := state.ready_stage
+	var ch := GameConfig.chapter_of_stage(stage_id)
 	var label := state.stage_label(stage_id)
+	if not ch.is_empty():
+		label = "%s · %s" % [String(ch.label), label]
 	if state.highest_cleared >= stage_id and state.raid_ready:
 		label += " 다시 도전"
-	var knights := int(GameConfig.stage(stage_id).knight_count)
+	var knights := GameConfig.stage_units(stage_id).size()
 	var assist_pct := int(round((1.0 - state.assist_multiplier()) * 100.0))
 	hud.assist_on = state.assist_enabled
 	var key := "%s|%s|%s|%d|%s|%s|%d" % [m, state.raid_ready, label, int(ceil(state.raid_timer)), sim != null, hud.info_panel.visible, assist_pct]
@@ -245,8 +268,14 @@ func _begin_new(type: String) -> void:
 	if not _can_edit():
 		return
 	hud.hide_build_menu()
+	if state.max_count(type) <= 0:
+		hud.toast("성 Lv.%d에서 열려요" % GameState.unlock_level_for(type))
+		return
 	if state.count_type(type) >= state.max_count(type):
 		hud.toast("최대 %d개까지 지을 수 있어요" % state.max_count(type))
+		return
+	if type == "outpost" and GridLogic.open_sites(state.bounds()).is_empty():
+		hud.toast("숲 자원 지점이 있는 땅을 먼저 넓혀 주세요")
 		return
 	var spot := _find_spot(type)
 	edit = {kind = "new", type = type, x = spot.x, z = spot.y, rot = 0}
@@ -259,11 +288,15 @@ func _begin_new(type: String) -> void:
 func _find_spot(type: String) -> Vector2i:
 	var fp := GameConfig.footprint(type)
 	var target := WorldView.to_logical(world.cam_target)
-	var best := Vector2i(0, 0)
+	var bb := state.bounds()
+	var best := Vector2i(bb.position.x, bb.position.y)
 	var best_d := INF
-	for x in range(0, GameConfig.grid_width() - fp.x + 1):
-		for z in range(0, GameConfig.grid_depth() - fp.y + 1):
-			var v := GridLogic.validate_building(state.buildings, state.interior_fences, {id = "__new__", type = type, x = x, z = z})
+	if type == "outpost":
+		for site in GridLogic.open_sites(bb):
+			return Vector2i(int(site.x), int(site.z))
+	for x in range(bb.position.x, bb.end.x - fp.x + 1):
+		for z in range(bb.position.y, bb.end.y - fp.y + 1):
+			var v := GridLogic.validate_building(state.buildings, state.interior_fences, {id = "__new__", type = type, x = x, z = z}, "", bb)
 			if not v.ok:
 				continue
 			var d := Vector2(x + fp.x * 0.5, z + fp.y * 0.5).distance_to(target)
@@ -317,6 +350,59 @@ func _on_decor_option(part_id: String, option_id: String) -> void:
 	world.sync_buildings(list)
 
 
+# ------------------------------------------------------------------ 땅 넓히기
+
+func _open_expand_menu() -> void:
+	if not _can_edit():
+		return
+	hud.hide_build_menu()
+	hud.show_expand_menu(state)
+
+
+func _begin_expand(dir: String) -> void:
+	if not _can_edit():
+		return
+	_deselect()
+	edit = {kind = "expand", dir = dir, was_ready = state.raid_ready}
+	state.mode = GameState.MODE_BUILD
+	var r := GameConfig.expansion_rect(dir, state.bounds())
+	var vp := get_viewport().get_visible_rect().size
+	world.pan_by_screen(world.camera.unproject_position(WorldView.W(r.position.x + r.size.x * 0.5, 0, r.position.y + r.size.y * 0.5)), vp * 0.5)
+	_update_edit()
+
+
+# ------------------------------------------------------------------ 이야기
+
+var _after_edit_story: Array = []
+
+
+## 장면들을 차례로 보여 주고(이미 본 장면은 건너뜀) 끝나면 then 을 부른다
+func _queue_story(triggers: Array, then: Callable) -> void:
+	_story_queue = [] if _args.has("no-story") else triggers.duplicate()
+	_story_then = then
+	_story_next()
+
+
+func _story_next() -> void:
+	while not _story_queue.is_empty():
+		var t: String = _story_queue.pop_front()
+		var sc := Story.scene_for(t)
+		if sc.is_empty() or state.story_seen.has(String(sc.id)):
+			continue
+		state.story_seen[String(sc.id)] = true
+		saver.save(state)
+		if story_view.play(sc):
+			return
+	var then := _story_then
+	_story_then = Callable()
+	if then.is_valid():
+		then.call()
+
+
+func _replay_story(id: String) -> void:
+	story_view.play(Story.scene_by_id(id))
+
+
 func _rotate_edit() -> void:
 	if edit.is_empty() or edit.kind == "fence":
 		return
@@ -328,7 +414,7 @@ func _update_edit() -> void:
 	if edit.is_empty():
 		return
 	world.set_grid_visible(true)
-	var icon := {house = "house", defense_tower = "tower", lumber_camp = "lumber", castle = "castle"}
+	var icon := {house = "house", defense_tower = "tower", lumber_camp = "lumber", castle = "castle", outpost = "outpost", flowerbed = "flower", lantern = "lantern"}
 	match edit.kind:
 		"move":
 			var v := state.check_move(edit.id, edit.x, edit.z, edit.rot)
@@ -362,10 +448,17 @@ func _update_edit() -> void:
 			world.show_fence_plan(add, edit.remove, ok or (add.is_empty() and edit.remove.is_empty()))
 			hud.show_edit("fence", "울타리 편집 (한 변 목재 %d)" % int(GameConfig.defaults().fences.edge_build_cost), ok, status,
 				"배치 · 목재 %d" % cost, false, "땅을 끌어 선을 긋고, 울타리를 누르면 제거 표시돼요 · 두 손가락으로 화면 이동")
+		"expand":
+			var e := GameConfig.expansion_def(edit.dir)
+			var v := state.check_expand(edit.dir)
+			world.show_zone(GameConfig.expansion_rect(edit.dir, state.bounds()), v.ok)
+			hud.show_edit("expand", "%s 넓히기 (+%d칸 · 목재 %d)" % [String(e.label), int(e.cells), int(e.cost)], v.ok,
+				"넓힐 수 있어요" if v.ok else String(v.reason), "넓히기 · 목재 %d" % int(e.cost), false,
+				"노란 땅이 마을이 돼요. 바깥 울타리와 정문은 새 경계로 옮겨져요")
 
 
 func _fence_addable(k: String) -> bool:
-	return GridLogic.is_interior_edge(k) and not state.interior_fences.has(k)
+	return GridLogic.is_interior_edge(k, state.bounds()) and not state.interior_fences.has(k)
 
 
 func _confirm_edit() -> void:
@@ -392,6 +485,13 @@ func _confirm_edit() -> void:
 			r = state.commit_decor(edit.id, edit.deco)
 			if r.ok:
 				hud.toast("새 모습으로 꾸몄어요")
+		"expand":
+			var first := state.expansions.is_empty()
+			r = state.commit_expand(edit.dir)
+			if r.ok:
+				hud.toast("%s을(를) 넓혔어요! 목재 -%d" % [String(GameConfig.expansion_def(edit.dir).label), int(r.cost)])
+				if first:
+					_after_edit_story = ["first_expansion"]
 	if not r.ok:
 		hud.toast(String(r.reason))
 		_update_edit()
@@ -418,6 +518,7 @@ func _end_edit() -> void:
 	world.clear_fence_plan()
 	world.set_grid_visible(false)
 	world.show_selection({})
+	world.hide_zone()
 	hud.hide_edit()
 	hud.hide_decor()
 	state.mode = state.idle_mode()
@@ -425,10 +526,26 @@ func _end_edit() -> void:
 	_last_ui = ""
 	if state.raid_ready and not was_ready:
 		hud.toast("습격 준비 완료! 방어 시작을 눌러 주세요")
+	if not _after_edit_story.is_empty():
+		var t := _after_edit_story
+		_after_edit_story = []
+		_queue_story(t, Callable())
 
 
 func _upgrade_selected() -> void:
 	if selected_id == "" or not _can_edit():
+		return
+	var sel := state.get_building(selected_id)
+	if sel.get("type", "") == "outpost":
+		var rp := state.commit_repair(selected_id)
+		if rp.ok:
+			saver.save(state)
+			_sync_world()
+			hud.toast("수리 시작! 목재 -%d · 일꾼이 고치러 가요" % int(rp.cost))
+			Sound.play("place")
+			hud.show_info(state.get_building(selected_id), state)
+		else:
+			hud.toast(String(rp.reason))
 		return
 	var r := state.commit_upgrade(selected_id)
 	if r.ok:
@@ -451,8 +568,16 @@ func _start_raid() -> void:
 		return
 	if state.mode != GameState.MODE_RAID_READY:
 		return
+	if story_view.active():
+		return
 	_deselect()
 	hud.hide_build_menu()
+	# 보스 단계는 처음 한 번 대화 장면 뒤에 시작
+	var pre := "before_stage:%d" % state.ready_stage
+	var sc := Story.scene_for(pre)
+	if not sc.is_empty() and not state.story_seen.has(String(sc.id)) and not _args.has("no-story"):
+		_queue_story([pre], _start_raid)
+		return
 	var r := state.begin_battle()
 	if not r.ok:
 		hud.show_dialog("습격을 시작할 수 없어요", String(r.reason))
@@ -488,8 +613,41 @@ func _finish_battle() -> void:
 		return
 	var stage_id := sim.stage_id
 	var won := outcome == "win"
+	var replay := state.highest_cleared >= stage_id
+	# 앞마당이 점령되었으면 생산만 멈춘다(결과와 함께 한 번에 저장)
+	var outpost_lost := false
+	if not sim.outpost.is_empty() and bool(sim.outpost.captured):
+		state.mark_outpost_lost(String(sim.outpost.id))
+		outpost_lost = true
 	var res := state.resolve_battle(state.current_battle_id, stage_id, won)
 	saver.save(state)
+	_after_result_story = []
+	var extra: Array = []
+	if int(res.get("castle_level", 1)) > int(res.get("castle_level_before", 1)):
+		var lv := int(res.castle_level)
+		var ld := GameConfig.castle_level_def(lv)
+		extra.append("성이 Lv.%d %s(으)로 커졌어요! 체력 %d" % [lv, String(ld.get("label", "")), int(ld.get("hp", 0))])
+		for u in ld.get("unlock_text", []):
+			extra.append("· 새로 열림: %s" % String(u))
+		_sync_world()
+	var cc := int(res.get("chapter_cleared", 0))
+	if cc > 0:
+		if cc >= GameConfig.chapters().size():
+			_after_result_story.append("stage_clear:%d" % stage_id)
+		else:
+			_after_result_story.append("chapter_end:%d" % cc)
+			_after_result_story.append("chapter_start:%d" % (cc + 1))
+	if outpost_lost:
+		extra.append("앞마당이 점령당했어요. 생산이 멈췄지만 수리하면 다시 돌아가요.")
+		_after_result_story.append("outpost_lost")
+	if won:
+		var ex := Story.commander_excuse(stage_id, replay)
+		if ex != "":
+			extra.append("%s: 「%s」" % [Story.name_of("commander"), ex])
+	else:
+		var cheer := Story.chief_after_defeat(state.consecutive_losses - 1)
+		if cheer != "":
+			extra.append("%s: 「%s」" % [Story.name_of("chief"), cheer])
 	# 남은 화살은 바로 정리(기사는 결과 뒤에서 멈춘 채 보인다)
 	sim.bolts.clear()
 	world.update_battle(sim, 0.0, _castle_id)
@@ -502,7 +660,7 @@ func _finish_battle() -> void:
 	Sound.play("victory" if won else "defeat")
 	var tips := BattleAdvisor.advise(sim, state)
 	print("조언: ", tips)
-	hud.show_result(won, state.stage_label(stage_id), int(res.reward), wanted, final_stage, next_text, tips)
+	hud.show_result(won, state.stage_label(stage_id), int(res.reward), wanted, final_stage, next_text, tips, extra)
 	_last_ui = ""
 
 
@@ -513,8 +671,14 @@ func _on_result_closed(action: String) -> void:
 	state.leave_result()
 	_last_ui = ""
 	Sound.play_music("village")
+	var then := Callable()
 	if action == "retry" or action == "replay":
-		_start_raid()
+		then = _start_raid
+	var queue := _after_result_story
+	_after_result_story = []
+	if _args.has("no-story"):
+		queue = []
+	_queue_story(queue, then)
 
 
 func _pause_battle() -> void:
@@ -544,6 +708,8 @@ func _on_menu_action(action: String) -> void:
 		"fps":
 			hud.fps_on = not hud.fps_on
 			_save_settings()
+		"story":
+			hud.show_story_list(Story.seen_scenes(state.story_seen))
 		"tutorial":
 			if not edit.is_empty():
 				_cancel_edit()
@@ -578,6 +744,7 @@ func _on_menu_action(action: String) -> void:
 			world.reset_camera()
 			_last_ui = ""
 			hud.toast("새 마을에서 시작해요")
+			_queue_story(["new_game"], Callable())
 
 
 # ------------------------------------------------------------------ 표시 설정(user://settings.cfg)
@@ -667,7 +834,7 @@ func _on_back() -> void:
 # ------------------------------------------------------------------ 입력
 
 func _unhandled_input(event: InputEvent) -> void:
-	if hud.overlay_visible() or _background:
+	if hud.overlay_visible() or _background or story_view.active():
 		return
 	if event is InputEventScreenTouch:
 		var st := event as InputEventScreenTouch
@@ -815,9 +982,16 @@ func _pointer_move(pos: Vector2) -> void:
 
 func _move_ghost_to(cell: Vector2i) -> void:
 	var fp := GameConfig.footprint(edit.type)
+	var bb := state.bounds()
+	# 앞마당은 가까운 숲 자원 지점에 딱 맞춰 붙는다
+	if edit.type == "outpost":
+		for site in GridLogic.open_sites(bb):
+			if Vector2(cell).distance_to(Vector2(int(site.x), int(site.z))) <= 2.5:
+				cell = Vector2i(int(site.x), int(site.z))
+				break
 	# 지도 밖 1칸까지는 끌 수 있게 두어 '지도 밖' 이유를 보여 준다
-	var nx := clampi(cell.x, -1, GameConfig.grid_width() - fp.x + 1)
-	var nz := clampi(cell.y, -1, GameConfig.grid_depth() - fp.y + 1)
+	var nx := clampi(cell.x, bb.position.x - 1, bb.end.x - fp.x + 1)
+	var nz := clampi(cell.y, bb.position.y - 1, bb.end.y - fp.y + 1)
 	if nx != int(edit.x) or nz != int(edit.z):
 		edit.x = nx
 		edit.z = nz
@@ -886,7 +1060,7 @@ func _toggle_fence_at(pos: Vector2) -> void:
 			edit.remove.erase(k)
 		else:
 			edit.remove[k] = true
-	elif GridLogic.is_interior_edge(k) and not GridLogic.gate_edges().has(k):
+	elif GridLogic.is_interior_edge(k, state.bounds()) and not GridLogic.gate_edges(state.bounds()).has(k):
 		edit.add[k] = true
 	else:
 		hud.toast(GridLogic.REASON_FIXED)

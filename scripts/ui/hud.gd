@@ -10,6 +10,8 @@ signal build_menu_closed
 signal move_pressed
 signal upgrade_pressed
 signal decor_pressed
+signal expand_pressed
+signal expand_selected(dir: String)
 signal decor_option(part_id: String, option_id: String)
 signal decor_done
 signal decor_cancel
@@ -21,6 +23,7 @@ signal pause_pressed
 signal resume_pressed
 signal result_closed(action: String)
 signal menu_action(action: String)
+signal story_replay(id: String)
 
 const C_IVORY := Color("fff7e6")
 const C_IVORY_EDGE := Color("dcc79c")
@@ -358,15 +361,21 @@ func _build_bottom() -> void:
 	build_btn.pressed.connect(func(): build_pressed.emit())
 	_anchor(build_btn, Control.PRESET_BOTTOM_LEFT, Control.GROW_DIRECTION_END, Control.GROW_DIRECTION_BEGIN)
 
-	# 건설 메뉴
+	# 건설 메뉴(2줄 격자). 잠긴 항목은 '성 Lv.N 해금'으로 보인다.
 	build_menu = _panel()
 	var mhb := HBoxContainer.new()
 	mhb.add_theme_constant_override("separation", 12)
-	for item in [["house", "고블린 주택", "house"], ["defense_tower", "방어탑", "tower"], ["fence", "울타리", "fence"]]:
+	var grid := GridContainer.new()
+	grid.columns = 4
+	grid.add_theme_constant_override("h_separation", 10)
+	grid.add_theme_constant_override("v_separation", 10)
+	mhb.add_child(grid)
+	for item in [["house", "고블린 주택", "house"], ["defense_tower", "방어탑", "tower"], ["fence", "울타리", "fence"], ["expand", "땅 넓히기", "expand"],
+			["lumber_camp", "벌목소", "lumber"], ["outpost", "앞마당", "outpost"], ["flowerbed", "꽃밭", "flower"], ["lantern", "버섯 등불", "lantern"]]:
 		var card := Button.new()
 		card.focus_mode = Control.FOCUS_NONE
 		card.pressed.connect(func(): Sound.play("click"))
-		card.custom_minimum_size = Vector2(196, 128)
+		card.custom_minimum_size = Vector2(176, 104)
 		_apply_variant(card, "ivory")
 		card.add_theme_stylebox_override("normal", _style(Color("fffaf0"), C_IVORY_EDGE, 16))
 		var vb := VBoxContainer.new()
@@ -374,10 +383,10 @@ func _build_bottom() -> void:
 		vb.set_anchors_preset(Control.PRESET_FULL_RECT)
 		vb.alignment = BoxContainer.ALIGNMENT_CENTER
 		vb.add_theme_constant_override("separation", 2)
-		var ic := UiIcon.new(item[2], 44)
+		var ic := UiIcon.new(item[2], 38)
 		ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		vb.add_child(ic)
-		var name_l := _label(item[1], 24)
+		var name_l := _label(item[1], 22)
 		name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		vb.add_child(name_l)
 		var cost_l := _label("", 19, C_TEXT_SOFT, true)
@@ -387,10 +396,12 @@ func _build_bottom() -> void:
 		var type: String = item[0]
 		if type == "fence":
 			card.pressed.connect(func(): fence_pressed.emit())
+		elif type == "expand":
+			card.pressed.connect(func(): expand_pressed.emit())
 		else:
 			card.pressed.connect(func(): buy_pressed.emit(type))
 		buy_cards[type] = {button = card, cost = cost_l}
-		mhb.add_child(card)
+		grid.add_child(card)
 	var close := _button("", "ivory", "x", BTN_H)
 	close.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	close.pressed.connect(func(): build_menu_closed.emit())
@@ -653,8 +664,10 @@ func show_pause() -> void:
 	_overlay("일시정지", ["전투가 멈춰 있어요.", "준비되면 계속하기를 눌러 주세요."], [["계속하기", "green", "play", func(): resume_pressed.emit()]], "pause", C_PURPLE)
 
 
-func show_result(won: bool, stage_label: String, reward: int, wanted: int, final_stage: bool, next_text: String, tips: Array = []) -> void:
+func show_result(won: bool, stage_label: String, reward: int, wanted: int, final_stage: bool, next_text: String, tips: Array = [], extra: Array = []) -> void:
 	var n := GameConfig.stage_count()
+	if not extra.is_empty():
+		next_text = "\n".join(extra) + ("\n" + next_text if next_text != "" else "")
 	if won and final_stage:
 		_overlay("모든 습격 완료!", [
 			"%s을 막아냈어요." % stage_label,
@@ -671,6 +684,57 @@ func show_result(won: bool, stage_label: String, reward: int, wanted: int, final
 			"마을은 그대로예요. 건물·울타리·목재는 잃지 않았어요.",
 			"배치를 바꾸거나 방어탑을 강화한 뒤 무료로 다시 도전해 보세요.",
 		], [["마을로", "ivory", "x", func(): result_closed.emit("village")], ["다시 도전", "green", "shield", func(): result_closed.emit("retry")]], "ban", C_PURPLE, [], tips)
+
+
+## 땅 넓히기 방향 고르기
+func show_expand_menu(state: GameState) -> void:
+	var rows: Array = []
+	var row: Array = []
+	for dir in ["west", "east", "south", "north"]:
+		var e := GameConfig.expansion_def(dir)
+		if e.is_empty():
+			continue
+		var v := state.check_expand(dir)
+		var label := "%s +%d칸" % [String(e.label), int(e.cells)]
+		if state.expansions.has(dir):
+			label += " (넓힘)"
+		elif not v.ok and String(v.reason).begins_with("성 Lv."):
+			label += " (%s)" % String(v.reason).replace("에서 열려요", " 해금")
+		else:
+			label += " · 목재 %d" % int(e.cost)
+		var d: String = dir
+		row.append([label, "ivory" if v.ok else "ivory", "expand", func(): hide_overlay(); expand_selected.emit(d)])
+		if row.size() == 2:
+			rows.append(row)
+			row = []
+	if not row.is_empty():
+		rows.append(row)
+	_overlay("땅 넓히기", ["울타리 밖으로 마을을 넓혀요. 바깥 울타리와 정문은 새 경계로 옮겨져요.", "넓힌 땅에는 주택·꾸밈·생산 건물을 자유롭게 둘 수 있어요."],
+		[["닫기", "green", "check", func(): hide_overlay()]], "", C_PURPLE, rows)
+	# 잠기거나 이미 넓힌 방향은 누를 수 없게
+	for r in overlay_box.get_children():
+		if r is HBoxContainer:
+			for btn in r.get_children():
+				if btn is Button and btn.has_meta("label"):
+					var t := String((btn.get_meta("label") as Label).text)
+					if t.ends_with("(넓힘)") or t.ends_with("해금)"):
+						set_button_enabled(btn, false)
+
+
+## 이미 본 이야기 장면 다시 보기 목록
+func show_story_list(scenes: Array) -> void:
+	var rows: Array = []
+	var row: Array = []
+	for sc in scenes:
+		var id := String(sc.get("id", ""))
+		row.append([String(sc.get("title", id)), "ivory", "play", func(): hide_overlay(); story_replay.emit(id)])
+		if row.size() == 3:
+			rows.append(row)
+			row = []
+	if not row.is_empty():
+		rows.append(row)
+	var lines: Array = ["본 장면만 다시 볼 수 있어요."] if not scenes.is_empty() else ["아직 본 이야기가 없어요. 첫 습격을 막아 보세요!"]
+	_overlay("이야기 다시 보기", lines, [["닫기", "green", "check", func(): hide_overlay()]], "chief", C_PURPLE, rows)
 
 
 func show_dialog(title: String, message: String) -> void:
@@ -695,6 +759,7 @@ func _show_menu() -> void:
 	], [
 		["도움 모드 끄기" if assist_on else "도움 모드 켜기", "ivory", "heart", func(): hide_overlay(); menu_action.emit("assist")],
 		["안내 다시 보기", "ivory", "play", func(): hide_overlay(); menu_action.emit("tutorial")],
+		["이야기 다시 보기", "ivory", "chief", func(): hide_overlay(); menu_action.emit("story")],
 	], [
 		["배경음 −", "ivory", "", func(): menu_action.emit("music_down")],
 		["배경음 %d%%" % int(round(Sound.music_volume * 100)), "ivory", "", func(): pass],
@@ -733,12 +798,12 @@ func toast(msg: String, seconds: float = 2.2) -> void:
 	_toast_t = seconds
 
 
-func set_wood(wood: int, cap: int, producing: bool) -> void:
+func set_wood(wood: int, cap: int, producing: bool, rate: float = 1.0) -> void:
 	wood_label.text = "목재 %d / %d" % [wood, cap]
 	if wood >= cap:
 		wood_sub.text = "창고가 가득 찼어요"
 	elif producing:
-		wood_sub.text = "벌목소 생산 중 · +1/초"
+		wood_sub.text = "생산 중 · +%s/초" % (str(int(rate)) if is_equal_approx(rate, roundf(rate)) else "%.1f" % rate)
 	else:
 		wood_sub.text = "생산 멈춤"
 
@@ -781,13 +846,30 @@ func show_build_menu(state: GameState) -> void:
 		if type == "fence":
 			card.cost.text = "한 변 목재 %d" % int(GameConfig.defaults().fences.edge_build_cost)
 			b.disabled = false
+		elif type == "expand":
+			var open := state.unlocked_expansions()
+			var left := 0
+			for d in open:
+				if not state.expansions.has(d):
+					left += 1
+			if open.is_empty():
+				card.cost.text = "성 Lv.2 해금"
+				b.disabled = true
+			elif left == 0 and open.size() >= GameConfig.map_config().get("expansions", {}).size():
+				card.cost.text = "최대 크기"
+				b.disabled = true
+			else:
+				card.cost.text = "넓힐 곳 %d곳" % left
+				b.disabled = false
 		else:
 			var cnt := state.count_type(type)
 			var mx := state.max_count(type)
 			var cost := state.build_cost(type)
 			card.cost.text = "목재 %d · %d/%d" % [cost, cnt, mx]
 			b.disabled = cnt >= mx or state.wood < cost
-			if cnt >= mx:
+			if mx <= 0:
+				card.cost.text = "성 Lv.%d 해금" % GameState.unlock_level_for(type)
+			elif cnt >= mx:
 				card.cost.text = "최대 %d/%d" % [cnt, mx]
 	build_menu.visible = true
 	build_menu.reset_size()
@@ -800,13 +882,24 @@ func hide_build_menu() -> void:
 
 func show_info(b: Dictionary, state: GameState) -> void:
 	var def := GameConfig.building_def(b.type)
-	info_icon.set_kind({castle = "castle", house = "house", lumber_camp = "lumber", defense_tower = "tower"}.get(b.type, "house"))
+	info_icon.set_kind({castle = "castle", house = "house", lumber_camp = "lumber", defense_tower = "tower", outpost = "outpost", flowerbed = "flower", lantern = "lantern"}.get(b.type, "house"))
 	var fp := GameConfig.footprint(b.type)
 	info_title.text = "%s · Lv.%d" % [GameConfig.type_label(b.type), int(b.level)]
+	if b.type == "castle":
+		info_title.text = "%s · Lv.%d" % [String(GameConfig.castle_level_def(int(b.level)).get("label", "마물 성")), int(b.level)]
 	var desc := "%d×%d칸" % [fp.x, fp.y]
 	match b.type:
 		"castle":
-			desc += " · 체력 %d · 옮길 수 없어요" % int(def.hp)
+			desc += " · 체력 %d · 옮길 수 없어요" % GameConfig.castle_hp(int(b.level))
+		"outpost":
+			if bool(b.get("damaged", false)):
+				desc += " · 점령됨: 생산 멈춤, 수리하면 다시 생산"
+			elif bool(b.get("repairing", false)):
+				desc += " · 수리 중"
+			else:
+				desc += " · 숲 앞마당 · 목재 +%d/초" % int(def.get("income_per_second", 1))
+		"flowerbed", "lantern":
+			desc += " · 꾸밈 소품"
 		"house":
 			desc += " · 꾸미기용 건물"
 		"lumber_camp":
@@ -815,11 +908,15 @@ func show_info(b: Dictionary, state: GameState) -> void:
 			var lv := GameConfig.tower_level(int(b.level))
 			desc += " · 공격력 %d · 사거리 %.1f칸" % [int(lv.damage), float(lv.range_cells)]
 	if not state.is_built(b):
-		desc += " · 공사 중 %d초 남음" % int(ceil(float(b.build_left)))
+		desc += " · %s %d초 남음" % ["수리 중" if bool(b.get("repairing", false)) else "공사 중", int(ceil(float(b.build_left)))]
 	info_desc.text = desc
 	info_move.visible = bool(def.get("movable", false))
-	info_upgrade.visible = b.type == "defense_tower"
+	info_upgrade.visible = b.type == "defense_tower" or (b.type == "outpost" and bool(b.get("damaged", false)))
 	info_decor.visible = Decor.has_parts(b.type)
+	if b.type == "outpost" and bool(b.get("damaged", false)):
+		var rp := state.check_repair(b.id)
+		set_button_text(info_upgrade, "수리 · 목재 %d" % int(def.get("repair_cost", 0)))
+		set_button_enabled(info_upgrade, rp.ok)
 	if b.type == "defense_tower":
 		var up := state.check_upgrade(b.id)
 		var cost := state.upgrade_cost(b)
@@ -870,7 +967,9 @@ func hide_edit() -> void:
 func is_over_ui(pos: Vector2) -> bool:
 	if overlay.visible:
 		return true
-	for c in [raid_panel, battle_panel, pause_btn, menu_btn, build_btn, build_menu, info_panel, edit_bar, decor_panel]:
+	for c in [raid_panel, battle_panel, pause_btn, menu_btn, build_btn, build_menu, info_panel, edit_bar, decor_panel, fps_label]:
+		if c == null:
+			continue
 		var ctl: Control = c
 		if ctl.is_visible_in_tree() and ctl.get_global_rect().has_point(pos):
 			return true

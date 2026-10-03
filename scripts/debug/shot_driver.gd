@@ -22,6 +22,8 @@ func run(p_main, p_out: String, scenario: String = "full") -> void:
 			_closeup()
 		"art":
 			_art()
+		"chapter":
+			_chapter()
 		_:
 			_sequence()
 
@@ -361,4 +363,173 @@ func _art() -> void:
 		for i in 8:
 			await _wait(1)
 		await _shot("feature-raw")
+	_finish_log()
+
+
+func _set_level(cleared: int) -> void:
+	main.state.highest_cleared = cleared
+	main.state.ready_stage = mini(cleared + 1, GameConfig.stage_count())
+	main.state.sync_castle_level()
+	main._sync_world()
+	await _wait(3)
+
+
+func _skip_story() -> void:
+	while main.story_view.active():
+		main.story_view.advance()
+	await _wait(2)
+
+
+func _story_shot(name: String) -> void:
+	await _wait(3)
+	if main.story_view.active():
+		await _shot(name)
+		_log("이야기 장면 %s" % main.story_view.current_id())
+	else:
+		_log("이야기 장면 없음: %s" % name)
+
+
+## 전투를 빨리 끝내 승리시킨다(캡처 전용: 기사를 바로 쓰러뜨림)
+func _force_win() -> void:
+	var guard := 0
+	while main.sim != null and main.sim.outcome == "" and guard < 4000:
+		for k in main.sim.knights:
+			if k.alive:
+				k.alive = false
+				k.hp = 0
+				main.sim.killed += 1
+		main.sim.advance(0.25)
+		guard += 1
+	await _wait(6)
+
+
+func _ready_raid(stage_id: int) -> void:
+	var s: GameState = main.state
+	s.ready_stage = stage_id
+	s.raid_ready = true
+	s.raid_timer = 0.0
+	s.mode = GameState.MODE_RAID_READY
+	main._last_ui = ""
+	await _wait(3)
+
+
+## 3차: 성 레벨, 땅 넓히기 전후, 앞마당, 이야기 장면, 장 해금 결과, 보스 전투
+func _chapter() -> void:
+	await _wait(20)
+	var s: GameState = main.state
+	main._args.erase("no-story")
+	await _story_shot("80-story-prologue")
+	await _skip_story()
+	main.tutorial.end(true)
+	await _wait(2)
+	for lv in [1, 2, 3, 4]:
+		await _set_level([0, 3, 6, 9][lv - 1])
+		await _focus(Vector2(6.5, 7.0), 6.0)
+		main.world.cam_target.y = 1.6
+		main.world._apply_camera()
+		await _wait(3)
+		await _shot("7%d-castle-lv%d" % [lv - 1, lv])
+	# 땅 넓히기 전후(성 Lv.3: 네 방향 모두 열림)
+	await _set_level(6)
+	main.world.reset_camera()
+	await _wait(3)
+	await _shot("74-expand-before")
+	s.wood = s.capacity()
+	main._open_expand_menu()
+	await _wait(3)
+	await _shot("75-expand-menu")
+	main.hud.hide_overlay()
+	main._begin_expand("east")
+	await _wait(3)
+	await _shot("76-expand-zone")
+	main._confirm_edit()
+	await _story_shot("81-story-first-expansion")
+	await _skip_story()
+	for dir in ["west", "north", "south"]:
+		s.wood = s.capacity()
+		main._begin_expand(dir)
+		await _wait(2)
+		main._confirm_edit()
+		await _wait(2)
+	_log("넓힌 지도 %s" % str(s.bounds()))
+	main.world.reset_camera()
+	await _wait(3)
+	await _shot("77-expand-after")
+	# 앞마당
+	s.wood = s.capacity()
+	main._begin_new("outpost")
+	await _wait(2)
+	main._confirm_edit()
+	await _wait(2)
+	await _advance_village(float(GameConfig.building_def("outpost").build_seconds) + 1.0)
+	await _story_shot("82-story-outpost")
+	await _skip_story()
+	await _focus(Vector2(17.0, 3.0), 4.5)
+	await _shot("78-outpost")
+	var op := ""
+	for b in s.buildings:
+		if b.type == "outpost":
+			op = String(b.id)
+	s.mark_outpost_lost(op)
+	main._sync_world()
+	await _wait(3)
+	await _shot("79-outpost-captured")
+	main._select(op)
+	await _wait(4)
+	await _shot("79b-outpost-repair-panel")
+	main._upgrade_selected()
+	await _advance_village(float(GameConfig.building_def("outpost").repair_seconds) + 1.0)
+	main._deselect()
+	# 9단계 승리 → 성 Lv.4·3장 끝 결과
+	await _set_level(8)
+	main.world.reset_camera()
+	await _ready_raid(9)
+	main._start_raid()
+	await _wait(3)
+	await _force_win()
+	await _shot("83-levelup-result")
+	main._on_result_closed("village")
+	await _story_shot("84-story-chapter3-end")
+	main.story_view.advance()
+	for i in 6:
+		if main.story_view.active() and main.story_view.current_id() == "ch3_end":
+			main.story_view.advance()
+	await _story_shot("85-story-final-start")
+	await _skip_story()
+	# 보스 단계
+	await _ready_raid(10)
+	main._start_raid()
+	await _story_shot("86-story-boss-intro")
+	await _skip_story()
+	await _wait(3)
+	if main.sim != null:
+		# 캡처 전용: 용사가 나올 때까지 성이 버티게 한다(표시 수치도 같이 맞춤)
+		main.sim.castle_hp = 100000
+		main.sim.castle_max = 100000
+		var t := 0.0
+		var hero_in := false
+		while t < 200.0 and main.sim.outcome == "" and not hero_in:
+			main.sim.advance(0.1)
+			t += 0.1
+			for k in main.sim.knights:
+				if k.alive and String(k.get("kind", "")) == "hero":
+					hero_in = true
+		main.sim.advance(3.0)
+		await _wait(4)
+		var hero_pos := Vector2(6.5, 2.0)
+		for k in main.sim.knights:
+			if k.alive and String(k.get("kind", "")) == "hero":
+				hero_pos = k.pos
+		await _focus(hero_pos, 4.5)
+		for i in 4:
+			await _wait(1)
+		await _shot("87-boss-battle")
+		main.world.reset_camera()
+		await _wait(3)
+		await _shot("88-boss-battle-wide")
+		await _force_win()
+		await _shot("89-ending-result")
+		main._on_result_closed("village")
+		await _story_shot("90-story-ending")
+		await _skip_story()
 	_finish_log()

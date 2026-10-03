@@ -180,6 +180,7 @@ func _sequence() -> void:
 
 	await _construction_checks(s)
 	await _decor_checks(s)
+	await _chapter_checks(s)
 	await _tutorial_checks()
 
 	_lines.append("RESULT: %d passed, %d failed" % [_pass, _fail])
@@ -278,3 +279,84 @@ func _tutorial_checks() -> void:
 	cf.load(main.saver.dir + "settings.cfg")
 	check(not tut.active() and bool(cf.get_value("progress", "tutorial_done", false)), "건너뛰기 후 완료 기록 저장")
 	check(AudioServer.get_bus_index("Music") >= 0 and AudioServer.get_bus_index("SFX") >= 0, "음악·효과음 버스")
+
+
+## 3차: 성 레벨·땅 넓히기·앞마당·이야기 장면이 실제 화면 흐름에서 동작하는지
+func _chapter_checks(s: GameState) -> void:
+	s.highest_cleared = 6
+	s.sync_castle_level()
+	s.wood = int(GameConfig.economy().capacity)
+	main._sync_world()
+	await _wait(3)
+	check(s.castle_level() == 3 and String(main.world.building_node(main._castle_id).get_meta("model_key")).contains("lv3"), "성 Lv.3 모델로 다시 조립")
+	main._open_expand_menu()
+	await _wait(2)
+	check(main.hud.overlay_visible(), "땅 넓히기 방향 고르기 화면")
+	main.hud.hide_overlay()
+	main._begin_expand("east")
+	await _wait(2)
+	check(main.edit.get("kind", "") == "expand" and main.world._zone != null and main.world._zone.visible, "넓힐 땅 노란 표시")
+	main._args.erase("no-story")
+	main._confirm_edit()
+	await _wait(3)
+	check(s.expansions.has("east") and main.world.map_bounds == s.bounds() and s.bounds().size.x == 19, "동쪽 넓히기 후 지도 경계 %s" % str(s.bounds()))
+	check(main.story_view.active() and main.story_view.current_id() == "first_expansion", "첫 넓히기 이야기 장면")
+	var sel0: String = main.selected_id
+	await _click(_scr(Vector2i(2, 2)))
+	check(main.selected_id == sel0 and main.story_view.active(), "이야기 중 땅 입력 막음")
+	for i in 8:
+		if main.story_view.active():
+			main.story_view.advance()
+	await _wait(2)
+	check(not main.story_view.active() and s.story_seen.has("first_expansion"), "장면 끝까지 넘기면 본 장면으로 저장")
+	main._args["no-story"] = true
+	# 넓힌 땅에 주택 짓기
+	var houses := s.count_type("house")
+	main._begin_new("house")
+	main.edit.x = 15
+	main.edit.z = 6
+	main.edit.rot = 0
+	main._update_edit()
+	main._confirm_edit()
+	await _wait(2)
+	check(s.count_type("house") == houses + 1 and s.buildings.any(func(b): return b.type == "house" and int(b.x) == 15 and int(b.z) == 6), "넓힌 땅(15,6)에 주택 배치")
+	# 앞마당: 자원 지점으로 자동 이동
+	main._begin_new("outpost")
+	await _wait(1)
+	check(int(main.edit.x) == 16 and int(main.edit.z) == 2, "앞마당은 숲 자원 지점에 놓임 (%d,%d)" % [int(main.edit.x), int(main.edit.z)])
+	var rate0 := s.income_rate()
+	main._confirm_edit()
+	await _wait(2)
+	var op := ""
+	for b in s.buildings:
+		if b.type == "outpost":
+			op = String(b.id)
+	check(op != "", "앞마당 공사 시작")
+	await _advance_village(float(GameConfig.building_def("outpost").get("build_seconds", 25)) + 1.0)
+	check(s.is_built(s.get_building(op)) and s.income_rate() > rate0, "앞마당 완성 후 생산 증가 (%.1f → %.1f)" % [rate0, s.income_rate()])
+	# 점령 → 수리
+	s.mark_outpost_lost(op)
+	main._sync_world()
+	await _wait(2)
+	check(String(main.world.building_node(op).get_meta("model_key")).ends_with("|x") and s.income_rate() == rate0, "점령된 앞마당: 무너진 모습·생산만 멈춤")
+	main._select(op)
+	await _wait(1)
+	main._upgrade_selected()
+	await _wait(2)
+	check(bool(s.get_building(op).get("repairing", false)), "수리 시작")
+	await _advance_village(float(GameConfig.building_def("outpost").get("repair_seconds", 15)) + 1.0)
+	main._sync_world()
+	await _wait(2)
+	check(not bool(s.get_building(op).get("damaged", false)) and not String(main.world.building_node(op).get_meta("model_key")).ends_with("|x"), "수리 완료 후 원래 모습")
+	main._deselect()
+	# 이야기 다시 보기
+	main._on_menu_action("story")
+	await _wait(2)
+	check(main.hud.overlay_visible(), "이야기 다시 보기 목록")
+	main.hud.hide_overlay()
+	main._replay_story("first_expansion")
+	await _wait(1)
+	check(main.story_view.active(), "본 장면 다시 재생")
+	main.story_view._finish()
+	await _wait(1)
+	check(not main.story_view.active(), "건너뛰기로 닫힘")

@@ -19,7 +19,7 @@ func _init() -> void:
 		"test_construction_basic", "test_construction_battle_and_rules", "test_save_v2_and_migration",
 		"test_decor", "test_assist_mode", "test_knight_spread", "test_advisor", "test_stage_curve",
 		"test_castle_levels", "test_boss_units", "test_expansion", "test_resource_sites_and_props",
-		"test_outpost_battle", "test_outpost_repair", "test_save_v3_migration",
+		"test_outpost_battle", "test_outpost_repair", "test_save_v3_migration", "test_story_data",
 	]
 	for t in tests:
 		var before := _fail
@@ -1048,3 +1048,51 @@ func test_save_v3_migration() -> void:
 	var w := GameState.new()
 	w.from_dict(e)
 	check(not w.story_seen.has("prologue"), "새로 시작한 저장본은 프롤로그 미시청")
+
+
+## 이야기 데이터: 게임이 부르는 장면이 모두 있고, 3~6줄, 말하는 인물이 정의돼 있고, 대화 상자에 들어가는 길이
+func test_story_data() -> void:
+	Story.reload()
+	var d := Story.data()
+	var chars: Dictionary = d.get("characters", {})
+	for key in ["chief", "imp", "commander", "hero"]:
+		check(chars.has(key) and String(chars[key].get("name", "")) != "", "인물 %s 정의" % key)
+	var triggers := ["new_game", "before_stage:%d" % GameConfig.stage_count(), "stage_clear:%d" % GameConfig.stage_count(),
+		"first_expansion", "outpost_built", "outpost_lost"]
+	var nch := GameConfig.chapters().size()
+	for c in range(1, nch):
+		triggers.append("chapter_end:%d" % c)
+		triggers.append("chapter_start:%d" % (c + 1))
+	for t in triggers:
+		check(not Story.scene_for(t).is_empty(), "장면 있음: %s" % t)
+	var ids := {}
+	for sc in d.get("scenes", []):
+		var id := String(sc.get("id", ""))
+		check(id != "" and not ids.has(id), "장면 id 고유: %s" % id)
+		ids[id] = true
+		var lines: Array = sc.get("lines", [])
+		check(lines.size() >= 3 and lines.size() <= 6, "%s 3~6줄 (%d)" % [id, lines.size()])
+		for ln in lines:
+			check(chars.has(String(ln.get("who", ""))), "%s 말하는 인물 정의됨" % id)
+			var n := String(ln.get("text", "")).length()
+			check(n > 0 and n <= 60, "%s 대사 길이 1~60자 (%d)" % [id, n])
+	# 기사단장 핑계: 단계마다 첫 승리·다시 이김 두 가지가 서로 다르게
+	for st in range(1, GameConfig.stage_count() + 1):
+		var a := Story.commander_excuse(st, false)
+		var b := Story.commander_excuse(st, true)
+		check(a != "" and b != "" and a != b, "단계 %d 핑계 2종" % st)
+	var all_ex := {}
+	for st in range(1, GameConfig.stage_count() + 1):
+		all_ex[Story.commander_excuse(st, false)] = true
+	check(all_ex.size() == GameConfig.stage_count(), "단계마다 다른 핑계")
+	check(Story.chief_after_defeat(0) != "" and Story.chief_after_defeat(7) != "", "패배 격려 대사 순환")
+	# 안내 단계 id 는 tutorial.gd 의 STEPS 에서 읽는다(헤드리스 검사에서는 UI 스크립트를 불러오지 않음)
+	var re := RegEx.create_from_string('\\{id = "([a-z_]+)"')
+	var steps := re.search_all(FileAccess.get_file_as_string("res://scripts/ui/tutorial.gd"))
+	check(steps.size() >= 5, "안내 단계 읽기 (%d)" % steps.size())
+	for m in steps:
+		check(Story.tutorial_text(m.get_string(1), "") != "", "안내 대사 데이터: %s" % m.get_string(1))
+	# 다시 보기: 본 장면만, 데이터 순서대로
+	var seen := {"ending": true, "prologue": true}
+	var list := Story.seen_scenes(seen)
+	check(list.size() == 2 and String(list[0].id) == "prologue", "다시 보기 목록은 본 장면만")

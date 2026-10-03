@@ -21,6 +21,15 @@ var _selection: MeshInstance3D
 var _ghost: Node3D
 var _ghost_type := ""
 var crew: WorkerCrew
+## 3차: 현재 지도 경계(논리 칸). 바뀌면 지면·장식·격자·카메라 범위를 다시 만든다.
+var map_bounds := Rect2i()
+var _ground_node: MeshInstance3D
+var _trees_node: MeshInstance3D
+var _flowers_node: MeshInstance3D
+var _sites_node: MeshInstance3D
+var _zone: MeshInstance3D
+var _zone_mat: StandardMaterial3D
+var _sites_key := ""
 var _complete_pop: Dictionary = {}      # id -> 남은 완성 연출 시간
 
 var _battle_root: Node3D
@@ -38,9 +47,23 @@ var _font: Font
 func _ready() -> void:
 	_font = load("res://assets/fonts/NanumGothic-Bold.ttf")
 	_setup_environment()
+	map_bounds = GameConfig.initial_bounds()
 	_setup_camera()
 	_build_ground()
 	_build_decor()
+	_sites_node = MeshInstance3D.new()
+	_sites_node.name = "ResourceSites"
+	add_child(_sites_node)
+	_zone = MeshInstance3D.new()
+	_zone.name = "ZonePreview"
+	var zpm := PlaneMesh.new()
+	zpm.size = Vector2(1, 1)
+	_zone.mesh = zpm
+	_zone_mat = _unshaded(Color(1.0, 0.85, 0.3, 0.38))
+	_zone.material_override = _zone_mat
+	_zone.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_zone.visible = false
+	add_child(_zone)
 	_buildings_root = Node3D.new()
 	_buildings_root.name = "Buildings"
 	add_child(_buildings_root)
@@ -132,18 +155,22 @@ var _elevation := 0.0
 
 
 func reset_camera() -> void:
-	cam_target = W(GameConfig.grid_width() * 0.5, 0, GameConfig.grid_depth() * 0.5 - 0.4)
+	var b := map_bounds if map_bounds.size != Vector2i.ZERO else GameConfig.initial_bounds()
+	cam_target = W(b.position.x + b.size.x * 0.5, 0, b.position.y + b.size.y * 0.5 - 0.4)
 	var vp := get_viewport().get_visible_rect().size if is_inside_tree() else Vector2(1280, 720)
 	var aspect := vp.x / maxf(vp.y, 1.0)
-	# 좁은 화면에서도 마을 전체가 들어오도록 기본 확대 정도를 고른다.
-	cam_size = clampf(maxf(14.6, 22.0 / aspect), 12.0, 19.0)
+	# 좁은 화면에서도 마을 전체가 들어오도록 기본 확대 정도를 고른다(지도가 넓어지면 비례해 넓게).
+	var grow := clampf(maxf(b.size.x / 14.0, b.size.y / 10.0), 1.0, 1.8)
+	cam_max = 20.0 * grow
+	cam_size = clampf(maxf(14.6, 22.0 / aspect) * grow, 12.0, cam_max)
 	_apply_camera()
 
 
 func _apply_camera() -> void:
 	cam_size = clampf(cam_size, cam_min, cam_max)
-	cam_target.x = clampf(cam_target.x, -3.0, GameConfig.grid_width() + 3.0)
-	cam_target.z = clampf(cam_target.z, -(GameConfig.grid_depth() + 3.0), 4.0)
+	var b := map_bounds if map_bounds.size != Vector2i.ZERO else GameConfig.initial_bounds()
+	cam_target.x = clampf(cam_target.x, b.position.x - 3.0, b.end.x + 3.0)
+	cam_target.z = clampf(cam_target.z, -(b.end.y + 3.0), -(b.position.y - 4.0))
 	camera.size = cam_size
 	# 논리 정면(z가 작은 쪽, 정문)이 화면 아래에 오도록 앞쪽 오른편 위에서 내려다본다.
 	var off := Vector3(sin(_azimuth) * cos(_elevation), sin(_elevation), cos(_azimuth) * cos(_elevation))
@@ -206,14 +233,47 @@ static func building_center(type: String, x: int, z: int) -> Vector3:
 
 # ------------------------------------------------------------------ 지면·장식
 
+## 지도 경계가 바뀌면 지면·장식·격자를 다시 만들고 카메라 범위를 맞춘다
+func set_map(bounds: Rect2i) -> void:
+	if bounds == map_bounds:
+		return
+	map_bounds = bounds
+	_build_ground()
+	_build_decor()
+	_build_grid_overlay()
+	_apply_camera()
+
+
+## 경계 바깥 넓힐 땅 미리보기(노란 반투명 바닥)
+func show_zone(r: Rect2i, ok: bool = true) -> void:
+	_zone.visible = true
+	_zone.position = W(r.position.x + r.size.x * 0.5, 0.05, r.position.y + r.size.y * 0.5)
+	_zone.scale = Vector3(r.size.x, 1, r.size.y)
+	_zone_mat.albedo_color = Color(1.0, 0.85, 0.3, 0.42) if ok else Color(0.9, 0.4, 0.3, 0.38)
+
+
+func hide_zone() -> void:
+	_zone.visible = false
+
+
 func _build_ground() -> void:
-	var w := GameConfig.grid_width()
-	var d := GameConfig.grid_depth()
+	if _ground_node != null:
+		_ground_node.queue_free()
+	var bb := map_bounds
+	var w := float(bb.size.x)
+	var d := float(bb.size.y)
+	var x0 := float(bb.position.x)
+	var z0 := float(bb.position.y)
 	var g := MeshBatch.new()
-	g.box(Vector3(90, 0.2, 90), W(w * 0.5, -0.1, d * 0.5), Color("86c053"))
-	g.box(Vector3(w, 0.02, d), W(w * 0.5, 0.0, d * 0.5), Color("94cd5e"))
-	# 바깥 접근로(문 앞)
-	g.box(Vector3(2.0, 0.02, 7.0), W(7.0, 0.012, -3.5), Color("d9b77a"))
+	g.box(Vector3(110, 0.2, 110), W(x0 + w * 0.5, -0.1, z0 + d * 0.5), Color("86c053"))
+	g.box(Vector3(w, 0.02, d), W(x0 + w * 0.5, 0.0, z0 + d * 0.5), Color("94cd5e"))
+	# 바깥 접근로(정문 앞). 앞쪽으로 넓히면 정문과 함께 앞으로 나간다.
+	var gx := GameConfig.gate_x()
+	g.box(Vector3(2.0, 0.02, 7.0), W(gx.x + 1.0, 0.012, z0 - 3.5), Color("d9b77a"))
+	var init := GameConfig.initial_bounds()
+	if z0 < init.position.y:
+		var ext := float(init.position.y) - z0
+		g.box(Vector3(2.0, 0.02, ext), W(gx.x + 1.0, 0.014, z0 + ext * 0.5), Color("dcbb7f"))
 	for r in GameConfig.layout().cosmetic_path_rects:
 		var rw := float(r.w)
 		var rd := float(r.d)
@@ -221,8 +281,8 @@ func _build_ground() -> void:
 	# 잔디 결: 조금 짙거나 옅은 납작한 풀밭 조각(장식, 비충돌)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
-	for i in 70:
-		var p := Vector2(rng.randf_range(-8.0, w + 8.0), rng.randf_range(-8.0, d + 7.0))
+	for i in 90:
+		var p := Vector2(rng.randf_range(x0 - 8.0, x0 + w + 8.0), rng.randf_range(z0 - 8.0, z0 + d + 7.0))
 		var r := rng.randf_range(0.35, 1.1)
 		var c := Color("89bf56") if i % 2 == 0 else Color("93ca5e")
 		g.cyl(r, r, 0.012, W(p.x, 0.006, p.y), c, Vector3.ZERO, 10)
@@ -236,23 +296,36 @@ func _build_ground() -> void:
 	var mi := g.instance("Ground")
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
+	move_child(mi, 0)
+	_ground_node = mi
 
 
+## 나무·바위·꽃: 가장 넓은 지도 둘레까지 후보 위치를 고정 씨앗으로 만든 뒤, 현재 경계 밖 것만 그린다.
+## 그래서 땅을 넓혀도 남은 나무는 그 자리에 있고, 넓힌 땅의 나무만 사라진다. 개수 상한은 config map.decor_limits.
 func _build_decor() -> void:
+	for n in [_trees_node, _flowers_node]:
+		if n != null:
+			n.queue_free()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 20260927
-	var w := GameConfig.grid_width()
-	var d := GameConfig.grid_depth()
+	var lim: Dictionary = GameConfig.map_config().get("decor_limits", {})
+	var max_trees := int(lim.get("trees", 64))
+	var max_rocks := int(lim.get("rocks", 14))
+	var max_flowers := int(lim.get("flowers", 160))
+	var all_dirs: Array = GameConfig.map_config().get("expansions", {}).keys()
+	var big := GameConfig.bounds_for(all_dirs)
+	var cur := map_bounds
+	var gx := GameConfig.gate_x()
 	var trees := MeshBatch.new()
 	var placed: Array[Vector2] = []
 	var tries := 0
-	while placed.size() < 46 and tries < 2000:
+	while placed.size() < max_trees and tries < 4000:
 		tries += 1
-		var p := Vector2(rng.randf_range(-9.0, w + 9.0), rng.randf_range(-9.0, d + 8.0))
+		var p := Vector2(rng.randf_range(big.position.x - 9.0, big.end.x + 9.0), rng.randf_range(big.position.y - 9.0, big.end.y + 8.0))
 		# 마을 안쪽과 울타리 주변·정문 접근로는 비운다(비충돌 장식)
-		if p.x > -1.6 and p.x < w + 1.6 and p.y > -1.6 and p.y < d + 1.6:
+		if p.x > cur.position.x - 1.6 and p.x < cur.end.x + 1.6 and p.y > cur.position.y - 1.6 and p.y < cur.end.y + 1.6:
 			continue
-		if p.x > 4.5 and p.x < 9.5 and p.y < 0.0:
+		if p.x > gx.x - 1.5 and p.x < gx.y + 1.5 and p.y < cur.position.y:
 			continue
 		var ok := true
 		for q in placed:
@@ -273,20 +346,21 @@ func _build_decor() -> void:
 			trees.cyl(0.12 * s, 0.16 * s, 0.7 * s, base + Vector3(0, 0.35 * s, 0), Models.WOOD_DARK, Vector3.ZERO, 8)
 			trees.sphere(0.62 * s, base + Vector3(0, 1.1 * s, 0), Color("4fa54a"))
 			trees.sphere(0.42 * s, base + Vector3(0.3 * s, 1.45 * s, 0.1 * s), Color("62b956"))
-	for i in 14:
-		var p := Vector2(rng.randf_range(-7.0, w + 7.0), rng.randf_range(-7.0, d + 6.0))
-		if p.x > -0.8 and p.x < w + 0.8 and p.y > -0.8 and p.y < d + 0.8:
+	for i in max_rocks:
+		var p := Vector2(rng.randf_range(big.position.x - 7.0, big.end.x + 7.0), rng.randf_range(big.position.y - 7.0, big.end.y + 6.0))
+		if p.x > cur.position.x - 0.8 and p.x < cur.end.x + 0.8 and p.y > cur.position.y - 0.8 and p.y < cur.end.y + 0.8:
 			continue
-		if p.x > 5.0 and p.x < 9.0 and p.y < 0.0:
+		if p.x > gx.x - 1.0 and p.x < gx.y + 1.0 and p.y < cur.position.y:
 			continue
 		var s := rng.randf_range(0.25, 0.5)
 		trees.sphere(s, W(p.x, s * 0.4, p.y), Color("aeb0ad"), Vector3(1.3, 0.8, 1.0))
 	var tm := trees.instance("Trees")
 	add_child(tm)
+	_trees_node = tm
 	# 꽃·풀 점(그림자 없음)
 	var fl := MeshBatch.new()
-	for i in 160:
-		var p := Vector2(rng.randf_range(-8.0, w + 8.0), rng.randf_range(-8.0, d + 7.0))
+	for i in max_flowers:
+		var p := Vector2(rng.randf_range(big.position.x - 8.0, big.end.x + 8.0), rng.randf_range(big.position.y - 8.0, big.end.y + 7.0))
 		var col: Color = [Color("fff3a0"), Color("ffffff"), Color("f7c8e0"), Color("6fb84a")][i % 4]
 		if i % 4 == 3:
 			fl.cyl(0.0, 0.07, 0.16, W(p.x, 0.08, p.y), col, Vector3.ZERO, 5)
@@ -295,6 +369,40 @@ func _build_decor() -> void:
 	var fm := fl.instance("Flowers")
 	fm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(fm)
+	_flowers_node = fm
+
+
+## 숲 자원 지점: 앞마당이 없으면 빽빽한 나무와 노란 테두리(지도 안이면)로 표시
+func _build_sites(buildings: Array) -> void:
+	var taken := {}
+	for b in buildings:
+		if b.type == "outpost":
+			taken["%d,%d" % [int(b.x), int(b.z)]] = true
+	var key := "%s|%s" % [str(map_bounds), str(taken.keys())]
+	if key == _sites_key:
+		return
+	_sites_key = key
+	var m := MeshBatch.new()
+	for s in GameConfig.resource_sites():
+		if taken.has("%d,%d" % [int(s.x), int(s.z)]):
+			continue
+		var r := GridLogic.site_rect(s)
+		for i in 4:
+			var p := Vector2(r.position.x + 0.45 + (i % 2) * (r.size.x - 0.9), r.position.y + 0.45 + (i / 2) * (r.size.y - 0.9))
+			var base := W(p.x, 0, p.y)
+			m.cyl(0.08, 0.1, 0.35, base + Vector3(0, 0.17, 0), Models.WOOD_DARK, Vector3.ZERO, 8)
+			m.cyl(0.0, 0.42, 0.8, base + Vector3(0, 0.75, 0), Color("27693b"), Vector3.ZERO, 10)
+			m.cyl(0.0, 0.32, 0.6, base + Vector3(0, 1.15, 0), Color("2f7d45"), Vector3.ZERO, 10)
+		if map_bounds.encloses(r):
+			var c := Color("ffd84a")
+			var t := 0.07
+			var cx := r.position.x + r.size.x * 0.5
+			var cz := r.position.y + r.size.y * 0.5
+			m.box(Vector3(r.size.x, 0.02, t), W(cx, 0.03, r.position.y + t * 0.5), c)
+			m.box(Vector3(r.size.x, 0.02, t), W(cx, 0.03, r.end.y - t * 0.5), c)
+			m.box(Vector3(t, 0.02, r.size.y), W(r.position.x + t * 0.5, 0.03, cz), c)
+			m.box(Vector3(t, 0.02, r.size.y), W(r.end.x - t * 0.5, 0.03, cz), c)
+	_sites_node.mesh = m.mesh() if not m.is_empty() else null
 
 
 # ------------------------------------------------------------------ 울타리
@@ -351,7 +459,8 @@ func _add_fence_edges(b: MeshBatch, keys: Array, color: Color, posts: bool, lift
 
 
 func _add_gate(b: MeshBatch) -> void:
-	for g in GameConfig.layout().gates:
+	var gx := GameConfig.gate_x()
+	for g in [{from = [gx.x, map_bounds.position.y], to = [gx.y, map_bounds.position.y]}]:
 		var a := W(float(g.from[0]), 0, float(g.from[1]))
 		var c := W(float(g.to[0]), 0, float(g.to[1]))
 		# 바깥 두 기둥만(문 중앙 기둥 없음). 양문은 바깥쪽으로 열려 통로를 비운다.
@@ -376,16 +485,19 @@ func sync_buildings(buildings: Array) -> void:
 		seen[b.id] = true
 		var n: Node3D = _building_nodes.get(b.id)
 		var dk := Decor.key(b.get("deco", {}))
-		if n != null and String(n.get_meta("deco_key", "")) != dk:
+		# 꾸미기·성 레벨·앞마당 파손이 바뀌면 다시 조립
+		var mk := "%s|lv%d|%s" % [dk, int(b.level) if b.type == "castle" else 1, "x" if bool(b.get("damaged", false)) else ""]
+		if n != null and String(n.get_meta("model_key", "")) != mk:
 			# 꾸미기가 바뀌면 모델을 다시 조립한다(외형만, 위치·ID 유지)
 			_building_nodes.erase(b.id)
 			n.name = "%s_old" % b.id
 			n.queue_free()
 			n = null
 		if n == null:
-			n = Models.build(b.type, b.get("deco", {}))
+			n = Models.build(b.type, b.get("deco", {}), int(b.level), {damaged = bool(b.get("damaged", false))})
 			n.name = b.id
 			n.set_meta("deco_key", dk)
+			n.set_meta("model_key", mk)
 			_buildings_root.add_child(n)
 			_building_nodes[b.id] = n
 		place_node(n, b.type, int(b.x), int(b.z), int(b.rot))
@@ -397,6 +509,7 @@ func sync_buildings(buildings: Array) -> void:
 			_building_nodes[id].queue_free()
 			_building_nodes.erase(id)
 	update_construction(buildings, 0.0)
+	_build_sites(buildings)
 
 
 func place_node(n: Node3D, type: String, x: int, z: int, rot: int) -> void:
@@ -483,18 +596,23 @@ func update_village(buildings: Array, edges: Dictionary, delta: float, active: b
 # ------------------------------------------------------------------ 편집 표시
 
 func _build_grid_overlay() -> void:
+	var was_visible := false
+	if _grid_node != null:
+		was_visible = _grid_node.visible
+		_grid_node.queue_free()
 	var b := MeshBatch.new()
-	var w := GameConfig.grid_width()
-	var d := GameConfig.grid_depth()
-	for x in range(0, w + 1):
-		b.box(Vector3(0.03, 0.01, d), W(x, 0.03, d * 0.5), Color(1, 1, 1))
-	for z in range(0, d + 1):
-		b.box(Vector3(w, 0.01, 0.03), W(w * 0.5, 0.03, z), Color(1, 1, 1))
+	var bb := map_bounds if map_bounds.size != Vector2i.ZERO else GameConfig.initial_bounds()
+	var w := float(bb.size.x)
+	var d := float(bb.size.y)
+	for x in range(bb.position.x, bb.end.x + 1):
+		b.box(Vector3(0.03, 0.01, d), W(x, 0.03, bb.position.y + d * 0.5), Color(1, 1, 1))
+	for z in range(bb.position.y, bb.end.y + 1):
+		b.box(Vector3(w, 0.01, 0.03), W(bb.position.x + w * 0.5, 0.03, z), Color(1, 1, 1))
 	_grid_node = b.instance("GridOverlay")
 	var m := _unshaded(Color(1, 1, 1, 0.45))
 	_grid_node.material_override = m
 	_grid_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_grid_node.visible = false
+	_grid_node.visible = was_visible
 	add_child(_grid_node)
 
 

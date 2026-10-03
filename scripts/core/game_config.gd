@@ -102,6 +102,12 @@ static func type_label(type: String) -> String:
 			return "벌목소"
 		"defense_tower":
 			return "방어탑"
+		"outpost":
+			return "앞마당"
+		"flowerbed":
+			return "꽃밭"
+		"lantern":
+			return "버섯 등불"
 	return type
 
 

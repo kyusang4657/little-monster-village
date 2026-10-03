@@ -35,7 +35,7 @@ func save(state: GameState) -> bool:
 	# 방금 쓴 임시 파일이 온전한지 확인한 뒤 교체한다.
 	var check = JSON.parse_string(FileAccess.get_file_as_string(tmp_path()))
 	if GameState.validate_dict(check) != "":
-		last_message = "저장 검증 실패"
+		last_message = "저장 검증 실패: " + GameState.validate_dict(check)
 		push_error(last_message)
 		return false
 	var da := DirAccess.open(dir)
