@@ -6,18 +6,20 @@ extends RefCounted
 const MAX_TIPS := 3
 
 
-## 논리 좌표 → "정문 쪽 왼쪽" 같은 위치 말
-static func place_words(p: Vector2) -> String:
+## 논리 좌표 → "정문 쪽 왼쪽" 같은 위치 말. 좌우·성 앞은 성 기준(성은 움직이지 않음), 정문 쪽은 지금 경계의 앞쪽 끝 기준
+static func place_words(p: Vector2, front_z: int = 0) -> String:
 	var side := "가운데"
 	if p.x < 5.0:
 		side = "왼쪽"
 	elif p.x > 9.0:
 		side = "오른쪽"
 	var depth := "마을 가운데"
-	if p.y <= 2.5:
+	if p.y <= float(front_z) + 2.5:
 		depth = "정문 쪽"
 	elif p.y >= 5.0:
 		depth = "성 앞"
+	if depth == "마을 가운데" and side == "가운데":
+		return "마을 한가운데"
 	return "%s %s" % [depth, side]
 
 
@@ -67,11 +69,11 @@ static func advise(sim: BattleSim, state: GameState) -> Array[String]:
 	# 2. 사거리가 닿지 않는 길
 	var gap := longest_uncovered(sim)
 	if int(gap.length) >= 2 and (not won or castle_damage > 0):
-		tips.append("%s 길(%d칸)은 방어탑이 닿지 않아요. 그 근처에 방어탑을 두어 보세요." % [place_words(gap.center), int(gap.length)])
+		tips.append("%s 길(%d칸)은 방어탑이 닿지 않아요. 그 근처에 방어탑을 두어 보세요." % [place_words(gap.center, sim.bounds.position.y), int(gap.length)])
 	# 3. 한 번도 쏘지 못한 탑
 	for t in sim.towers:
 		if int(t.shots) == 0:
-			tips.append("%s 방어탑은 한 번도 쏘지 못했어요. 기사가 지나가는 길 가까이 옮겨 보세요." % place_words(t.center))
+			tips.append("%s 방어탑은 한 번도 쏘지 못했어요. 기사가 지나가는 길 가까이 옮겨 보세요." % place_words(t.center, sim.bounds.position.y))
 			break
 	if not won:
 		# 4. 화력 부족: 강화·추가 건설
@@ -94,7 +96,15 @@ static func advise(sim: BattleSim, state: GameState) -> Array[String]:
 			tips.append("기사 %d명이 성에 닿아 피해 %d를 입었어요. 성 앞쪽을 더 단단히 지켜 보세요." % [reached, castle_damage])
 		var next := GameConfig.stage(sim.stage_id + 1)
 		if not next.is_empty():
-			tips.append("다음 습격은 기사 %d명(체력 %d)이에요. 미리 준비해 두세요." % [int(next.knight_count), int(next.knight_hp)])
+			var units := GameConfig.stage_units(sim.stage_id + 1)
+			var bosses := 0
+			for u in units:
+				if String(u.get("kind", "knight")) != "knight":
+					bosses += 1
+			if bosses > 0:
+				tips.append("다음 습격은 기사 %d명(체력 %d)과 보스 %d명이에요. 미리 준비해 두세요." % [units.size() - bosses, int(next.knight_hp), bosses])
+			else:
+				tips.append("다음 습격은 기사 %d명(체력 %d)이에요. 미리 준비해 두세요." % [units.size(), int(next.knight_hp)])
 	if tips.size() > MAX_TIPS:
 		tips.resize(MAX_TIPS)
 	return tips

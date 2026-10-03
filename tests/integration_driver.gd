@@ -181,6 +181,7 @@ func _sequence() -> void:
 	await _construction_checks(s)
 	await _decor_checks(s)
 	await _chapter_checks(s)
+	await _review_ui_checks(s)
 	await _tutorial_checks()
 
 	_lines.append("RESULT: %d passed, %d failed" % [_pass, _fail])
@@ -320,6 +321,16 @@ func _chapter_checks(s: GameState) -> void:
 	main._confirm_edit()
 	await _wait(2)
 	check(s.count_type("house") == houses + 1 and s.buildings.any(func(b): return b.type == "house" and int(b.x) == 15 and int(b.z) == 6), "넓힌 땅(15,6)에 주택 배치")
+	var hid := ""
+	for b in s.buildings:
+		if b.type == "house" and int(b.x) == 15 and int(b.z) == 6:
+			hid = String(b.id)
+	await _advance_village(4.0)
+	var going := false
+	for w in main.world.crew.summary():
+		if w.target == hid and w.state != WorkerCrew.STATE_IDLE:
+			going = true
+	check(going, "일꾼이 넓힌 땅 현장으로 감 %s" % str(main.world.crew.summary()))
 	# 앞마당: 자원 지점으로 자동 이동
 	main._begin_new("outpost")
 	await _wait(1)
@@ -376,3 +387,113 @@ func _fake_sim_with_event(e: Dictionary, outpost_id: String) -> BattleSim:
 	sim.outpost = {id = outpost_id, hp = 0, max_hp = 150, captured = true}
 	sim.events = [e]
 	return sim
+
+
+func _label_texts(n: Node) -> String:
+	var out := ""
+	if n is Label:
+		out += (n as Label).text + "\n"
+	for c in n.get_children():
+		out += _label_texts(c)
+	return out
+
+
+## 3차 검토에서 나온 화면·흐름 문제 재발 방지
+func _review_ui_checks(s: GameState) -> void:
+	main._args.erase("no-story")
+	main._deselect()
+	await _wait(2)
+	# 1) 장면이 이어지는 동안 다른 장면(앞마당 완성 등)이 와도 대기열을 덮지 않는다
+	for id in ["ch1_end", "ch2_start", "outpost_built"]:
+		s.story_seen.erase(id)
+	var done := [false]
+	main._queue_story(["chapter_end:1", "chapter_start:2"], func(): done[0] = true)
+	await _wait(2)
+	check(main.story_view.active() and main.story_view.current_id() == "ch1_end", "장 끝 장면 시작")
+	main._queue_story(["outpost_built"])
+	await _wait(1)
+	check(main.story_view.current_id() == "ch1_end" and s.story_pending == ["chapter_end:1", "chapter_start:2", "outpost_built"], "비동기 장면은 뒤에 이어 붙음 %s" % str(s.story_pending))
+	var snap := GameState.new()
+	snap.from_dict(JSON.parse_string(FileAccess.get_file_as_string(main.saver.dir + "save.json")))
+	check(snap.story_pending.has("chapter_start:2") and not snap.story_seen.has("ch1_end"), "대기 장면은 저장되고, 끝까지 보기 전에는 본 것으로 치지 않음")
+	# 2) 뒤로 가기는 장면만 넘기고 아래 화면은 그대로
+	main.selected_id = "house_01"
+	var line0: int = main.story_view._line
+	main._on_back()
+	check(main.story_view._line == line0 + 1 and main.selected_id == "house_01", "뒤로 가기 = 장면 넘기기")
+	main.selected_id = ""
+	var guard := 0
+	while main.story_view.active() and guard < 40:
+		main.story_view.advance()
+		guard += 1
+		await _wait(1)
+	check(done[0] and s.story_seen.has("ch1_end") and s.story_seen.has("ch2_start") and s.story_seen.has("outpost_built") and s.story_pending.is_empty(), "세 장면 모두 보고 이어서 콜백 실행")
+	# 3) 창이 떠 있으면 장면은 기다렸다가 창이 닫히면 나온다
+	s.story_seen.erase("outpost_lost")
+	main.hud.show_dialog("시험", "창")
+	main._queue_story(["outpost_lost"])
+	await _wait(2)
+	check(not main.story_view.active() and s.story_pending.has("outpost_lost"), "창이 떠 있으면 장면 대기")
+	main.hud.hide_overlay()
+	await _wait(3)
+	check(main.story_view.active() and main.story_view.current_id() == "outpost_lost", "창을 닫으면 대기 장면 표시")
+	# 4) 장면이 열리면 눌림 상태가 지워진다
+	main.story_view._finish()
+	await _wait(2)
+	s.story_seen.erase("outpost_lost")
+	main._pressing = true
+	main._gesture = true
+	main._queue_story(["outpost_lost"])
+	await _wait(2)
+	check(main.story_view.active() and not main._pressing and not main._gesture, "장면 시작 시 눌림·제스처 초기화")
+	main.story_view._finish()
+	await _wait(2)
+	main._args["no-story"] = true
+	# 5) 넓히기 미리보기 중 땅을 눌러도 편집이 그대로(오류 없음)
+	s.wood = s.capacity()
+	main._begin_expand("west")
+	await _wait(2)
+	var before_edit: Dictionary = main.edit.duplicate()
+	main._tap(_scr(Vector2i(3, 3)))
+	await _click(_scr(Vector2i(3, 3)))
+	check(main.edit == before_edit, "넓히기 미리보기 중 땅 누르기 무시")
+	main._cancel_edit()
+	await _wait(2)
+	# 6) 패배·마지막 단계 결과에도 덧붙인 줄이 보인다
+	main.hud.show_result(false, "시험 습격", 0, 0, false, "", [], ["꼬블: 「힘내요!」"])
+	await _wait(1)
+	check(_label_texts(main.hud.overlay_box).contains("꼬블: 「힘내요!」"), "패배 결과에 촌장 격려")
+	main.hud.show_result(true, "열 번째 습격", 160, 160, true, "", [], ["번쩍경: 「다음엔 꼭!」"])
+	await _wait(1)
+	check(_label_texts(main.hud.overlay_box).contains("번쩍경"), "최종 단계 결과에 기사단장 핑계")
+	# 7) 긴 결과 창도 화면 안에 들어간다(넘치면 창 안에서 넘김)
+	var many: Array = []
+	for i in 12:
+		many.append("긴 줄 %d: 성이 커지고 새로 여러 가지가 열렸어요" % i)
+	main.hud.show_result(true, "세 번째 습격", 80, 80, false, "다음: 네 번째 습격", ["조언 하나", "조언 둘", "조언 셋"], many)
+	await _wait(3)
+	var vp := get_viewport().get_visible_rect().size
+	check(main.hud.overlay_panel.get_global_rect().size.y <= vp.y and main.hud.overlay_panel.get_global_rect().position.y >= 0.0, "긴 결과 창 높이 %.0f ≤ 화면 %.0f" % [main.hud.overlay_panel.get_global_rect().size.y, vp.y])
+	main.hud.hide_overlay()
+	await _wait(1)
+	# 8) 가장 긴 습격 안내도 목재 패널·메뉴 버튼과 겹치지 않는다
+	var keep := [s.ready_stage, s.highest_cleared, s.assist_enabled, s.consecutive_losses]
+	s.ready_stage = GameConfig.stage_count()
+	s.highest_cleared = GameConfig.stage_count()
+	s.assist_enabled = true
+	s.consecutive_losses = 5
+	s.raid_ready = true
+	s.mode = GameState.MODE_RAID_READY
+	main._last_ui = ""
+	await _wait(3)
+	var rp: Rect2 = main.hud.raid_panel.get_global_rect()
+	var wpr: Rect2 = main.hud.wood_panel.get_global_rect()
+	var mb: Rect2 = main.hud.menu_btn.get_global_rect()
+	check(not rp.intersects(wpr) and not rp.intersects(mb), "긴 습격 안내가 목재·메뉴와 안 겹침 (%s / %s / %s)" % [str(rp), str(wpr), str(mb)])
+	s.ready_stage = keep[0]
+	s.highest_cleared = keep[1]
+	s.assist_enabled = keep[2]
+	s.consecutive_losses = keep[3]
+	main._last_ui = ""
+	# 9) 지도가 넓어지면 축소 한계도 넓어진다
+	check(main.world.cam_max >= 20.0 * WorldView._map_grow(s.bounds()) - 0.01, "넓힌 지도 축소 한계 %.1f" % main.world.cam_max)

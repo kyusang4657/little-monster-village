@@ -10,10 +10,9 @@ var world: WorldView
 var hud: Hud
 var tutorial: Tutorial
 var story_view: StoryView
-var _story_queue: Array = []
 var _story_then: Callable
+var _story_current := ""
 ## 결과 화면을 닫은 뒤 이어서 보여 줄 장면(장 완료·앞마당 점령 등)
-var _after_result_story: Array = []
 var _tutorial_done := false
 var sim: BattleSim = null
 
@@ -64,7 +63,7 @@ func _ready() -> void:
 	story_view.name = "Story"
 	add_child(story_view)
 	story_view.setup(hud)
-	story_view.finished.connect(func(_id): _story_next())
+	story_view.finished.connect(_on_story_finished)
 	_connect_hud()
 	var res := saver.load_into(state)
 	if res.status == "new":
@@ -80,11 +79,9 @@ func _ready() -> void:
 	if String(res.message) != "":
 		hud.show_dialog("저장 데이터 안내", res.message)
 	var start_tutorial := not _tutorial_done and not _args.has("no-tutorial") and String(res.message) == ""
-	if not _args.has("no-story") and String(res.message) == "" and state.highest_cleared == 0:
-		# 첫 실행: 프롤로그 → 안내
-		_queue_story(["new_game"], func(): if start_tutorial: tutorial.start())
-	elif start_tutorial:
-		tutorial.start()
+	# 첫 실행이면 프롤로그 → 안내. 지난 실행에서 못 보여 준 장면(story_pending)도 이어서 보여 준다
+	var first: Array = ["new_game"] if state.highest_cleared == 0 and String(res.message) == "" else []
+	_queue_story(first, func(): if start_tutorial: tutorial.start())
 	if _args.has("integration"):
 		var it = load("res://tests/integration_driver.gd").new()
 		add_child(it)
@@ -151,6 +148,9 @@ func _process(delta: float) -> void:
 			if _autosave_t >= AUTOSAVE_SECONDS:
 				_autosave_t = 0.0
 				saver.save(state)
+	# 미뤄 둔 장면(결과·편집·창이 닫히면)
+	if (not state.story_pending.is_empty() or _story_then.is_valid()) and _can_show_story():
+		_story_next()
 	var village_time: bool = state.mode in GameConfig.construction().progress_states
 	world.update_village(state.buildings, state.all_edges(), dt, village_time)
 	match state.mode:
@@ -200,9 +200,12 @@ func _on_construction_finished(id: String) -> void:
 	var b := state.get_building(id)
 	if b.is_empty():
 		return
-	if b.type == "outpost" and not _args.has("no-story"):
-		_queue_story(["outpost_built"], Callable())
-	hud.toast("%s 완성!" % GameConfig.type_label(b.type))
+	if state.last_finished_repair:
+		hud.toast("%s 수리 완료! 생산이 다시 시작돼요" % GameConfig.type_label(b.type))
+	else:
+		hud.toast("%s 완성!" % GameConfig.type_label(b.type))
+		if b.type == "outpost":
+			_queue_story(["outpost_built"])
 	tutorial.notify("construction_finished")
 	Sound.play("build_done")
 	saver.save(state)
@@ -225,15 +228,20 @@ func _refresh_hud() -> void:
 	var label := state.stage_label(stage_id)
 	if not ch.is_empty():
 		label = "%s · %s" % [String(ch.label), label]
+	var units := GameConfig.stage_units(stage_id)
+	var bosses := 0
+	for u in units:
+		if String(u.get("kind", "knight")) != "knight":
+			bosses += 1
+	var detail := ("기사 %d명 + 보스 %d명 접근" % [units.size() - bosses, bosses]) if bosses > 0 else ("기사 %d명 접근" % units.size())
 	if state.highest_cleared >= stage_id and state.raid_ready:
-		label += " 다시 도전"
-	var knights := GameConfig.stage_units(stage_id).size()
+		detail = "다시 도전 · " + detail
 	var assist_pct := int(round((1.0 - state.assist_multiplier()) * 100.0))
 	hud.assist_on = state.assist_enabled
-	var key := "%s|%s|%s|%d|%s|%s|%d" % [m, state.raid_ready, label, int(ceil(state.raid_timer)), sim != null, hud.info_panel.visible, assist_pct]
+	var key := "%s|%s|%s|%s|%d|%s|%s|%d" % [m, state.raid_ready, label, detail, int(ceil(state.raid_timer)), sim != null, hud.info_panel.visible, assist_pct]
 	if key != _last_ui:
 		_last_ui = key
-		hud.set_raid(state.raid_ready, label, knights, state.raid_timer, not battle_like, assist_pct)
+		hud.set_raid(state.raid_ready, label, detail, state.raid_timer, not battle_like, assist_pct)
 		# 선택 정보 패널이 열려 있으면 좁은 화면에서 겹치지 않게 건설 버튼을 숨긴다
 		hud.set_village_controls((m == GameState.MODE_VILLAGE or m == GameState.MODE_RAID_READY) and not hud.info_panel.visible)
 	if sim != null and (m == GameState.MODE_BATTLE or m == GameState.MODE_PAUSED):
@@ -312,21 +320,20 @@ func _find_spot(type: String) -> Vector2i:
 	var fp := GameConfig.footprint(type)
 	var target := WorldView.to_logical(world.cam_target)
 	var bb := state.bounds()
-	var best := Vector2i(bb.position.x, bb.position.y)
-	var best_d := INF
 	if type == "outpost":
 		for site in GridLogic.open_sites(bb):
 			return Vector2i(int(site.x), int(site.z))
+	# 화면 가운데에서 가까운 칸부터 검사해 처음 놓을 수 있는 칸을 고른다(넓은 지도에서도 길 검사를 몇 번만 함)
+	var cands: Array = []
 	for x in range(bb.position.x, bb.end.x - fp.x + 1):
 		for z in range(bb.position.y, bb.end.y - fp.y + 1):
-			var v := GridLogic.validate_building(state.buildings, state.interior_fences, {id = "__new__", type = type, x = x, z = z}, "", bb)
-			if not v.ok:
-				continue
-			var d := Vector2(x + fp.x * 0.5, z + fp.y * 0.5).distance_to(target)
-			if d < best_d:
-				best_d = d
-				best = Vector2i(x, z)
-	return best
+			cands.append(Vector3(x, z, Vector2(x + fp.x * 0.5, z + fp.y * 0.5).distance_squared_to(target)))
+	cands.sort_custom(func(a: Vector3, b: Vector3): return a.z < b.z or (a.z == b.z and (a.x < b.x or (a.x == b.x and a.y < b.y))))
+	for c in cands:
+		var v := GridLogic.validate_building(state.buildings, state.interior_fences, {id = "__new__", type = type, x = int(c.x), z = int(c.y)}, "", bb)
+		if v.ok:
+			return Vector2i(int(c.x), int(c.y))
+	return Vector2i(bb.position.x, bb.position.y)
 
 
 func _begin_fence() -> void:
@@ -396,34 +403,77 @@ func _begin_expand(dir: String) -> void:
 
 # ------------------------------------------------------------------ 이야기
 
-var _after_edit_story: Array = []
 
 
-## 장면들을 차례로 보여 주고(이미 본 장면은 건너뜀) 끝나면 then 을 부른다
-func _queue_story(triggers: Array, then: Callable) -> void:
-	_story_queue = [] if _args.has("no-story") else triggers.duplicate()
-	_story_then = then
+## 장면 대기열은 state.story_pending(저장됨)에 쌓는다. 화면이 비면 차례로 보여 주고, 다 보여 주면 then 을 부른다.
+## 이미 대기 중인 장면·콜백은 지우지 않고 뒤에 잇는다(공사 완료 같은 비동기 장면이 장 이야기를 덮지 않게).
+func _queue_story(triggers: Array, then: Callable = Callable()) -> void:
+	if not _args.has("no-story"):
+		var added := false
+		for t in triggers:
+			var sc := Story.scene_for(String(t))
+			if sc.is_empty() or state.story_seen.has(String(sc.id)) or state.story_pending.has(String(t)):
+				continue
+			state.story_pending.append(String(t))
+			added = true
+		if added:
+			saver.save(state)
+	if then.is_valid():
+		if _story_then.is_valid():
+			var prev := _story_then
+			_story_then = func(): prev.call(); then.call()
+		else:
+			_story_then = then
 	_story_next()
 
 
+## 장면을 띄워도 되는 때: 다른 창·편집·안내·전투가 없을 때
+func _can_show_story() -> bool:
+	return not story_view.active() and edit.is_empty() and not hud.overlay_visible() and not tutorial.active() \
+		and not _background and state.mode in [GameState.MODE_VILLAGE, GameState.MODE_RAID_READY]
+
+
 func _story_next() -> void:
-	while not _story_queue.is_empty():
-		var t: String = _story_queue.pop_front()
+	if not _can_show_story():
+		return
+	while not state.story_pending.is_empty():
+		var t := String(state.story_pending[0])
 		var sc := Story.scene_for(t)
 		if sc.is_empty() or state.story_seen.has(String(sc.id)):
+			state.story_pending.pop_front()
 			continue
-		state.story_seen[String(sc.id)] = true
-		saver.save(state)
-		if story_view.play(sc):
-			return
+		_story_current = t
+		_reset_pointer_state()
+		story_view.play(sc)
+		return
 	var then := _story_then
 	_story_then = Callable()
 	if then.is_valid():
 		then.call()
 
 
+## 장면을 끝까지 보거나 건너뛰면 그때 본 것으로 저장한다(도중에 앱이 꺼지면 다음 실행에서 다시 보여 줌)
+func _on_story_finished(id: String) -> void:
+	if _story_current != "":
+		state.story_seen[id] = true
+		state.story_pending.erase(_story_current)
+		_story_current = ""
+		saver.save(state)
+	_story_next()
+
+
 func _replay_story(id: String) -> void:
+	_story_current = ""
+	_reset_pointer_state()
 	story_view.play(Story.scene_by_id(id))
+
+
+## 장면이 열리면 눌림·끌기·두 손가락 상태를 비운다(놓는 입력이 장면에 막혀 남지 않게)
+func _reset_pointer_state() -> void:
+	_cancel_pointer()
+	_touches.clear()
+	_gesture = false
+	_alt_pan = false
 
 
 func _rotate_edit() -> void:
@@ -514,7 +564,7 @@ func _confirm_edit() -> void:
 			if r.ok:
 				hud.toast("%s을(를) 넓혔어요! 목재 -%d" % [String(GameConfig.expansion_def(edit.dir).label), int(r.cost)])
 				if first:
-					_after_edit_story = ["first_expansion"]
+					_queue_story(["first_expansion"])
 	if not r.ok:
 		hud.toast(String(r.reason))
 		_update_edit()
@@ -549,10 +599,8 @@ func _end_edit() -> void:
 	_last_ui = ""
 	if state.raid_ready and not was_ready:
 		hud.toast("습격 준비 완료! 방어 시작을 눌러 주세요")
-	if not _after_edit_story.is_empty():
-		var t := _after_edit_story
-		_after_edit_story = []
-		_queue_story(t, Callable())
+	# 편집 중 미뤄 둔 장면(첫 넓히기·앞마당 완성 등)
+	_story_next()
 
 
 func _upgrade_selected() -> void:
@@ -629,6 +677,8 @@ func _finish_battle() -> void:
 		saver.save(state)
 		sim = null
 		world.clear_battle()
+		# 전투 중 무너진 모습으로 바꾼 앞마당 등은 저장 상태대로 되돌린다
+		_sync_world()
 		print("전투 중단 기록: ", reason)
 		hud.show_dialog("전투를 멈췄어요", "%s\n보상 없이 준비 상태로 돌아갔어요." % reason)
 		Sound.play_music("village")
@@ -643,26 +693,29 @@ func _finish_battle() -> void:
 		state.mark_outpost_lost(String(sim.outpost.id))
 		outpost_lost = true
 	var res := state.resolve_battle(state.current_battle_id, stage_id, won)
-	saver.save(state)
-	_after_result_story = []
+	# 결과 뒤에 볼 장면은 결과와 같은 저장본에 대기열로 남긴다(결과 화면에서 앱이 꺼져도 잃지 않음)
+	var story_triggers: Array = []
 	var extra: Array = []
 	if int(res.get("castle_level", 1)) > int(res.get("castle_level_before", 1)):
 		var lv := int(res.castle_level)
 		var ld := GameConfig.castle_level_def(lv)
 		extra.append("성이 Lv.%d %s(으)로 커졌어요! 체력 %d" % [lv, String(ld.get("label", "")), int(ld.get("hp", 0))])
-		for u in ld.get("unlock_text", []):
-			extra.append("· 새로 열림: %s" % String(u))
+		var unlocks: Array = ld.get("unlock_text", [])
+		if not unlocks.is_empty():
+			extra.append("새로 열림: %s" % " · ".join(PackedStringArray(unlocks)))
 		_sync_world()
 	var cc := int(res.get("chapter_cleared", 0))
 	if cc > 0:
 		if cc >= GameConfig.chapters().size():
-			_after_result_story.append("stage_clear:%d" % stage_id)
+			story_triggers.append("stage_clear:%d" % stage_id)
 		else:
-			_after_result_story.append("chapter_end:%d" % cc)
-			_after_result_story.append("chapter_start:%d" % (cc + 1))
+			story_triggers.append("chapter_end:%d" % cc)
+			story_triggers.append("chapter_start:%d" % (cc + 1))
 	if outpost_lost:
 		extra.append("앞마당이 점령당했어요. 생산이 멈췄지만 수리하면 다시 돌아가요.")
-		_after_result_story.append("outpost_lost")
+		story_triggers.append("outpost_lost")
+	_queue_story(story_triggers)
+	saver.save(state)
 	if won:
 		var ex := Story.commander_excuse(stage_id, replay)
 		if ex != "":
@@ -697,11 +750,7 @@ func _on_result_closed(action: String) -> void:
 	var then := Callable()
 	if action == "retry" or action == "replay":
 		then = _start_raid
-	var queue := _after_result_story
-	_after_result_story = []
-	if _args.has("no-story"):
-		queue = []
-	_queue_story(queue, then)
+	_queue_story([], then)
 
 
 func _pause_battle() -> void:
@@ -767,7 +816,8 @@ func _on_menu_action(action: String) -> void:
 			world.reset_camera()
 			_last_ui = ""
 			hud.toast("새 마을에서 시작해요")
-			_queue_story(["new_game"], Callable())
+			_story_then = Callable()
+			_queue_story(["new_game"])
 
 
 # ------------------------------------------------------------------ 표시 설정(user://settings.cfg)
@@ -842,7 +892,10 @@ func _enter_background() -> void:
 
 
 func _on_back() -> void:
-	if state.mode == GameState.MODE_BATTLE:
+	# 이야기 장면이 열려 있으면 뒤로 가기는 장면만 넘긴다(아래 가려진 화면은 건드리지 않음)
+	if story_view.active():
+		story_view.advance()
+	elif state.mode == GameState.MODE_BATTLE:
 		_pause_battle()
 	elif hud.overlay_visible() and state.mode != GameState.MODE_PAUSED and state.mode != GameState.MODE_RESULT:
 		hud.hide_overlay()
@@ -963,7 +1016,7 @@ func _pointer_down(pos: Vector2) -> void:
 	_press_pos = pos
 	_last_pos = pos
 	_drag_kind = "pan"
-	if edit.is_empty() or edit.kind == "deco":
+	if edit.is_empty() or edit.kind in ["deco", "expand"]:
 		return
 	if edit.kind == "fence":
 		_drag_kind = "fence"
@@ -1040,7 +1093,7 @@ func _pointer_up(pos: Vector2) -> void:
 
 
 func _tap(pos: Vector2) -> void:
-	if not edit.is_empty() and edit.kind == "deco":
+	if not edit.is_empty() and edit.kind in ["deco", "expand"]:
 		return
 	if not edit.is_empty():
 		if edit.kind == "fence":

@@ -20,6 +20,7 @@ func _init() -> void:
 		"test_decor", "test_assist_mode", "test_knight_spread", "test_advisor", "test_stage_curve",
 		"test_castle_levels", "test_boss_units", "test_expansion", "test_resource_sites_and_props",
 		"test_outpost_battle", "test_outpost_repair", "test_save_v3_migration", "test_story_data",
+		"test_review_fixes_core",
 	]
 	for t in tests:
 		var before := _fail
@@ -1099,3 +1100,90 @@ func test_story_data() -> void:
 	var seen := {"ending": true, "prologue": true}
 	var list := Story.seen_scenes(seen)
 	check(list.size() == 2 and String(list[0].id) == "prologue", "다시 보기 목록은 본 장면만")
+
+
+## 3차 검토에서 나온 규칙 문제 재발 방지
+func test_review_fixes_core() -> void:
+	# 1) 앞마당이 일찍 점령돼도 아직 정문 밖에 있던 기사가 멈추지 않는다
+	var s := outpost_state(false)
+	s.wood = 500
+	check(s.commit_expand("south").ok, "남쪽 확장(정문이 앞으로)")
+	var b := BattleSim.new()
+	b.setup(s.buildings, s.all_edges(), 9, 1.0, {castle_hp = 100000, bounds = s.bounds()})
+	b.outpost.hp = 42
+	var stuck := 0
+	while b.outcome == "" and b.time < 150.0:
+		b.step(BattleSim.STEP)
+	for k in b.knights:
+		if k.state == "stuck":
+			stuck += 1
+	check(bool(b.outpost.captured) and stuck == 0 and b.outcome != "abort", "정문 밖 기사도 성으로 방향 전환 (멈춘 기사 %d, 결과 %s)" % [stuck, b.outcome])
+	var b2 := BattleSim.new()
+	b2.setup(s.buildings, s.all_edges(), 9, 1.0, {castle_hp = 100000, bounds = s.bounds()})
+	while b2.spawned < 1:
+		b2.step(BattleSim.STEP)
+	var k0: Dictionary = b2.knights[0]
+	k0.pos = GameConfig.spawn_world_for(s.bounds())
+	b2._retarget_to_castle(k0)
+	var entry := GameConfig.entry_cell_for(s.bounds())
+	check(k0.state == "walk" and (k0.waypoints[0] as Vector2) == Vector2(entry.x + 0.5, entry.y + 0.5), "등장 길에서는 진입 칸부터 길 잡기")
+	# 2) 잘못된 v3 필드는 거부
+	var good := at_level(3).to_dict()
+	check(GameState.validate_dict(good) == "", "정상 저장본")
+	var bad := good.duplicate(true)
+	bad.expansions = ["east", 1]
+	check(GameState.validate_dict(bad) != "", "확장 목록에 숫자 거부")
+	bad = good.duplicate(true)
+	bad.expansions = "east"
+	check(GameState.validate_dict(bad) != "", "확장 목록 형식 거부")
+	bad = good.duplicate(true)
+	bad.story_seen = null
+	check(GameState.validate_dict(bad) != "", "이야기 기록 null 거부")
+	bad = good.duplicate(true)
+	bad.story_pending = [3]
+	check(GameState.validate_dict(bad) != "", "대기 장면 형식 거부")
+	bad = at_level(0).to_dict()
+	bad.expansions = ["north"]
+	check(GameState.validate_dict(bad) != "", "아직 안 열린 확장 거부")
+	bad = at_level(0).to_dict()
+	var n := 0
+	for i in 8:
+		bad.buildings.append({id = "house_x%d" % i, type = "house", x = 0, z = 9 - i, rot = 0, level = 1})
+	check(GameState.validate_dict(bad) == "수량 한도 초과", "성 레벨보다 많은 주택 거부")
+	bad = good.duplicate(true)
+	for bb in bad.buildings:
+		if bb.type == "house":
+			bb.damaged = true
+			break
+	check(GameState.validate_dict(bad) != "", "주택에 점령 표시 거부")
+	# 3) 앞마당이 아닌 건물·공사 중 앞마당은 점령·수리 대상이 아님
+	var t := at_level(6)
+	t.wood = 500
+	t.commit_expand("east")
+	t.wood = 500
+	t.commit_new_building("outpost", 16, 2, 0)
+	var op: String = t.outposts()[0].id
+	t.mark_outpost_lost(op)
+	check(not bool(t.get_building(op).get("damaged", false)), "공사 중 앞마당은 점령 표시 안 됨")
+	t.mark_outpost_lost("house_01")
+	check(not t.get_building("house_01").has("damaged") and not t.check_repair("house_01").ok, "주택은 점령·수리 대상 아님")
+	# 4) 이전 저장본 이전: 장면 ID 는 데이터에서 찾는다
+	var m := at_level(9).to_dict()
+	m.version = 2
+	m.erase("story_seen")
+	m.erase("story_pending")
+	var mt := GameState.new()
+	mt.from_dict(m)
+	check(mt.story_seen.has("final_start") and mt.story_seen.has("ch3_end") and not mt.story_seen.has("ch4_start"), "v2 → 지나온 장면 ID 정확 %s" % str(mt.story_seen.keys()))
+	for sid in mt.story_seen:
+		check(not Story.scene_by_id(String(sid)).is_empty(), "이전 표시 장면 %s 존재" % sid)
+	# 5) 대기 장면 저장·복원
+	var p := at_level(3)
+	p.story_pending = ["chapter_end:1", "chapter_start:2"]
+	var pd := p.to_dict()
+	check(GameState.validate_dict(pd) == "", "대기 장면 저장본 통과")
+	var pt := GameState.new()
+	pt.from_dict(pd)
+	check(pt.story_pending == ["chapter_end:1", "chapter_start:2"], "대기 장면 복원")
+	# 6) 조언 위치 말: 남쪽으로 넓히면 정문 쪽 기준도 앞으로
+	check(BattleAdvisor.place_words(Vector2(6.5, -3.0), -4) == "정문 쪽 가운데" and BattleAdvisor.place_words(Vector2(6.5, 1.0), -4) == "마을 한가운데", "넓힌 지도의 위치 말")

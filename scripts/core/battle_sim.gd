@@ -261,6 +261,9 @@ func _hit_outpost(k: Dictionary) -> void:
 ## 지금 있는 칸에서 성 공격 칸까지 새 길을 잡는다(결정적: 같은 BFS)
 func _retarget_to_castle(k: Dictionary) -> void:
 	var cell := Vector2i(int(floor(k.pos.x)), int(floor(k.pos.y)))
+	# 아직 정문 밖(등장 길)에 있으면 진입 칸에서 길을 잡는다. 등장 길은 진입 칸과 일직선이라 그대로 걸어 들어온다
+	if not GridLogic.in_grid(cell, bounds):
+		cell = GameConfig.entry_cell_for(bounds)
 	var path := GridLogic.find_path(_buildings, _edges, cell, GridLogic.attack_cells(_buildings, _edges, bounds), bounds)
 	k.target = "castle"
 	if path.is_empty():

@@ -165,10 +165,14 @@ func reset_camera() -> void:
 	var vp := get_viewport().get_visible_rect().size if is_inside_tree() else Vector2(1280, 720)
 	var aspect := vp.x / maxf(vp.y, 1.0)
 	# 좁은 화면에서도 마을 전체가 들어오도록 기본 확대 정도를 고른다(지도가 넓어지면 비례해 넓게).
-	var grow := clampf(maxf(b.size.x / 14.0, b.size.y / 10.0), 1.0, 1.8)
+	var grow := _map_grow(b)
 	cam_max = 20.0 * grow
 	cam_size = clampf(maxf(14.6, 22.0 / aspect) * grow, 12.0, cam_max)
 	_apply_camera()
+
+
+static func _map_grow(b: Rect2i) -> float:
+	return clampf(maxf(b.size.x / 14.0, b.size.y / 10.0), 1.0, 1.8)
 
 
 func _apply_camera() -> void:
@@ -246,6 +250,8 @@ func set_map(bounds: Rect2i) -> void:
 	_build_ground()
 	_build_decor()
 	_build_grid_overlay()
+	# 지도가 넓어지면 축소 한계도 함께 넓힌다(넓힌 땅 끝까지 볼 수 있게)
+	cam_max = 20.0 * _map_grow(bounds)
 	_apply_camera()
 
 
@@ -553,7 +559,8 @@ func update_construction(buildings: Array, delta: float) -> void:
 		var left := float(b.get("build_left", 0.0))
 		var sc: Node3D = n.get_node_or_null("Scaffold")
 		if left > 0.0:
-			var total := maxf(GameState.build_seconds(b.type), 0.001)
+			var repairing := bool(b.get("repairing", false))
+			var total := maxf(float(GameConfig.building_def(b.type).get("repair_seconds", 0.0)) if repairing else GameState.build_seconds(b.type), 0.001)
 			var p := clampf(1.0 - left / total, 0.0, 1.0)
 			if sc == null:
 				sc = Models.scaffold(GameConfig.footprint(b.type))
@@ -571,7 +578,7 @@ func update_construction(buildings: Array, delta: float) -> void:
 				lbl.position = Vector3(0, 2.0, 0)
 				sc.add_child(lbl)
 			body.scale = Vector3(1, 0.08 + 0.92 * p, 1)
-			(sc.get_node("BuildTimer") as Label3D).text = "공사 중 %d초" % int(ceil(left))
+			(sc.get_node("BuildTimer") as Label3D).text = ("수리 중 %d초" if repairing else "공사 중 %d초") % int(ceil(left))
 			if n.has_node("Turret"):
 				(n.get_node("Turret") as Node3D).visible = false
 		else:
@@ -595,7 +602,7 @@ func update_construction(buildings: Array, delta: float) -> void:
 ## 매 프레임: 공사 표시와 일꾼. active=false(전투·일시정지)면 일꾼은 제자리에서 멈춘다.
 func update_village(buildings: Array, edges: Dictionary, delta: float, active: bool) -> void:
 	update_construction(buildings, delta)
-	crew.update_crew(buildings, edges, delta, active)
+	crew.update_crew(buildings, edges, delta, active, map_bounds)
 
 
 # ------------------------------------------------------------------ 편집 표시

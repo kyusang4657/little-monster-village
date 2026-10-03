@@ -30,8 +30,13 @@ func summary() -> Array:
 	return out
 
 
-func update_crew(buildings: Array, edges: Dictionary, delta: float, active: bool) -> void:
+## 지금 지도 경계(넓힌 땅의 현장까지 걸어가도록). 비어 있으면 처음 지도
+var _bounds := Rect2i()
+
+
+func update_crew(buildings: Array, edges: Dictionary, delta: float, active: bool, bounds: Rect2i = Rect2i()) -> void:
 	_time += delta
+	_bounds = GridLogic.bnd(bounds)
 	var sites: Array = []
 	for b in buildings:
 		if float(b.get("build_left", 0.0)) > 0.0:
@@ -73,7 +78,7 @@ func _home_cells(buildings: Array) -> Array:
 	for x in range(anchor.x - 1, anchor.x + fp.x + 1):
 		for z in range(anchor.z - 1, anchor.z + fp.y + 1):
 			var c := Vector2i(x, z)
-			if GridLogic.in_grid(c) and not occ.has(c):
+			if GridLogic.in_grid(c, _bounds) and not occ.has(c):
 				cells.append(c)
 	cells.sort_custom(func(a, b): return Vector2(a.x + 0.5, a.y + 0.5).distance_to(center + Vector2(0.4, -1.2)) < Vector2(b.x + 0.5, b.y + 0.5).distance_to(center + Vector2(0.4, -1.2)))
 	return cells
@@ -93,7 +98,7 @@ func _plan(w: Dictionary, buildings: Array, edges: Dictionary, site: Dictionary,
 				var c := Vector2i(x, z)
 				var inside: bool = x >= site.x and x < site.x + fp.x and z >= site.z and z < site.z + fp.y
 				var corner: bool = (x == site.x - 1 or x == site.x + fp.x) and (z == site.z - 1 or z == site.z + fp.y)
-				if inside or corner or not GridLogic.in_grid(c) or occ.has(c):
+				if inside or corner or not GridLogic.in_grid(c, _bounds) or occ.has(c):
 					continue
 				ordered.append(c)
 		var front := Vector2(site.x + fp.x * 0.5, site.z - 1.0)
@@ -105,7 +110,7 @@ func _plan(w: Dictionary, buildings: Array, edges: Dictionary, site: Dictionary,
 	var pick: Vector2i = ordered[mini(w.idx, ordered.size() - 1)]
 	goals[pick] = true
 	var start := Vector2i(int(floor(w.pos.x)), int(floor(w.pos.y)))
-	var cells := GridLogic.find_path(buildings, edges, start, goals)
+	var cells := GridLogic.find_path(buildings, edges, start, goals, _bounds)
 	var pts: Array = []
 	if cells.is_empty():
 		# 길이 없으면(예: 건물에 둘러싸임) 목적지로 바로 옮긴다

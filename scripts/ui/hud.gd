@@ -47,6 +47,8 @@ var wood_sub: Label
 var raid_panel: PanelContainer
 var raid_icon: UiIcon
 var raid_label: Label
+var raid_sub: Label
+var wood_panel: PanelContainer
 var raid_btn: Button
 var battle_panel: PanelContainer
 var battle_label: Label
@@ -82,6 +84,8 @@ var _toast_t := 0.0
 var overlay: ColorRect
 var overlay_box: VBoxContainer
 var overlay_panel: PanelContainer
+## 내용이 화면보다 길면(결과 + 새로 열림 + 조언 등) 창 안에서 위아래로 넘겨 본다
+var overlay_scroll: ScrollContainer
 
 
 func _ready() -> void:
@@ -282,6 +286,7 @@ func _build_top() -> void:
 	whb.add_child(wvb)
 	wp.add_child(whb)
 	_anchor(wp, Control.PRESET_TOP_LEFT, Control.GROW_DIRECTION_END, Control.GROW_DIRECTION_END)
+	wood_panel = wp
 
 	# 습격 준비
 	raid_panel = _panel()
@@ -289,9 +294,17 @@ func _build_top() -> void:
 	rhb.add_theme_constant_override("separation", 12)
 	raid_icon = UiIcon.new("shield", 36, C_PURPLE)
 	rhb.add_child(raid_icon)
-	raid_label = _label("첫 번째 습격 · 기사 4명 접근", 26)
-	raid_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	rhb.add_child(raid_label)
+	# 두 줄: 위는 장·단계 이름, 아래는 기사 수·다시 도전·도움 모드. 좁은 화면에서는 말줄임으로 목재·메뉴와 겹치지 않게
+	var rvb := VBoxContainer.new()
+	rvb.add_theme_constant_override("separation", 0)
+	rvb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	raid_label = _label("첫 번째 습격", 24)
+	raid_sub = _label("기사 4명 접근", 18, C_TEXT_SOFT, true)
+	for l in [raid_label, raid_sub]:
+		l.clip_text = true
+		l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		rvb.add_child(l)
+	rhb.add_child(rvb)
 	raid_btn = _button("방어 시작", "green", "shield")
 	raid_btn.custom_minimum_size.y = 64
 	raid_btn.pressed.connect(func(): start_raid_pressed.emit())
@@ -594,9 +607,12 @@ func _build_overlay() -> void:
 	st.content_margin_bottom = 26
 	overlay_panel.add_theme_stylebox_override("panel", st)
 	center.add_child(overlay_panel)
+	overlay_scroll = ScrollContainer.new()
+	overlay_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	overlay_panel.add_child(overlay_scroll)
 	overlay_box = VBoxContainer.new()
 	overlay_box.add_theme_constant_override("separation", 14)
-	overlay_panel.add_child(overlay_box)
+	overlay_scroll.add_child(overlay_box)
 	overlay.visible = false
 
 
@@ -648,7 +664,16 @@ func _overlay(title: String, lines: Array, buttons: Array, icon: String = "", ic
 			b.pressed.connect(spec[3] if spec.size() > 3 else func(): pass)
 			hb.add_child(b)
 		overlay_box.add_child(hb)
+	_fit_overlay()
 	overlay.visible = true
+
+
+## 창 높이를 내용에 맞추되 화면 높이(위아래 여백 제외)를 넘지 않게
+func _fit_overlay() -> void:
+	var need := overlay_box.get_combined_minimum_size()
+	var vp := root.get_viewport_rect().size
+	overlay_scroll.custom_minimum_size = Vector2(need.x, minf(need.y, maxf(200.0, vp.y - 52.0 - 40.0)))
+	overlay_scroll.scroll_vertical = 0
 
 
 func hide_overlay() -> void:
@@ -666,24 +691,22 @@ func show_pause() -> void:
 
 func show_result(won: bool, stage_label: String, reward: int, wanted: int, final_stage: bool, next_text: String, tips: Array = [], extra: Array = []) -> void:
 	var n := GameConfig.stage_count()
-	if not extra.is_empty():
-		next_text = "\n".join(extra) + ("\n" + next_text if next_text != "" else "")
+	# 레벨업·새로 열림·기사단장 핑계·촌장 격려·앞마당 알림은 승패와 관계없이 모두 보인다
 	if won and final_stage:
 		_overlay("모든 습격 완료!", [
 			"%s을 막아냈어요." % stage_label,
 			"목재 +%d%s" % [reward, "" if reward == wanted else " (창고 한도)"],
 			"%d번의 습격을 모두 이겼어요. 마지막 단계에 다시 도전할 수 있어요." % n,
-		], [["%d단계 다시 도전" % n, "purple", "shield", func(): result_closed.emit("replay")], ["마을로", "green", "check", func(): result_closed.emit("village")]], "check", C_PURPLE, [], tips)
+		] + extra, [["%d단계 다시 도전" % n, "purple", "shield", func(): result_closed.emit("replay")], ["마을로", "green", "check", func(): result_closed.emit("village")]], "check", C_PURPLE, [], tips)
 	elif won:
 		_overlay("승리!", [
 			"%s을 막아냈어요. 목재 +%d%s" % [stage_label, reward, "" if reward == wanted else " (창고 한도)"],
-			next_text,
-		], [["확인", "green", "check", func(): result_closed.emit("village")]], "check", C_PURPLE, [], tips)
+		] + extra + ([next_text] if next_text != "" else []), [["확인", "green", "check", func(): result_closed.emit("village")]], "check", C_PURPLE, [], tips)
 	else:
 		_overlay("성이 함락됐어요", [
 			"마을은 그대로예요. 건물·울타리·목재는 잃지 않았어요.",
 			"배치를 바꾸거나 방어탑을 강화한 뒤 무료로 다시 도전해 보세요.",
-		], [["마을로", "ivory", "x", func(): result_closed.emit("village")], ["다시 도전", "green", "shield", func(): result_closed.emit("retry")]], "ban", C_PURPLE, [], tips)
+		] + extra, [["마을로", "ivory", "x", func(): result_closed.emit("village")], ["다시 도전", "green", "shield", func(): result_closed.emit("retry")]], "ban", C_PURPLE, [], tips)
 
 
 ## 땅 넓히기 방향 고르기
@@ -808,18 +831,30 @@ func set_wood(wood: int, cap: int, producing: bool, rate: float = 1.0) -> void:
 		wood_sub.text = "생산 멈춤"
 
 
-func set_raid(ready: bool, label: String, knights: int, timer: float, visible_flag: bool, assist_pct: int = 0) -> void:
+## label: 장·단계 이름, detail: 기사 수·다시 도전 등(아래 줄)
+func set_raid(ready: bool, label: String, detail: String, timer: float, visible_flag: bool, assist_pct: int = 0) -> void:
 	raid_panel.visible = visible_flag
 	if ready:
 		raid_icon.set_kind("shield", C_PURPLE)
-		raid_label.text = "%s · 기사 %d명 접근" % [label, knights]
+		raid_label.text = label
+		raid_sub.text = detail
 		if assist_pct > 0:
-			raid_label.text += " · 도움 모드 체력 -%d%%" % assist_pct
+			raid_sub.text += " · 도움 모드 체력 -%d%%" % assist_pct
 		raid_btn.visible = true
 	else:
 		raid_icon.set_kind("clock", C_PURPLE)
-		raid_label.text = "다음 습격 준비 중 · %d초 남음" % int(ceil(maxf(timer, 0.0)))
+		raid_label.text = "다음 습격 준비 중"
+		raid_sub.text = "%d초 남음 · %s" % [int(ceil(maxf(timer, 0.0))), label]
 		raid_btn.visible = false
+	# 가운데 패널이 왼쪽 목재 패널·오른쪽 메뉴 버튼과 겹치지 않는 최대 글 폭
+	var vp := root.get_viewport_rect().size
+	var side := maxf(wood_panel.get_combined_minimum_size().x + 16.0 + 12.0, BTN_H + 16.0 + 12.0)
+	var fixed := 36.0 + 12.0 + 12.0 + 40.0 + (raid_btn.get_combined_minimum_size().x + 12.0 if raid_btn.visible else 0.0)
+	var max_w := maxf(160.0, vp.x - side * 2.0 - fixed)
+	for l: Label in [raid_label, raid_sub]:
+		var f: Font = l.get_theme_font("font")
+		var fs: int = l.get_theme_font_size("font_size")
+		l.custom_minimum_size.x = minf(f.get_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + 2.0, max_w)
 	raid_panel.reset_size()
 	raid_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE)
 
@@ -857,6 +892,13 @@ func show_build_menu(state: GameState) -> void:
 				b.disabled = true
 			elif left == 0 and open.size() >= GameConfig.map_config().get("expansions", {}).size():
 				card.cost.text = "최대 크기"
+				b.disabled = true
+			elif left == 0:
+				# 지금 열린 방향은 다 넓혔다: 다음으로 열리는 성 레벨 안내
+				var next_lv := state.castle_level() + 1
+				while next_lv <= GameConfig.max_castle_level() and GameState.unlocked_expansions_at(next_lv).size() <= open.size():
+					next_lv += 1
+				card.cost.text = "다음: 성 Lv.%d 해금" % next_lv
 				b.disabled = true
 			else:
 				card.cost.text = "넓힐 곳 %d곳" % left

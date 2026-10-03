@@ -35,8 +35,12 @@ var assist_enabled: bool = false
 var expansions: Array = []
 ## 3차: 이미 본 스토리 장면 ID
 var story_seen: Dictionary = {}
+## 3차: 아직 보여 주지 못한 장면 트리거(결과와 함께 저장 → 앱이 꺼져도 다음 실행에서 이어 보여 줌)
+var story_pending: Array = []
 
 ## 실행 중 상태(저장하지 않음)
+## 방금 끝난 공사가 수리였는지(construction_finished 알림용)
+var last_finished_repair := false
 var mode: String = MODE_RAID_READY
 var pause_return: String = MODE_BATTLE
 var current_battle_id: int = 0
@@ -72,6 +76,7 @@ func new_game() -> void:
 	assist_enabled = bool(GameConfig.raids().get("assist", {}).get("enabled_default", false))
 	expansions = []
 	story_seen = {}
+	story_pending = []
 	sync_castle_level()
 	mode = idle_mode()
 	changed.emit()
@@ -102,6 +107,7 @@ func tick(delta: float) -> void:
 			if float(b.build_left) > 0.0:
 				b.build_left = maxf(0.0, float(b.build_left) - delta)
 				if b.build_left <= 0.0:
+					last_finished_repair = bool(b.get("repairing", false))
 					b.erase("repairing")
 					construction_finished.emit(b.id)
 					changed.emit()
@@ -247,8 +253,12 @@ static func unlock_level_for(type: String) -> int:
 
 ## 지금 열려 있는 땅 넓히기 방향
 func unlocked_expansions() -> Array:
+	return unlocked_expansions_at(castle_level())
+
+
+static func unlocked_expansions_at(level: int) -> Array:
 	var out: Array = []
-	for lv in range(1, castle_level() + 1):
+	for lv in range(1, level + 1):
 		for d in GameConfig.castle_level_def(lv).get("expansions", []):
 			out.append(String(d))
 	return out
@@ -435,7 +445,8 @@ func outposts() -> Array:
 ## 전투에서 점령당한 앞마당: 생산만 멈춘다(영구 손실 없음)
 func mark_outpost_lost(id: String) -> void:
 	var b := get_building(id)
-	if b.is_empty():
+	# 완성된 앞마당만 점령될 수 있다(공사·수리 중인 앞마당은 전투 표적이 아님)
+	if b.is_empty() or b.type != "outpost" or not is_built(b):
 		return
 	b.damaged = true
 	changed.emit()
@@ -443,7 +454,7 @@ func mark_outpost_lost(id: String) -> void:
 
 func check_repair(id: String) -> Dictionary:
 	var b := get_building(id)
-	if b.is_empty() or not bool(b.get("damaged", false)):
+	if b.is_empty() or b.type != "outpost" or not bool(b.get("damaged", false)) or not is_built(b):
 		return {ok = false, reason = "고칠 곳이 없어요"}
 	var cost := int(GameConfig.building_def(b.type).get("repair_cost", 0))
 	if wood < cost:
@@ -581,6 +592,7 @@ func to_dict() -> Dictionary:
 		assist_enabled = assist_enabled,
 		expansions = expansions.duplicate(),
 		story_seen = _sorted_keys(story_seen),
+		story_pending = story_pending.duplicate(),
 	}
 
 
@@ -625,21 +637,41 @@ static func validate_dict(d) -> String:
 		var max_left := maxf(build_seconds(String(b.type)), float(def.get("repair_seconds", 0.0)))
 		if left < 0.0 or left > max_left + 0.001:
 			return "공사 시간 범위 오류"
+		# 점령·수리 표시는 앞마당에만, 둘이 함께일 수 없고 수리 중이면 남은 시간이 있어야 한다
+		var dmg := bool(b.get("damaged", false))
+		var rep := bool(b.get("repairing", false))
+		if (dmg or rep) and String(b.type) != "outpost":
+			return "앞마당 상태 오류"
+		if dmg and (rep or left > 0.0):
+			return "앞마당 상태 오류"
 		bl.append({id = String(b.id), type = String(b.type), x = int(b.x), z = int(b.z), rot = int(b.rot), level = int(b.level)})
-	var exps: Array = d.get("expansions", [])
-	if typeof(exps) != TYPE_ARRAY:
+	if typeof(d.highest_cleared) != TYPE_FLOAT and typeof(d.highest_cleared) != TYPE_INT:
+		return "단계 범위 오류"
+	var level := castle_level_for(clampi(int(d.highest_cleared), 0, GameConfig.stage_count()))
+	var raw_exps = d.get("expansions", [])
+	if typeof(raw_exps) != TYPE_ARRAY:
 		return "확장 형식 오류"
+	var exps: Array = raw_exps
 	var seen_dirs := {}
+	var open_dirs := unlocked_expansions_at(level)
 	for e in exps:
-		if GameConfig.expansion_def(String(e)).is_empty() or seen_dirs.has(String(e)):
+		if typeof(e) != TYPE_STRING or GameConfig.expansion_def(e).is_empty() or seen_dirs.has(e) or not open_dirs.has(e):
 			return "확장 오류"
-		seen_dirs[String(e)] = true
+		seen_dirs[e] = true
+	for key in ["story_seen", "story_pending"]:
+		var arr = d.get(key, [])
+		if typeof(arr) != TYPE_ARRAY or (arr as Array).size() > 64:
+			return "이야기 기록 오류"
+		for x in arr:
+			if typeof(x) != TYPE_STRING:
+				return "이야기 기록 오류"
 	var bnds := GameConfig.bounds_for(exps)
 	var mx: Array = GameConfig.map_config().get("max_size", [99, 99])
 	if bnds.size.x > int(mx[0]) or bnds.size.y > int(mx[1]):
 		return "지도 크기 오류"
+	# 수량은 저장된 진행(성 레벨)에서 허용되는 한도로 검사한다. 성 레벨은 내려가지 않아 이전 저장본도 통과한다
 	for type in counts:
-		if counts[type] > int(GameConfig.building_def(type).max_count):
+		if counts[type] > maxi(limit_for(type, level), 1 if type in ["castle", "lumber_camp"] else 0):
 			return "수량 한도 초과"
 	if int(counts.get("castle", 0)) != 1 or int(counts.get("lumber_camp", 0)) < 1:
 		return "성·벌목소 수 오류"
@@ -710,6 +742,9 @@ func from_dict(d: Dictionary) -> void:
 	story_seen = {}
 	for sid in d.get("story_seen", []):
 		story_seen[String(sid)] = true
+	story_pending = []
+	for t in d.get("story_pending", []):
+		story_pending.append(String(t))
 	if int(d.version) < 3:
 		_mark_past_story_seen()
 	sync_castle_level()
@@ -721,9 +756,18 @@ func from_dict(d: Dictionary) -> void:
 
 ## 이전 버전 저장본을 이어받을 때, 이미 지나온 장의 장면은 다시 띄우지 않는다
 func _mark_past_story_seen() -> void:
+	# 장면 ID 는 트리거로 찾는다(데이터에 없는 ID 는 남기지 않음)
+	var triggers: Array = []
 	if highest_cleared > 0 or battle_seq > 0:
-		story_seen["prologue"] = true
+		triggers.append("new_game")
 	for c in GameConfig.chapters():
 		if highest_cleared >= int(c.last_stage):
-			story_seen["ch%d_end" % int(c.id)] = true
-			story_seen["ch%d_start" % (int(c.id) + 1)] = true
+			triggers.append("chapter_end:%d" % int(c.id))
+			triggers.append("chapter_start:%d" % (int(c.id) + 1))
+	if highest_cleared >= GameConfig.stage_count():
+		triggers.append("before_stage:%d" % GameConfig.stage_count())
+		triggers.append("stage_clear:%d" % GameConfig.stage_count())
+	for t in triggers:
+		var sc := Story.scene_for(t)
+		if not sc.is_empty():
+			story_seen[String(sc.id)] = true
