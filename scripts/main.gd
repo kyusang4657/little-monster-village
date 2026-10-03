@@ -176,6 +176,9 @@ var _low_fps_hinted := false
 func _check_low_fps(delta: float) -> void:
 	if _low_fps_hinted or not hud.shadows_on or _args.has("integration") or _args.has("shots"):
 		return
+	# 이야기·창이 떠 있을 때는 안내를 겹쳐 띄우지 않는다(시간도 세지 않음)
+	if story_view.active() or hud.overlay_visible():
+		return
 	if not state.mode in [GameState.MODE_VILLAGE, GameState.MODE_RAID_READY, GameState.MODE_BATTLE]:
 		return
 	var cfg: Dictionary = GameConfig.defaults().get("performance_targets", {}).get("low_fps_hint", {})
