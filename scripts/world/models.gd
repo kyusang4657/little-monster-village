@@ -589,7 +589,7 @@ static func defense_tower(deco: Dictionary = {}) -> Node3D:
 	t.cyl(0.0, 0.06, 0.16, Vector3(0, 0.44, -0.6), SILVER, Vector3(-90, 0, 0))
 	t.box(Vector3(0.22, 0.12, 0.14), Vector3(0, 0.43, -0.6), SILVER_DARK)
 	turret.add_child(t.instance("Crossbow"))
-	var op := goblin(false)
+	var op := goblin(false, 2)
 	op.name = "Operator"
 	op.pose_crossbow()
 	op.scale = Vector3.ONE * 0.8
