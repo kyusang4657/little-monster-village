@@ -161,7 +161,9 @@ func _setup(def: Dictionary, scl: float) -> void:
 	# 자세(쓰러짐·팔 들기)로 원래 경계를 벗어나도 잘리지 않게 넉넉한 경계 상자
 	body.custom_aabb = AABB(Vector3(-h, -0.3, -h), Vector3(h * 2.0, h * 1.6, h * 2.0))
 	if OUTLINE_WIDTH > 0.0:
-		body.material_overlay = outline_material()
+		body.set_meta("outline", outline_material())
+		if MeshBatch.outlines_on:
+			body.material_overlay = outline_material()
 	skeleton.add_child(body)
 	set_expression("normal")
 	pose_idle(0.0)
@@ -959,7 +961,8 @@ static func _build_goblin(v: int, with_hammer: bool) -> Dictionary:
 	g.use("Neck")
 	g.tube(Vector3(0, 0.54, 0), Vector3(0, 0.66, 0), 0.045, 0.045, skin, 7, false)
 	_limbs(g, P, {shoulder = tunic, upper = skin, elbow = skin, fore = skin, hand = skin,
-		thigh = skin, knee = skin, shin = skin, boot = Models.BOOT, cuff_leg = Color("5e3a1e"), toe = Models.BOOT})
+		thigh = skin, knee = skin, shin = skin, boot = Models.BOOT, cuff_leg = Color("5e3a1e"), toe = Models.BOOT,
+		hand_s = 1.35, boot_s = 1.2})
 	for side: float in [-1.0, 1.0]:
 		g.use("LegL" if side < 0.0 else "LegR")
 		g.tube(Vector3(0.075 * side, 0.32, 0), Vector3(0.075 * side, 0.235, 0), 0.062, 0.058, Models.SHORTS, 8, true)
@@ -1078,7 +1081,8 @@ static func _build_imp(lv: int) -> Dictionary:
 	g.use("Neck")
 	g.tube(Vector3(0, 0.41, 0), Vector3(0, 0.5, 0), 0.04, 0.04, skin, 7, false)
 	_limbs(g, P, {shoulder = robe, upper = robe, elbow = skin, fore = skin, hand = skin, cuff = Color("5b3a8f"),
-		thigh = skin, knee = skin, shin = skin, boot = Color("2a1a3a"), cuff_leg = Color("4a2d6a"), toe = Color("2a1a3a")})
+		thigh = skin, knee = skin, shin = skin, boot = Color("2a1a3a"), cuff_leg = Color("4a2d6a"), toe = Color("2a1a3a"),
+		hand_s = 1.2, boot_s = 1.15})
 	# Lv.3+: 금 어깨 장식
 	if lv >= 3:
 		for side: float in [-1.0, 1.0]:
@@ -1224,34 +1228,35 @@ static func _boss_spec(k: String) -> Dictionary:
 		P = {
 			ankle = 0.09, knee = 0.27, hip = 0.49, hip_x = 0.095, pelvis = 0.505, spine = 0.57,
 			shoulder = 0.84, shoulder_x = 0.235, elbow = 0.67, wrist = 0.515, neck = 0.87, head = 0.92,
-			arm_r = 0.045, leg_r = 0.052, foot_len = 0.22,
+			arm_r = 0.052, leg_r = 0.057, foot_len = 0.22,
 		},
 		hc = Vector3(0, 1.112, -0.005), hr = Vector3(0.165, 0.158, 0.16),
+		hand_s = 1.4, boot_s = 1.22,
 		es = 0.032, eye_dx = 0.06, eye_y = 1.092, mouth_y = 1.03, mouth_w = 0.072,
 		skin = Color("f2c9a0"),
-		chest_c = Vector3(0, 0.75, 0), chest_r = Vector3(0.215, 0.145, 0.14),
+		chest_c = Vector3(0, 0.755, 0), chest_r = Vector3(0.24, 0.155, 0.15),
 		waist_r = Vector2(0.11, 0.15), belt_y = 0.6,
 		skirt_y = Vector2(0.6, 0.42), skirt_r = Vector2(0.13, 0.175),
 		boot = Color("5a3418"), glove = Color("6b3f1f"),
 		cape_len = 0.56, cape_w = Vector2(0.14, 0.21),
-		sword_len = 0.52, sword_w = 0.036, mustache = false,
+		sword_len = 0.58, sword_w = 0.042, mustache = false,
 	}
 	if k == "hero":
 		s.merge({
 			chest = Color("dfe6ee"), waist = Color("3d6fd6"), skirt = Color("3d6fd6"), trouser = Color("2f3f6a"),
 			armor = Color("dfe6ee"), armor_dark = Color("9fb0c2"), trim = Models.GOLD,
-			pauldron = Vector3(0.11, 0.085, 0.115), cape = Color("2f55b0"), cape_hem = Models.GOLD,
+			pauldron = Vector3(0.14, 0.105, 0.14), cape = Color("2f55b0"), cape_hem = Models.GOLD,
 			helmet = "", hair = Color("f0c040"), circlet = true, plumes = [],
-			shield = "star", shield_r = 0.22, shield_c = Color("3a5fb8"), shield_rim = Color("dfe6ee"), shield_mark = Models.GOLD,
+			shield = "star", shield_r = 0.27, shield_c = Color("3a5fb8"), shield_rim = Color("dfe6ee"), shield_mark = Models.GOLD,
 			gem = Color("4fc3f7"),
 		}, true)
 	else:
 		s.merge({
 			chest = Color("8e99a6"), waist = Color("5c6570"), skirt = Color("8f1f27"), trouser = Color("4a4552"),
 			armor = Color("8e99a6"), armor_dark = Color("5c6570"), trim = Models.GOLD,
-			pauldron = Vector3(0.135, 0.1, 0.135), spikes = true, cape = Color("a3242c"), cape_hem = Models.GOLD,
+			pauldron = Vector3(0.16, 0.12, 0.16), spikes = true, cape = Color("a3242c"), cape_hem = Models.GOLD,
 			helmet = "crest", plumes = [Color("d8333a"), Color("f4efe4")], plume_size = 1.2,
-			shield = "crown", shield_r = 0.25, shield_c = Color("b52a33"), shield_rim = Models.GOLD, shield_mark = Models.GOLD,
+			shield = "crown", shield_r = 0.3, shield_c = Color("b52a33"), shield_rim = Models.GOLD, shield_mark = Models.GOLD,
 			mustache = true, gem = Color("e04848"),
 		}, true)
 	return s

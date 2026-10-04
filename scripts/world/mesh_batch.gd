@@ -9,6 +9,31 @@ var _verts := PackedVector3Array()
 var _normals := PackedVector3Array()
 var _colors := PackedColorArray()
 var _indices := PackedInt32Array()
+## 정점 색에 위·아래 명암을 넣을지(바닥·격자처럼 평평한 것은 끈다)
+var shade := true
+## 부품별 정점 범위(외곽선용 부드러운 법선을 부품 안에서만 평균낸다)
+var _parts: Array[Vector2i] = []
+static var _outline_mat: ShaderMaterial = null
+const OUTLINE_WIDTH := 0.028
+## 메뉴의 "외곽선" 설정(느린 기기에서 끌 수 있음). 새로 만드는 모델도 이 값을 따른다
+static var outlines_on := true
+
+
+## 건물·나무용 외곽선: 모서리가 갈라지지 않게 부품마다 같은 위치의 법선을 평균낸 방향(CUSTOM0)으로 부풀린다
+static func outline_material() -> ShaderMaterial:
+	if _outline_mat == null:
+		var sh := Shader.new()
+		sh.code = """shader_type spatial;
+render_mode unshaded, cull_front, depth_draw_opaque, shadows_disabled;
+uniform vec4 line_color : source_color = vec4(0.17, 0.09, 0.05, 1.0);
+uniform float width = 0.028;
+void vertex() { VERTEX += CUSTOM0.xyz * width * CUSTOM0.w; }
+void fragment() { ALBEDO = line_color.rgb; }
+"""
+		_outline_mat = ShaderMaterial.new()
+		_outline_mat.shader = sh
+		_outline_mat.set_shader_parameter("width", OUTLINE_WIDTH)
+	return _outline_mat
 
 
 static func shared_material() -> StandardMaterial3D:
@@ -33,10 +58,13 @@ func _add(arrays: Array, xf: Transform3D, color: Color) -> void:
 	var v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var n: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 	var basis_n := xf.basis.inverse().transposed()
+	_parts.append(Vector2i(base, base + v.size()))
 	for i in v.size():
 		_verts.append(xf * v[i])
-		_normals.append((basis_n * n[i]).normalized())
-		_colors.append(color)
+		var nm := (basis_n * n[i]).normalized()
+		_normals.append(nm)
+		# 칠한 듯한 입체감(캐릭터와 같은 규칙): 윗면은 밝게, 아랫면은 어둡게
+		_colors.append(color.lightened(0.12 * maxf(nm.y, 0.0)).darkened(0.15 * maxf(-nm.y, 0.0)) if shade else color)
 	var idx = arrays[Mesh.ARRAY_INDEX]
 	if idx == null or (idx as PackedInt32Array).is_empty():
 		for i in v.size():
@@ -122,13 +150,46 @@ func mesh() -> ArrayMesh:
 	arr[Mesh.ARRAY_NORMAL] = _normals
 	arr[Mesh.ARRAY_COLOR] = _colors
 	arr[Mesh.ARRAY_INDEX] = _indices
-	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	arr[Mesh.ARRAY_CUSTOM0] = _smooth_normals()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr, [], {}, Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
 	m.surface_set_material(0, shared_material())
 	return m
 
 
-func instance(node_name: String = "Mesh") -> MeshInstance3D:
+## 같은 부품 안에서 위치가 같은 정점들의 법선 평균(상자 모서리에서 외곽선이 끊기지 않게)
+func _smooth_normals() -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	out.resize(_verts.size() * 4)
+	for part in _parts:
+		var acc := {}
+		# 작은 부품(문·창틀·장식)은 외곽선을 가늘게: 부품 크기 0.6 이상이면 1, 작을수록 최소 0.25
+		var lo := _verts[part.x]
+		var hi := _verts[part.x]
+		for i in range(part.x, part.y):
+			lo = lo.min(_verts[i])
+			hi = hi.max(_verts[i])
+		var ext := hi - lo
+		var fw := clampf(maxf(ext.x, maxf(ext.y, ext.z)) / 0.6, 0.25, 1.0)
+		for i in range(part.x, part.y):
+			var k := Vector3i((_verts[i] * 1000.0).round())
+			acc[k] = acc.get(k, Vector3.ZERO) + _normals[i]
+		for i in range(part.x, part.y):
+			var sn: Vector3 = acc[Vector3i((_verts[i] * 1000.0).round())]
+			sn = sn.normalized() if sn.length() > 0.0001 else _normals[i]
+			out[i * 4] = sn.x
+			out[i * 4 + 1] = sn.y
+			out[i * 4 + 2] = sn.z
+			out[i * 4 + 3] = fw
+	return out
+
+
+## outline = 만화풍 외곽선(건물·나무·울타리). 바닥·꽃·격자 같은 평평한 것은 끈다.
+func instance(node_name: String = "Mesh", outline: bool = true) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	mi.name = node_name
 	mi.mesh = mesh()
+	if outline and OUTLINE_WIDTH > 0.0:
+		mi.set_meta("outline", outline_material())
+		if outlines_on:
+			mi.material_overlay = outline_material()
 	return mi

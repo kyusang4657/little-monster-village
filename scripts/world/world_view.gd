@@ -108,15 +108,32 @@ static func _unshaded(c: Color, billboard: bool = false) -> StandardMaterial3D:
 
 # ------------------------------------------------------------------ 환경·카메라
 
+## 외곽선 켜기/끄기: 이미 있는 모델도 바로 바꾼다
+func set_outlines(on: bool) -> void:
+	MeshBatch.outlines_on = on
+	_apply_outlines(self, on)
+
+
+func _apply_outlines(n: Node, on: bool) -> void:
+	if n is GeometryInstance3D and n.has_meta("outline"):
+		(n as GeometryInstance3D).material_overlay = n.get_meta("outline") if on else null
+	for c in n.get_children():
+		_apply_outlines(c, on)
+
+
 func _setup_environment() -> void:
 	var env := WorldEnvironment.new()
 	var e := Environment.new()
 	e.background_mode = Environment.BG_COLOR
-	e.background_color = Color("8fc45a")
+	e.background_color = Color("78b345")
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	e.ambient_light_color = Color("fff3dc")
 	e.ambient_light_energy = 0.2
 	e.tonemap_mode = Environment.TONE_MAPPER_LINEAR
+	# 만화풍: 색을 조금 더 진하고 또렷하게
+	e.adjustment_enabled = true
+	e.adjustment_saturation = 1.08
+	e.adjustment_contrast = 1.06
 	env.environment = e
 	add_child(env)
 	var sun := DirectionalLight3D.new()
@@ -276,8 +293,9 @@ func _build_ground() -> void:
 	var x0 := float(bb.position.x)
 	var z0 := float(bb.position.y)
 	var g := MeshBatch.new()
-	g.box(Vector3(110, 0.2, 110), W(x0 + w * 0.5, -0.1, z0 + d * 0.5), Color("86c053"))
-	g.box(Vector3(w, 0.02, d), W(x0 + w * 0.5, 0.0, z0 + d * 0.5), Color("94cd5e"))
+	g.shade = false
+	g.box(Vector3(110, 0.2, 110), W(x0 + w * 0.5, -0.1, z0 + d * 0.5), Color("78b345"))
+	g.box(Vector3(w, 0.02, d), W(x0 + w * 0.5, 0.0, z0 + d * 0.5), Color("84bf51"))
 	# 바깥 접근로(정문 앞). 앞쪽으로 넓히면 정문과 함께 앞으로 나간다.
 	var gx := GameConfig.gate_x()
 	g.box(Vector3(2.0, 0.02, 7.0), W(gx.x + 1.0, 0.012, z0 - 3.5), Color("d9b77a"))
@@ -304,7 +322,7 @@ func _build_ground() -> void:
 			var pz := float(rr.z) + rng.randf_range(0.0, float(rr.d))
 			if rng.randf() < 0.5:
 				g.sphere(rng.randf_range(0.04, 0.07), W(px, 0.02, pz), Color("c9a46a"), Vector3(1.2, 0.5, 1.0))
-	var mi := g.instance("Ground")
+	var mi := g.instance("Ground", false)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
 	move_child(mi, 0)
@@ -365,11 +383,13 @@ func _build_decor() -> void:
 			continue
 		var s := rng.randf_range(0.25, 0.5)
 		trees.sphere(s, W(p.x, s * 0.4, p.y), Color("aeb0ad"), Vector3(1.3, 0.8, 1.0))
-	var tm := trees.instance("Trees")
+	# 배경 나무는 외곽선 없이(삼각형이 많아 비용이 크고, 건물·캐릭터를 돋보이게)
+	var tm := trees.instance("Trees", false)
 	add_child(tm)
 	_trees_node = tm
 	# 꽃·풀 점(그림자 없음)
 	var fl := MeshBatch.new()
+	fl.shade = false
 	for i in max_flowers:
 		var p := Vector2(rng.randf_range(big.position.x - 8.0, big.end.x + 8.0), rng.randf_range(big.position.y - 8.0, big.end.y + 7.0))
 		var col: Color = [Color("fff3a0"), Color("ffffff"), Color("f7c8e0"), Color("6fb84a")][i % 4]
@@ -377,7 +397,7 @@ func _build_decor() -> void:
 			fl.cyl(0.0, 0.07, 0.16, W(p.x, 0.08, p.y), col, Vector3.ZERO, 5)
 		else:
 			fl.sphere(0.05, W(p.x, 0.04, p.y), col)
-	var fm := fl.instance("Flowers")
+	var fm := fl.instance("Flowers", false)
 	fm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(fm)
 	_flowers_node = fm
@@ -620,7 +640,7 @@ func _build_grid_overlay() -> void:
 		b.box(Vector3(0.03, 0.01, d), W(x, 0.03, bb.position.y + d * 0.5), Color(1, 1, 1))
 	for z in range(bb.position.y, bb.end.y + 1):
 		b.box(Vector3(w, 0.01, 0.03), W(bb.position.x + w * 0.5, 0.03, z), Color(1, 1, 1))
-	_grid_node = b.instance("GridOverlay")
+	_grid_node = b.instance("GridOverlay", false)
 	var m := _unshaded(Color(1, 1, 1, 0.45))
 	_grid_node.material_override = m
 	_grid_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

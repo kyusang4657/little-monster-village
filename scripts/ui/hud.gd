@@ -806,6 +806,7 @@ func show_dialog(title: String, message: String) -> void:
 var shadows_on := true
 var assist_on := false
 var fps_on := false
+var outlines_on := true
 var fps_label: Label
 
 
@@ -816,6 +817,7 @@ func _show_menu() -> void:
 		["닫기", "green", "check", func(): hide_overlay()],
 	], "", C_PURPLE, [[
 		["그림자 끄기" if shadows_on else "그림자 켜기", "ivory", "menu", func(): hide_overlay(); menu_action.emit("shadows")],
+		["외곽선 끄기" if outlines_on else "외곽선 켜기", "ivory", "menu", func(): hide_overlay(); menu_action.emit("outlines")],
 		["FPS 숨기기" if fps_on else "FPS 표시", "ivory", "clock", func(): hide_overlay(); menu_action.emit("fps")],
 	], [
 		["도움 모드 끄기" if assist_on else "도움 모드 켜기", "ivory", "heart", func(): hide_overlay(); menu_action.emit("assist")],

@@ -507,6 +507,16 @@ func _review_ui_checks(s: GameState) -> void:
 	main.tutorial.end(true)
 	await _wait(1)
 	main._args["no-story"] = true
+	# 14) 외곽선 끄기·켜기(느린 기기용): 이미 있는 건물·캐릭터에도 바로 적용
+	var cnode: Node3D = main.world.building_node(main._castle_id)
+	var body := cnode.get_node("Body") as GeometryInstance3D
+	check(body.material_overlay != null, "외곽선 기본 켬")
+	main._on_menu_action("outlines")
+	await _wait(1)
+	check(body.material_overlay == null and not MeshBatch.outlines_on, "메뉴에서 외곽선 끄기")
+	main._on_menu_action("outlines")
+	await _wait(1)
+	check(body.material_overlay != null, "다시 켜기")
 	# 9) 지도가 넓어지면 축소 한계도 넓어진다
 	check(main.world.cam_max >= 20.0 * WorldView._map_grow(s.bounds()) - 0.01, "넓힌 지도 축소 한계 %.1f" % main.world.cam_max)
 	# 11) 안내가 떠 있을 때 10단계 방어 시작: 안내를 끝내고 보스 장면 → 전투

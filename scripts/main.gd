@@ -174,7 +174,7 @@ var _low_fps_hinted := false
 
 
 func _check_low_fps(delta: float) -> void:
-	if _low_fps_hinted or not hud.shadows_on or _args.has("integration") or _args.has("shots"):
+	if _low_fps_hinted or not (hud.shadows_on or hud.outlines_on) or _args.has("integration") or _args.has("shots"):
 		return
 	# 이야기·창이 떠 있을 때는 안내를 겹쳐 띄우지 않는다(시간도 세지 않음)
 	if story_view.active() or hud.overlay_visible():
@@ -189,7 +189,7 @@ func _check_low_fps(delta: float) -> void:
 		_low_fps_t = maxf(0.0, _low_fps_t - delta)
 	if _low_fps_t >= float(cfg.get("window_seconds", 8)):
 		_low_fps_hinted = true
-		hud.toast("화면이 조금 느려요. 메뉴(≡)에서 그림자를 끄면 빨라져요", 4.0)
+		hud.toast("화면이 조금 느려요. 메뉴(≡)에서 그림자·외곽선을 끄면 빨라져요", 4.0)
 
 
 func _on_state_changed() -> void:
@@ -788,6 +788,10 @@ func _on_menu_action(action: String) -> void:
 			hud.shadows_on = not hud.shadows_on
 			world.set_shadows(hud.shadows_on)
 			_save_settings()
+		"outlines":
+			hud.outlines_on = not hud.outlines_on
+			world.set_outlines(hud.outlines_on)
+			_save_settings()
 		"fps":
 			hud.fps_on = not hud.fps_on
 			_save_settings()
@@ -855,17 +859,20 @@ func _load_settings() -> void:
 	if cf.load(_settings_path()) == OK:
 		hud.shadows_on = bool(cf.get_value("display", "shadows", true))
 		hud.fps_on = bool(cf.get_value("display", "show_fps", false))
+		hud.outlines_on = bool(cf.get_value("display", "outlines", true))
 		_tutorial_done = bool(cf.get_value("progress", "tutorial_done", false))
 		Sound.music_volume = float(cf.get_value("audio", "music", 0.7))
 		Sound.sfx_volume = float(cf.get_value("audio", "sfx", 0.8))
 	Sound.apply_volumes()
 	world.set_shadows(hud.shadows_on)
+	world.set_outlines(hud.outlines_on)
 
 
 func _save_settings() -> void:
 	var cf := ConfigFile.new()
 	cf.set_value("display", "shadows", hud.shadows_on)
 	cf.set_value("display", "show_fps", hud.fps_on)
+	cf.set_value("display", "outlines", hud.outlines_on)
 	cf.set_value("progress", "tutorial_done", _tutorial_done)
 	cf.set_value("audio", "music", Sound.music_volume)
 	cf.set_value("audio", "sfx", Sound.sfx_volume)

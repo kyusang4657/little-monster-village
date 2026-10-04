@@ -630,6 +630,9 @@ func _perf() -> void:
 	await _shot("96-perf-battle")
 	main.world.set_shadows(false)
 	await _measure("10단계 전투, 그림자 끔", 10.0)
+	main.world.set_outlines(false)
+	await _measure("10단계 전투, 그림자·외곽선 끔", 10.0)
+	main.world.set_outlines(true)
 	main.world.set_shadows(true)
 	_finish_log()
 
