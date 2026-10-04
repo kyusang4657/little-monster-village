@@ -34,6 +34,8 @@ func run(p_main, p_out: String, scenario: String = "full") -> void:
 			_units_scene()
 		"showcase":
 			_showcase()
+		"demon_lv1":
+			_demon_lv1()
 		_:
 			_sequence()
 
@@ -934,4 +936,61 @@ func _showcase() -> void:
 				await _shot("126-story-" + who)
 			main.story_view.advance()
 		await _skip_story()
+	_finish_log()
+
+
+## 6차: 악마형 마왕 Lv.1 교체 후보를 실제 게임 안에서 본다(게임 코드는 그대로, 뿔이 노드의 리그만 바꿔 끼운다).
+## 같은 자리·같은 카메라로 기존 모델 → 후보 순서로 찍는다: 마을 산책(걷기), 누르기(환호·말풍선), 무서운 척, 확대·게임 기본 크기.
+func _demon_lv1() -> void:
+	await _wait(20)
+	main.tutorial.end(true)
+	var imp = main.world.imp
+	for who in ["old", "new"]:
+		if who == "new":
+			var old_rig: CharacterRig = imp.rig
+			imp.remove_child(old_rig)
+			old_rig.queue_free()
+			var rig := CharacterRig._instance(DemonLv1Builder.build(), "imp", 1, 1.0)
+			rig.name = "Imp"
+			rig.seed_id = 77
+			imp.rig = rig
+			imp.add_child(rig)
+			_log("후보 리그 교체: 삼각형 %d" % rig.stats().triangles)
+		# 같은 출발 상태: 성 앞으로 보내고 산책 시작
+		imp.pos = Vector2(-99, -99)
+		imp.path = []
+		imp._wait = 0.0
+		imp._goal_i = 0
+		imp._scare_t = -1.0
+		imp._cheer_t = 0.0
+		await _advance_village(0.5)
+		var p0: Vector2 = imp.pos
+		await _focus(p0, 3.0)
+		await _shot("130-%s-village-idle" % who)
+		# 걷기 중(목적지로 가는 길 위)
+		await _advance_village(1.6)
+		await _focus(imp.pos, 3.0)
+		await _shot("131-%s-village-walk" % who)
+		# 누르기 → 환호 + 말풍선
+		var tp: Vector2 = main.world.camera.unproject_position(imp.global_position + Vector3(0, 0.45, 0))
+		var hit: bool = imp.hit(main.world.camera, tp)
+		main._tap(tp)
+		await _wait(8)
+		_log("%s 누르기 판정 %s, 말풍선 %s" % [who, str(hit), str(imp._bubble.visible)])
+		await _focus(imp.pos, 3.0)
+		await _shot("132-%s-tap-cheer" % who)
+		# 무서운 척(강제 시작)
+		imp._cheer_t = 0.0
+		imp._scare_t = 0.0
+		for i in 12:
+			await _wait(1)
+		await _focus(imp.pos, 3.0)
+		await _shot("133-%s-scare" % who)
+		# 게임 기본 확대(마을 전체)에서의 크기
+		main.world.reset_camera()
+		await _wait(3)
+		await _shot("134-%s-default-zoom" % who)
+		# 최대 확대
+		await _focus(imp.pos, 2.2)
+		await _shot("135-%s-max-zoom" % who)
 	_finish_log()
