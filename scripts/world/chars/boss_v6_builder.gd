@@ -3,11 +3,13 @@ extends RefCounted
 ## 보스 2종 6차 교체 후보(CharacterRig.model_set = "v6" 일 때만 쓰인다). 디자인은 5차(boss_builder.gd)와 같고,
 ## 조립한 기본 도형 대신 이어지는 곡면(DemonGeo: 조각 구·회전체·이어진 관·망토 격자)으로 다시 만들었다. 정점 명암(bake)은 쓰지 않는다.
 ## "commander" = 기사단장 번쩍경: 조각 구 한 장의 투구(닫힌 면갑 창이 살짝 패이고 가운데 능선·뺨 가리개·목 가리개가 한 면에 이어짐),
-##   면갑의 T자 틈과 틈 속 빛나는 눈, 금 창 테·눈썹 바, 붉은 크레스트(Plume), 회전체 한 장의 판금 몸통(금 띠·짙은 허리띠·판금 치마),
-##   어깨 속에서 시작해 큰 건틀릿 주먹까지 이어진 팔, 금 테 가시 어깨 갑옷, 금 테 붉은 망토(Cape), 오른손 대검·왼손 건틀릿.
+##   면갑의 좁은 T자 틈과 틈 속 빛나는 쐐기 눈(바깥 끝이 내려간다), 금 창 테·눈썹 바, 낮은 붉은 크레스트(Plume),
+##   회전체 한 장의 사다리꼴 판금 몸통(세로 금 능선 둘·넓은 금 허리띠·판금 치마), 어깨 돔 속에서 굵게 시작해 이음 고리 없이 큰 건틀릿 주먹까지 이어진 팔,
+##   금 테 가시 어깨 갑옷, 세로 주름·둥근 단의 금 테 붉은 망토(Cape), 큰 회색 장화(금 소맷단), 오른손 대검·왼손 건틀릿.
 ## "hero" = 용사 루루: 조각 구 머리(볼·작은 턱·얕은 눈두덩), 눈두덩에 앉은 크고 파란 눈(위 짙은 속눈썹 뚜껑), 머리 덮개 + 앞머리 다섯 갈래 +
 ##   머리에서 허리까지 이어지는 물결 뒷머리 다섯 가닥 + 어깨 앞 옆 가닥(관, 머리→몸 뼈로 이어짐), 남색 리본, 회전체 남색 베레모(금 띠·붉은 깃 Plume),
-##   회전체 한 장의 파란 상의·흰 치마(파란 단·금 선), 은 가슴판·남색 앞자락(겉면을 따라가는 띠), 금 테 보라 망토(Cape), 맨손, 오른손 검.
+##   회전체 한 장의 파란 상의·남색 허리띠·흰 치마(파란 단·금 선), 금 테 짙은 파란 가슴 갑옷·남색 앞자락(겉면을 따라가는 띠),
+##   세로 주름·둥근 단의 굵은 금 테 남색 망토(Cape), 넓적한 옆 머리 가닥(어깨에서 안으로 꺾임), 큰 크림색 장화, 맨손, 앞으로 내민 오른손의 검.
 ## 골격 규약은 5차와 같다: 기준점 = 두 발 사이 지면, 정면 = -Z, 오른손 = +X, 얼굴 뼈(Eye/Pupil/Lid/Brow/Mouth N·A·H), 2차 뼈 Cape·Plume.
 
 const BOSS_H := 1.3            ## 키 등급(자세 진폭 기준)
@@ -150,15 +152,45 @@ static func _sword(g: DemonGeo, hand: Vector3, sl: float, sw: float, gem: Color,
 	return b0 + d * (sl + sw * 2.6)
 
 
-## 금 테 망토(2차 움직임 뼈 Cape). 양옆·아랫단에 금 테
+## 금 테 망토(2차 움직임 뼈 Cape): 세로 주름 셋(fold = 앞뒤 진폭), 둥근 아랫단(hem_round = 모서리가 짧아지는 비율),
+## 윗단은 어깨를 따라 양옆이 내려가는 곡선(top_drop). 양옆·아랫단에 금 테. 격자 점을 직접 만들고 양면으로 붙인다
 static func _cape(g: DemonGeo, top: Vector3, length: float, w_top: float, w_bot: float, col_out: Color, col_in: Color,
-		drape: float, wrap: float, wave: float, edge_r: float) -> void:
+		drape: float, wrap: float, fold: float, hem_round: float, top_drop: float, edge_r: float, cols: int = 10, rows: int = 6) -> void:
 	g.add_bone("Cape", "Spine", top)
 	g.use("Cape")
 	var keep := g.line
-	var P: Array = g.cape_grid(top, length, w_top, w_bot, col_out, col_in, drape, wrap, wave, 8, 7, 0.006)
-	var rows := P.size() - 1
-	var cols := (P[0] as Array).size() - 1
+	var P: Array = []
+	for i in rows + 1:
+		var t := float(i) / float(rows)
+		var w := lerpf(w_top, w_bot, t)
+		var row: Array = []
+		for j in cols + 1:
+			var u := float(j) / float(cols) - 0.5
+			var uu := u * u * 4.0
+			var y := top.y - length * t * (1.0 - hem_round * uu * t) - top_drop * uu * (1.0 - t)
+			var z := top.z + drape * t * t - wrap * uu * (0.3 + 0.7 * t) + fold * (0.15 + 0.85 * t) * cos(u * TAU * 1.5)
+			row.append(Vector3(top.x + u * w, y, z))
+		P.append(row)
+	g.line = keep * 0.8
+	for s: float in [1.0, -1.0]:
+		var col := col_out if s > 0.0 else col_in
+		var b0 := g.v.size()
+		for i in rows + 1:
+			for j in cols + 1:
+				var p: Vector3 = P[i][j]
+				var du: Vector3 = (P[i][mini(j + 1, cols)] as Vector3) - (P[i][maxi(j - 1, 0)] as Vector3)
+				var dt: Vector3 = (P[mini(i + 1, rows)][j] as Vector3) - (P[maxi(i - 1, 0)][j] as Vector3)
+				var nn := du.cross(dt).normalized()
+				if nn.z < 0.0:
+					nn = -nn
+				nn *= s
+				g._vert(p + nn * 0.006, nn, col)
+		for i in rows:
+			for j in cols:
+				var a := b0 + i * (cols + 1) + j
+				var d := a + cols + 1
+				g.tri(a, a + 1, d)
+				g.tri(a + 1, d + 1, d)
 	var left: Array = []
 	var right: Array = []
 	var hem: Array = []
@@ -217,29 +249,25 @@ static func _commander() -> Dictionary:
 	var visor := Color("5c6571")
 	var slit := Color("14171c")
 	var boot := Color("6b7580")
-	var leather := Color("3a2a20")
 	var g := DemonGeo.new()
 	g.bake = 0.0
 	CharGeo.skeleton(g, P)
-	# ---- 몸통: 목 → 고깃 → 넓은 가슴판 → 금 띠 → 허리 → 짙은 허리띠 → 판금 치마(금 단)까지 한 장
+	# ---- 몸통: 목 → 고깃 → 넓은 가슴(위가 넓고 허리로 곧게 좁아지는 사다리꼴, 허리 폭 = 가슴의 0.75) → 넓은 금 허리띠 → 판금 치마(금 단)까지 한 장
 	var prof: Array = [
 		_ring(1.0, 0.062, 0.062, "Neck", steel_dk),
 		_ring(0.93, 0.068, 0.066, "Neck", steel_dk),
 		_ring(0.905, 0.1, 0.095, "Spine", steel_dk),
-		_ring(0.88, 0.125, 0.115, "Spine", steel_dk),
-		_ring(0.862, 0.17, 0.135, "Spine", steel),
-		_ring(0.835, 0.232, 0.15, "Spine", steel),
-		_ring(0.785, 0.268, 0.16, "Spine", steel),
-		_ring(0.72, 0.27, 0.158, "Spine", steel),
-		_ring(0.668, 0.246, 0.15, "Spine", steel),
-		_ring(0.648, 0.23, 0.146, "Spine", steel),
-		_ring(0.642, 0.226, 0.145, "Spine", GOLD),
-		_ring(0.622, 0.208, 0.14, "Spine", GOLD),
-		_ring(0.615, 0.198, 0.136, "Spine", steel_dk),
-		_ring(0.592, 0.175, 0.132, "Spine", steel_dk),
-		_ring(0.586, 0.176, 0.134, "Spine", leather),
-		_ring(0.548, 0.178, 0.136, "Pelvis", leather),
-		_ring(0.54, 0.19, 0.145, "Pelvis", steel),
+		_ring(0.882, 0.13, 0.115, "Spine", steel_dk),
+		_ring(0.866, 0.185, 0.135, "Spine", steel),
+		_ring(0.845, 0.245, 0.15, "Spine", steel),
+		_ring(0.81, 0.264, 0.156, "Spine", steel),
+		_ring(0.74, 0.256, 0.154, "Spine", steel),
+		_ring(0.66, 0.222, 0.146, "Spine", steel),
+		_ring(0.646, 0.213, 0.143, "Spine", steel),
+		_ring(0.64, 0.212, 0.143, "Spine", GOLD),
+		_ring(0.585, 0.198, 0.138, "Spine", GOLD),
+		_ring(0.548, 0.197, 0.138, "Pelvis", GOLD),
+		_ring(0.542, 0.188, 0.142, "Pelvis", steel),
 		_ring(0.47, 0.215, 0.165, "Pelvis", steel),
 		_ring(0.4, 0.236, 0.18, "Pelvis", steel),
 		_ring(0.382, 0.24, 0.183, "Pelvis", steel),
@@ -248,30 +276,20 @@ static func _commander() -> Dictionary:
 		_ring(0.35, 0.236, 0.18, "Pelvis", steel_dk),
 	]
 	g.lathe(prof, 14, false, true, 0.0, 0.0, func(i: int) -> float: return 0.0 if i < 2 else 1.0)
-	# 고깃 위 금 테, 가슴 마름모 문장 + 붉은 보석, 버클
+	# 고깃 위 금 테, 가슴판 세로 금 능선 두 줄(고깃에서 허리띠까지, 폭 0.06), 허리띠 가운데 작은 마름모 버클
 	g.use("Spine")
 	g.line = 0.5
 	_band(g, prof, 0.9, 0.012, GOLD, 12)
 	var fb := Basis.IDENTITY
-	var em := _on_front(prof, 0.0, 0.745, 0.004)
-	g.polygon(_diamond(0.06, 0.08), em, fb, 0.012, GOLD, GOLD_DARK)
-	g.line = 0.0
-	g.ellipsoid(em + Vector3(0, 0, -0.008), Vector3(0.03, 0.045, 0.012), RED, 10, 5)
-	# 가슴판 위 금 테 두 줄(목에서 어깨 쪽으로 벌어지는 V)
-	g.line = 0.4
+	g.line = 0.5
 	for side: float in [-1.0, 1.0]:
-		var vp: Array = []
-		for i in 4:
-			var t := float(i) / 3.0
-			var x := lerpf(0.07, 0.2, t) * side
-			var y := lerpf(0.86, 0.79, t * t)
-			vp.append(_on_front(prof, x, y, 0.004))
-		g.spline_tube(vp, _const(vp.size(), 0.011), GOLD, 5, true, true)
+		_strip(g, prof, 0.062 * side, 0.122 * side, 0.858, 0.645, 0.007, GOLD, 6)
+		_strip(g, prof, 0.077 * side, 0.107 * side, 0.856, 0.647, 0.011, GOLD_DARK.lerp(GOLD, 0.5), 6)
 	g.line = 0.6
-	var bk := _on_front(prof, 0.0, 0.567, 0.004)
-	g.polygon(_diamond(0.045, 0.058), bk, fb, 0.014, GOLD, GOLD_DARK)
+	var bk := _on_front(prof, 0.0, 0.595, 0.004)
+	g.polygon(_diamond(0.04, 0.052), bk, fb, 0.014, GOLD_DARK, GOLD_DARK)
 	g.line = 0.0
-	g.ellipsoid(bk + Vector3(0, 0, -0.008), Vector3(0.022, 0.03, 0.01), RED, 8, 4)
+	g.ellipsoid(bk + Vector3(0, 0, -0.008), Vector3(0.02, 0.028, 0.01), RED, 8, 4)
 	# 망토 걸쇠(가슴 위 양쪽 금 단추)
 	g.line = 0.4
 	for side: float in [-1.0, 1.0]:
@@ -283,34 +301,34 @@ static func _commander() -> Dictionary:
 	for side: float in [-1.0, 1.0]:
 		_strip(g, prof, 0.058 * side, 0.07 * side, 0.54, 0.31, 0.007, GOLD, 6)
 	g.line = 1.0
-	# ---- 팔: 어깨 속 → 위팔(짙은 판금) → 팔꿈치 → 아래팔 → 넓게 벌어지는 건틀릿 소매(금 테) → 큰 주먹(둥근 끝)
+	# ---- 팔: 어깨 갑옷 속에서 굵게 시작해 위팔(짙은 판금) → 팔꿈치 → 아래팔 → 벌어지는 건틀릿 소매(금 테) → 그대로 이어지는 큰 주먹(둥근 끝).
+	#      소매와 주먹 사이에 잘록한 이음 고리를 두지 않아 한 관으로 읽힌다
 	var sx: float = P.shoulder_x
 	for side: float in [-1.0, 1.0]:
 		var sfx := "L" if side < 0.0 else "R"
 		var x := sx * side
 		var nodes: Array = [
-			{p = Vector3(x * 0.7, 0.84, 0.0), r = 0.06, bone = "Arm" + sfx, col = steel_dk, line = 0.0},
-			{p = Vector3(x * 0.98, 0.84, 0.0), r = 0.07, bone = "Arm" + sfx, col = steel_dk, line = 0.0},
-			{p = Vector3(x * 1.02, 0.8, 0.0), r = 0.068, bone = "Arm" + sfx, col = steel_dk},
-			{p = Vector3(x, 0.745, 0.0), r = 0.062, bone = "Arm" + sfx, col = steel_dk},
+			{p = Vector3(x * 0.72, 0.85, 0.0), r = 0.08, bone = "Arm" + sfx, col = steel_dk, line = 0.0},
+			{p = Vector3(x * 0.98, 0.84, 0.0), r = 0.088, bone = "Arm" + sfx, col = steel_dk, line = 0.0},
+			{p = Vector3(x * 1.03, 0.8, 0.0), r = 0.08, bone = "Arm" + sfx, col = steel_dk},
+			{p = Vector3(x * 1.01, 0.745, 0.0), r = 0.066, bone = "Arm" + sfx, col = steel_dk},
 			{p = Vector3(x, 0.7, 0.0), r = 0.064, bone = "Forearm" + sfx, col = steel},
-			{p = Vector3(x, 0.665, 0.0), r = 0.062, bone = "Forearm" + sfx, col = steel},
+			{p = Vector3(x, 0.665, 0.0), r = 0.063, bone = "Forearm" + sfx, col = steel},
 			{p = Vector3(x, 0.625, 0.0), r = 0.072, bone = "Forearm" + sfx, col = steel},
-			{p = Vector3(x, 0.585, 0.0), r = 0.09, bone = "Forearm" + sfx, col = steel},
-			{p = Vector3(x, 0.566, 0.0), r = 0.096, bone = "Forearm" + sfx, col = GOLD},
-			{p = Vector3(x, 0.553, 0.0), r = 0.094, bone = "Forearm" + sfx, col = GOLD},
-			{p = Vector3(x, 0.545, 0.0), r = 0.07, bone = "Hand" + sfx, col = steel_dk},
-			{p = Vector3(x, 0.51, -0.006), r = 0.085, bone = "Hand" + sfx, col = steel_dk},
-			{p = Vector3(x, 0.472, -0.01), r = 0.094, bone = "Hand" + sfx, col = steel_dk},
-			{p = Vector3(x, 0.44, -0.012), r = 0.086, bone = "Hand" + sfx, col = steel_dk},
+			{p = Vector3(x, 0.59, 0.0), r = 0.088, bone = "Forearm" + sfx, col = steel},
+			{p = Vector3(x, 0.574, 0.0), r = 0.093, bone = "Forearm" + sfx, col = GOLD},
+			{p = Vector3(x, 0.556, 0.0), r = 0.093, bone = "Forearm" + sfx, col = GOLD},
+			{p = Vector3(x, 0.54, -0.003), r = 0.09, bone = "Hand" + sfx, col = steel_dk},
+			{p = Vector3(x, 0.505, -0.007), r = 0.094, bone = "Hand" + sfx, col = steel_dk},
+			{p = Vector3(x, 0.472, -0.01), r = 0.093, bone = "Hand" + sfx, col = steel_dk},
+			{p = Vector3(x, 0.44, -0.012), r = 0.084, bone = "Hand" + sfx, col = steel_dk},
 		]
 		g.limb(nodes, 8, Vector3.FORWARD, false, true, 3)
-		# 팔꿈치 덮개, 주먹 등 금 띠와 마디 징
+		# 팔꿈치 덮개, 주먹 등 마디 징
 		g.use("Forearm" + sfx)
 		g.line = 0.5
 		g.ellipsoid(Vector3(x, 0.695, 0.035), Vector3(0.05, 0.045, 0.04), steel, 8, 4)
 		g.use("Hand" + sfx)
-		g.torus(Vector3(x, 0.49, -0.008), 0.088, 0.01, GOLD, 10, 3)
 		for k in 3:
 			g.ellipsoid(Vector3(x + float(k - 1) * 0.04, 0.476, -0.1), Vector3(0.016, 0.016, 0.012), GOLD, 5, 3)
 		g.line = 1.0
@@ -328,30 +346,29 @@ static func _commander() -> Dictionary:
 			{p = Vector3(lx, 0.258, 0.0), r = 0.073, bone = "Shin" + sfx, col = GOLD},
 			{p = Vector3(lx, 0.245, 0.0), r = 0.067, bone = "Shin" + sfx, col = steel},
 			{p = Vector3(lx, 0.16, 0.0), r = 0.064, bone = "Shin" + sfx, col = steel},
-			{p = Vector3(lx, 0.125, 0.0), r = 0.071, bone = "Foot" + sfx, col = GOLD},
-			{p = Vector3(lx, 0.108, 0.0), r = 0.071, bone = "Foot" + sfx, col = GOLD},
-			{p = Vector3(lx, 0.095, 0.0), r = 0.07, bone = "Foot" + sfx, col = boot},
-			{p = Vector3(lx, 0.07, 0.0), r = 0.068, bone = "Foot" + sfx, col = boot},
+			{p = Vector3(lx, 0.14, 0.0), r = 0.074, bone = "Foot" + sfx, col = GOLD},
+			{p = Vector3(lx, 0.118, 0.0), r = 0.078, bone = "Foot" + sfx, col = GOLD},
+			{p = Vector3(lx, 0.11, 0.0), r = 0.072, bone = "Foot" + sfx, col = boot},
+			{p = Vector3(lx, 0.08, 0.0), r = 0.07, bone = "Foot" + sfx, col = boot},
 		]
 		g.limb(nodes, 8, Vector3.FORWARD, false, false)
 		g.use("Shin" + sfx)
 		g.line = 0.5
 		g.ellipsoid(Vector3(lx, 0.268, -0.05), Vector3(0.05, 0.05, 0.035), steel, 8, 4)
+		# 장화: 회색 큰 덩어리(0.18 x 0.3), 위 금 소맷단은 관의 금 고리
 		g.use("Foot" + sfx)
 		g.line = 1.0
-		g.rounded_box(Vector3(lx, 0.058, -0.055), Vector3(0.1, 0.058, 0.14), boot, 0.6, 10, 5)
-	# ---- 어깨 갑옷: 머리만 한 돔 + 아래 겹판, 금 테, 표면에서 솟는 가시(금 끝), 앞 금 걸쇠
+		g.rounded_box(Vector3(lx + 0.01 * side, 0.068, -0.06), Vector3(0.09, 0.068, 0.15), boot, 0.55, 10, 5)
+	# ---- 어깨 갑옷: 돔 한 장(팔이 그 속에서 굵게 나온다), 가장자리 금 테, 표면에서 솟는 가시(금 끝), 앞 금 걸쇠
 	for side: float in [-1.0, 1.0]:
 		var sfx := "L" if side < 0.0 else "R"
 		g.use("Arm" + sfx)
-		var pc := Vector3(sx * side + 0.055 * side, 0.87, 0.0)
-		var pr := Vector3(0.19, 0.15, 0.18)
+		var pc := Vector3(sx * side + 0.05 * side, 0.875, 0.0)
+		var pr := Vector3(0.175, 0.14, 0.165)
 		g.line = 1.0
-		g.ellipsoid(pc + Vector3(0.025 * side, -0.07, 0.0), pr * Vector3(0.92, 0.8, 0.95), steel_dk, 12, 3, Basis.IDENTITY, PI * 0.56, PI * 0.56)
-		g.ellipsoid(pc, pr, steel, 14, 5, Basis.IDENTITY, PI * 0.58, PI * 0.58)
+		g.ellipsoid(pc, pr, steel, 14, 5, Basis.IDENTITY, PI * 0.6, PI * 0.6)
 		g.line = 0.4
-		g.ellipsoid(pc, pr * 1.035, GOLD, 16, 1, Basis.IDENTITY, PI * 0.59, PI * 0.59, PI * 0.52)
-		g.ellipsoid(pc + Vector3(0.025 * side, -0.07, 0.0), pr * Vector3(0.92, 0.8, 0.95) * 1.035, GOLD, 14, 1, Basis.IDENTITY, PI * 0.57, PI * 0.57, PI * 0.5)
+		g.ellipsoid(pc, pr * 1.035, GOLD, 16, 1, Basis.IDENTITY, PI * 0.61, PI * 0.61, PI * 0.53)
 		# 가시: 첫 마디는 돔 겉면 법선 방향(뿌리가 표면 속), 끝은 금
 		var sn := Vector3(0.5 * side, 0.85, 0.0).normalized()
 		var s0 := pc + Vector3(sn.x * pr.x, sn.y * pr.y, sn.z * pr.z) * 0.8
@@ -368,8 +385,8 @@ static func _commander() -> Dictionary:
 		g.line = 0.0
 		g.ellipsoid(pc + Vector3(-0.05 * side, 0.1, -0.147), Vector3(0.012, 0.012, 0.008), RED, 6, 3)
 		g.line = 1.0
-	# ---- 망토: 어깨 갑옷 밖까지 넓은 붉은 천, 금 테
-	_cape(g, Vector3(0, 0.95, 0.165), 0.82, 0.8, 1.1, RED, RED_DARK, 0.03, 0.16, 0.03, 0.012)
+	# ---- 망토: 어깨 갑옷 밖까지 넓은 붉은 천, 세로 주름 셋, 둥근 아랫단, 금 테
+	_cape(g, Vector3(0, 0.95, 0.165), 0.82, 0.8, 1.1, RED, RED_DARK, 0.03, 0.16, 0.03, 0.1, 0.03, 0.013)
 	# ---- 투구: 조각 구 한 장(창 = 어두운 강철, 나머지 = 밝은 은)
 	g.use("Head")
 	g.line = 1.0
@@ -399,9 +416,9 @@ static func _commander() -> Dictionary:
 		var dd := Vector3(side, -0.05, 0.05).normalized()
 		g.torus(_sp(hc, hr, dd, _helm_k(dd)) + Vector3(0.004 * side, 0, 0), 0.038, 0.011, GOLD, 10, 3, Basis(Vector3.BACK, PI * 0.5))
 	# 얼굴(면갑 T자 틈과 빛나는 눈)
-	var es := 0.021
+	var es := 0.025
 	_visor_face(g, hc, hr, es, slit)
-	# ---- 크레스트(Plume): 투구 이마 위에서 정수리를 넘어 목덜미까지 뒤로 휘는 두툼한 붉은 솔
+	# ---- 크레스트(Plume): 투구 이마 위에서 정수리를 따라 낮게 넘어가 뒤통수에서 짧게 떨어지는 붉은 솔(투구보다 조금만 높다)
 	g.use("Head")
 	var pd := _dir(0.0, 0.66)
 	var plume_base := _sp(hc, hr, pd, _helm_k(pd)) - pd * 0.01
@@ -409,12 +426,12 @@ static func _commander() -> Dictionary:
 	g.use("Plume")
 	g.measure = false
 	g.line = 1.0
-	var arc: Array = [Vector3(0, -0.02, 0.0), Vector3(0, 0.08, 0.02), Vector3(0, 0.165, 0.08), Vector3(0, 0.195, 0.17),
-		Vector3(0, 0.16, 0.27), Vector3(0, 0.07, 0.35), Vector3(0, -0.09, 0.4), Vector3(0, -0.15, 0.405)]
+	var arc: Array = [Vector3(0, -0.02, 0.0), Vector3(0, 0.055, 0.02), Vector3(0, 0.105, 0.075), Vector3(0, 0.12, 0.15),
+		Vector3(0, 0.09, 0.225), Vector3(0, 0.02, 0.285), Vector3(0, -0.08, 0.32), Vector3(0, -0.14, 0.33)]
 	var pts: Array = []
 	for p: Vector3 in arc:
 		pts.append(plume_base + p)
-	g.spline_tube(pts, [0.04, 0.068, 0.082, 0.085, 0.08, 0.066, 0.04, 0.0], CREST, 10, true, true, Vector3.RIGHT, 0.85, 1.2)
+	g.spline_tube(pts, [0.03, 0.05, 0.058, 0.06, 0.058, 0.05, 0.034, 0.0], CREST, 10, true, true, Vector3.RIGHT, 0.75, 1.0)
 	g.measure = true
 	# ---- 대검(오른손): 주먹에 쥐고 날을 앞·아래·바깥으로
 	var hand_r := Vector3(sx, 0.472, -0.01)
@@ -441,45 +458,53 @@ static func _visor_face(g: DemonGeo, hc: Vector3, hr: Vector3, es: float, slit: 
 	var pupil := Color("f0b232")
 	var eye_lat := -0.13
 	g.use("Head")
+	# 가로 눈 틈: 높이 ≈ 투구 높이의 12%(반지름 0.022), 깊이는 얕게
 	var band: Array = []
 	for j in 9:
-		var lon := (float(j) / 8.0 - 0.5) * 0.9
+		var lon := (float(j) / 8.0 - 0.5) * 1.0
 		var dd := _dir(lon, eye_lat)
 		band.append(_sp(hc, hr, dd, _helm_k(dd)) - dd * 0.0015)
-	g.spline_tube(band, _const(band.size(), 0.017), slit, 6, true, true, Vector3.BACK, 0.35, 1.0)
+	g.spline_tube(band, _const(band.size(), 0.023), slit, 6, true, true, Vector3.BACK, 0.3, 1.0)
 	var vert: Array = []
 	for j in 5:
-		var dd := _dir(0.0, lerpf(eye_lat - 0.05, -0.62, float(j) / 4.0))
+		var dd := _dir(0.0, lerpf(eye_lat - 0.06, -0.62, float(j) / 4.0))
 		vert.append(_sp(hc, hr, dd, _helm_k(dd)) - dd * 0.0015)
-	g.spline_tube(vert, _const(vert.size(), 0.011), slit, 6, true, true, Vector3.RIGHT, 1.0, 0.4)
+	g.spline_tube(vert, _const(vert.size(), 0.009), slit, 6, true, true, Vector3.RIGHT, 1.0, 0.4)
 	for side: float in [-1.0, 1.0]:
 		var sfx := "L" if side < 0.0 else "R"
 		var dd := _dir(0.27 * side, eye_lat)
-		var ec := _sp(hc, hr, dd, _helm_k(dd)) - dd * 0.004
+		var ec := _sp(hc, hr, dd, _helm_k(dd)) + dd * 0.003
 		var eb := Basis.looking_at(dd, Vector3.UP)
 		g.add_bone("Eye" + sfx, "Head", ec)
 		g.use("Eye" + sfx)
-		g.ellipsoid(ec, Vector3(es * 1.45, es * 0.7, es * 0.6), glow, 10, 5, eb)
-		var pc := ec + dd * (es * 0.42)
+		# 빛나는 눈: 안쪽이 굵고 바깥 끝이 가늘어지는 둥근 쐐기. 바깥 끝이 15° 쯤 내려가 날카롭게 노려본다
+		var wedge: Array = []
+		var wr: Array = []
+		var wk: Array = [[-1.2, 0.12, 0.3], [-0.4, 0.08, 0.7], [0.45, -0.16, 0.58], [1.25, -0.52, 0.2]]
+		for W: Array in wk:
+			wedge.append(ec + eb * Vector3(float(W[0]) * es * side, float(W[1]) * es, 0.0))
+			wr.append(float(W[2]) * es)
+		g.spline_tube(wedge, wr, glow, 8, true, true, Vector3.BACK, 0.5, 1.0)
+		var pc := ec + eb * Vector3(-es * 0.3 * side, 0.0, -es * 0.42)
 		g.add_bone("Pupil" + sfx, "Eye" + sfx, pc)
 		g.use("Pupil" + sfx)
-		g.ellipsoid(pc, Vector3(es * 0.55, es * 0.5, es * 0.25), pupil, 8, 4, eb)
-		g.ellipsoid(pc + eb * Vector3(es * 0.2, es * 0.18, -es * 0.2), Vector3(es * 0.14, es * 0.14, es * 0.08), Color.WHITE, 5, 3, eb)
-		var lid_p := ec + eb * Vector3(0, es * 0.9, 0)
+		g.ellipsoid(pc, Vector3(es * 0.5, es * 0.42, es * 0.2), pupil, 8, 4, eb)
+		g.ellipsoid(pc + eb * Vector3(es * 0.16, es * 0.16, -es * 0.16), Vector3(es * 0.12, es * 0.12, es * 0.07), Color.WHITE, 5, 3, eb)
+		var lid_p := ec + eb * Vector3(0, es * 0.85, 0)
 		g.add_bone("Lid" + sfx, "Head", lid_p)
 		g.use("Lid" + sfx)
-		g.ellipsoid(lid_p, Vector3(es * 1.55, es * 2.0, es * 0.8), slit, 8, 3, eb * Basis(Vector3.BACK, PI), PI * 0.5, PI * 0.5)
-		# 눈썹: 틈 윗변의 굵은 어두운 선. 양 끝은 가늘다
-		var bd := _dir(0.27 * side, eye_lat + 0.11)
-		var bp := _sp(hc, hr, bd, _helm_k(bd)) - bd * 0.002
+		g.ellipsoid(lid_p, Vector3(es * 1.6, es * 1.6, es * 0.75), slit, 8, 3, eb * Basis(Vector3.BACK, PI), PI * 0.5, PI * 0.5)
+		# 눈썹: 틈 속 윗변에 숨은 어두운 선. 화나면 내려오며 기울어 눈 윗부분을 가린다(틈이 찌푸려진 듯)
+		var bd := _dir(0.27 * side, eye_lat + 0.075)
+		var bp := _sp(hc, hr, bd, _helm_k(bd)) - bd * 0.003
 		g.add_bone("Brow" + sfx, "Head", bp)
 		g.use("Brow" + sfx)
 		var bpts: Array = []
 		for i in 5:
 			var t := float(i) / 4.0
-			var b2 := _dir((0.27 + lerpf(-0.17, 0.17, t)) * side, eye_lat + 0.11 - 0.02 * pow(absf(t * 2.0 - 1.0), 2.0))
-			bpts.append(_sp(hc, hr, b2, _helm_k(b2)) - b2 * 0.002)
-		g.spline_tube(bpts, [es * 0.2, es * 0.48, es * 0.55, es * 0.48, es * 0.2], slit, 6, true, true, Vector3.BACK, 0.6, 1.0)
+			var b2 := _dir((0.27 + lerpf(-0.17, 0.17, t)) * side, eye_lat + 0.075 - 0.015 * pow(absf(t * 2.0 - 1.0), 2.0))
+			bpts.append(_sp(hc, hr, b2, _helm_k(b2)) - b2 * 0.003)
+		g.spline_tube(bpts, [es * 0.2, es * 0.42, es * 0.48, es * 0.42, es * 0.2], slit, 6, true, true, Vector3.BACK, 0.6, 1.0)
 	# 입 세 가지: 세로 틈 아래 끝의 작은 어두운 자국
 	var md := _dir(0.0, -0.5)
 	var mp := _sp(hc, hr, md, _helm_k(md)) - md * 0.002
@@ -509,8 +534,8 @@ static func _hero() -> Dictionary:
 	var navy := Color("1f2a5e")
 	var white := Color("e6ebf1")
 	var silver := Color("c3ccd6")
-	var cloak := Color("5a4a8a")
-	var cloak_in := Color("7b6bb3")
+	var cloak := Color("2a3a7a")
+	var cloak_in := Color("3b4c92")
 	var cream := Color("e8d9b8")
 	var gem := Color("4fc3f7")
 	var g := DemonGeo.new()
@@ -527,10 +552,14 @@ static func _hero() -> Dictionary:
 		_ring(0.795, 0.155, 0.114, "Spine", blue),
 		_ring(0.74, 0.153, 0.116, "Spine", blue),
 		_ring(0.685, 0.133, 0.106, "Spine", blue),
-		_ring(0.635, 0.11, 0.09, "Spine", blue),
-		_ring(0.607, 0.107, 0.089, "Spine", GOLD),
-		_ring(0.582, 0.108, 0.09, "Pelvis", GOLD),
-		_ring(0.577, 0.11, 0.091, "Pelvis", white),
+		_ring(0.64, 0.112, 0.091, "Spine", blue),
+		_ring(0.634, 0.111, 0.091, "Spine", GOLD),
+		_ring(0.62, 0.109, 0.09, "Spine", GOLD),
+		_ring(0.614, 0.108, 0.089, "Spine", navy),
+		_ring(0.59, 0.107, 0.089, "Pelvis", navy),
+		_ring(0.584, 0.108, 0.09, "Pelvis", GOLD),
+		_ring(0.57, 0.11, 0.091, "Pelvis", GOLD),
+		_ring(0.565, 0.112, 0.092, "Pelvis", white),
 		_ring(0.53, 0.135, 0.108, "Pelvis", white),
 		_ring(0.44, 0.172, 0.136, "Pelvis", white),
 		_ring(0.33, 0.208, 0.164, "Pelvis", white),
@@ -543,53 +572,55 @@ static func _hero() -> Dictionary:
 		_ring(0.092, 0.262, 0.204, "Pelvis", blue_dk),
 	]
 	g.lathe(prof, 14, false, true, 0.0, 0.0, func(i: int) -> float: return 0.0 if i < 1 else 1.0)
-	# 은 가슴판(상의 겉면을 따라가는 판) + 금 테 + 금 별, 깃의 금 브로치(파란 보석), 허리 버클
+	# 금 테 짙은 파란 가슴 갑옷(상의 겉면을 따라가는 판, 아래가 허리띠에 닿는다) + 금 별, 깃의 금 브로치(파란 보석), 남색 허리띠의 금 버클
 	g.use("Spine")
 	g.line = 0.6
-	_strip(g, prof, -0.085, 0.085, 0.825, 0.69, 0.004, silver, 6)
+	_strip(g, prof, -0.095, 0.095, 0.83, 0.64, 0.004, blue_dk, 7)
 	g.line = 0.3
 	for side: float in [-1.0, 1.0]:
-		_strip(g, prof, 0.08 * side, 0.092 * side, 0.828, 0.687, 0.006, GOLD, 6)
+		_strip(g, prof, 0.088 * side, 0.102 * side, 0.833, 0.637, 0.006, GOLD, 7)
+	_strip(g, prof, -0.102, 0.102, 0.838, 0.826, 0.006, GOLD, 2)
 	g.line = 0.5
 	var fb := Basis.IDENTITY
-	g.polygon(CharGeo.star(4, 0.034, 0.013), _on_front(prof, 0.0, 0.775, 0.012), fb, 0.01, GOLD, GOLD_DARK)
+	g.polygon(CharGeo.star(4, 0.034, 0.013), _on_front(prof, 0.0, 0.765, 0.012), fb, 0.01, GOLD, GOLD_DARK)
 	var br := _on_front(prof, 0.0, 0.855, 0.006)
 	g.ellipsoid(br, Vector3(0.026, 0.026, 0.016), GOLD, 10, 5)
 	g.line = 0.0
 	g.ellipsoid(br + Vector3(0, 0, -0.013), Vector3(0.012, 0.012, 0.007), gem, 6, 3)
 	g.line = 0.5
-	g.polygon(_diamond(0.03, 0.036), _on_front(prof, 0.0, 0.595, 0.006), fb, 0.012, GOLD, GOLD_DARK)
+	g.polygon(_diamond(0.03, 0.034), _on_front(prof, 0.0, 0.602, 0.006), fb, 0.012, GOLD, GOLD_DARK)
 	# 치마 앞 남색 자락(허리띠에서 단까지 겉면을 따라가며 금 테)
 	g.use("Pelvis")
 	g.line = 0.5
-	_strip(g, prof, -0.055, 0.055, 0.575, 0.1, 0.005, blue_dk, 8)
+	_strip(g, prof, -0.055, 0.055, 0.566, 0.1, 0.005, blue_dk, 8)
 	g.line = 0.3
 	for side: float in [-1.0, 1.0]:
-		_strip(g, prof, 0.052 * side, 0.064 * side, 0.575, 0.1, 0.007, GOLD, 8)
+		_strip(g, prof, 0.052 * side, 0.064 * side, 0.566, 0.1, 0.007, GOLD, 8)
 	g.line = 1.0
-	# ---- 팔: 어깨 속 → 둥근 소매(파랑) → 흰 소맷부리 → 금 띠 → 맨손(둥근 끝)
+	# ---- 팔: 어깨 속 → 둥근 소매(파랑) → 흰 소맷부리 → 금 띠 → 맨손(둥근 끝). 오른손은 앞으로 내밀어 검 손잡이가 소매 앞에 드러난다
 	var sx: float = P.shoulder_x
 	for side: float in [-1.0, 1.0]:
 		var sfx := "L" if side < 0.0 else "R"
 		var x := sx * side
+		var fz := 0.08 if side > 0.0 else 0.02
 		var nodes: Array = [
 			{p = Vector3(x * 0.6, 0.82, 0.0), r = 0.045, bone = "Arm" + sfx, col = blue, line = 0.0},
 			{p = Vector3(x * 0.95, 0.825, 0.0), r = 0.053, bone = "Arm" + sfx, col = blue, line = 0.0},
 			{p = Vector3(x * 1.02, 0.79, 0.0), r = 0.052, bone = "Arm" + sfx, col = blue},
 			{p = Vector3(x, 0.74, 0.0), r = 0.044, bone = "Arm" + sfx, col = blue},
 			{p = Vector3(x, 0.695, 0.0), r = 0.041, bone = "Forearm" + sfx, col = blue},
-			{p = Vector3(x, 0.635, 0.0), r = 0.042, bone = "Forearm" + sfx, col = blue},
-			{p = Vector3(x, 0.592, 0.0), r = 0.049, bone = "Forearm" + sfx, col = white},
-			{p = Vector3(x, 0.575, 0.0), r = 0.05, bone = "Forearm" + sfx, col = GOLD},
-			{p = Vector3(x, 0.566, 0.0), r = 0.048, bone = "Forearm" + sfx, col = GOLD},
-			{p = Vector3(x, 0.56, 0.0), r = 0.033, bone = "Hand" + sfx, col = skin},
-			{p = Vector3(x, 0.535, -0.003), r = 0.039, bone = "Hand" + sfx, col = skin},
-			{p = Vector3(x, 0.51, -0.006), r = 0.04, bone = "Hand" + sfx, col = skin},
+			{p = Vector3(x, 0.64, -fz * 0.3), r = 0.042, bone = "Forearm" + sfx, col = blue},
+			{p = Vector3(x, 0.598, -fz * 0.6), r = 0.049, bone = "Forearm" + sfx, col = white},
+			{p = Vector3(x, 0.582, -fz * 0.72), r = 0.05, bone = "Forearm" + sfx, col = GOLD},
+			{p = Vector3(x, 0.573, -fz * 0.78), r = 0.048, bone = "Forearm" + sfx, col = GOLD},
+			{p = Vector3(x, 0.566, -fz * 0.82), r = 0.034, bone = "Hand" + sfx, col = skin},
+			{p = Vector3(x, 0.54, -fz * 0.92 - 0.003), r = 0.039, bone = "Hand" + sfx, col = skin},
+			{p = Vector3(x, 0.514, -fz - 0.006), r = 0.04, bone = "Hand" + sfx, col = skin},
 		]
 		g.limb(nodes, 8, Vector3.FORWARD, false, true, 3)
 		g.use("Hand" + sfx)
 		g.line = 0.4
-		g.ellipsoid(Vector3(x - side * 0.022, 0.525, -0.03), Vector3(0.016, 0.022, 0.016), skin, 6, 4)
+		g.ellipsoid(Vector3(x - side * 0.022, 0.528, -fz - 0.03), Vector3(0.016, 0.022, 0.016), skin, 6, 4)
 		g.line = 1.0
 	# ---- 다리: 흰 스타킹(치마 속) → 크림색 장화(금 띠)
 	var hx: float = P.hip_x
@@ -601,15 +632,16 @@ static func _hero() -> Dictionary:
 			{p = Vector3(lx, 0.4, 0.0), r = 0.048, bone = "Leg" + sfx, col = white},
 			{p = Vector3(lx, 0.29, 0.0), r = 0.044, bone = "Shin" + sfx, col = white},
 			{p = Vector3(lx, 0.2, 0.0), r = 0.041, bone = "Shin" + sfx, col = white},
-			{p = Vector3(lx, 0.16, 0.0), r = 0.043, bone = "Shin" + sfx, col = cream},
-			{p = Vector3(lx, 0.14, 0.0), r = 0.047, bone = "Shin" + sfx, col = GOLD},
-			{p = Vector3(lx, 0.125, 0.0), r = 0.047, bone = "Foot" + sfx, col = GOLD},
-			{p = Vector3(lx, 0.112, 0.0), r = 0.045, bone = "Foot" + sfx, col = cream},
-			{p = Vector3(lx, 0.07, 0.0), r = 0.044, bone = "Foot" + sfx, col = cream},
+			{p = Vector3(lx, 0.17, 0.0), r = 0.045, bone = "Shin" + sfx, col = cream},
+			{p = Vector3(lx, 0.15, 0.0), r = 0.05, bone = "Shin" + sfx, col = GOLD},
+			{p = Vector3(lx, 0.132, 0.0), r = 0.052, bone = "Foot" + sfx, col = GOLD},
+			{p = Vector3(lx, 0.12, 0.0), r = 0.048, bone = "Foot" + sfx, col = cream},
+			{p = Vector3(lx, 0.08, 0.0), r = 0.047, bone = "Foot" + sfx, col = cream},
 		]
 		g.limb(nodes, 6, Vector3.FORWARD, false, false)
+		# 장화: 크림색 큰 덩어리(0.15 x 0.26), 조금 바깥쪽으로
 		g.use("Foot" + sfx)
-		g.rounded_box(Vector3(lx, 0.045, -0.035), Vector3(0.058, 0.045, 0.1), cream, 0.6, 10, 5)
+		g.rounded_box(Vector3(lx + 0.012 * side, 0.058, -0.05), Vector3(0.075, 0.058, 0.13), cream, 0.55, 10, 5)
 	# ---- 작은 은 어깨 갑옷(금 테)
 	for side: float in [-1.0, 1.0]:
 		var sfx := "L" if side < 0.0 else "R"
@@ -621,13 +653,13 @@ static func _hero() -> Dictionary:
 		g.line = 0.4
 		g.ellipsoid(pc, pr * 1.04, GOLD, 12, 1, Basis.IDENTITY, PI * 0.59, PI * 0.59, PI * 0.52)
 		g.line = 1.0
-	# ---- 망토: 보라(밝은 보라 안감), 금 테. 어깨 밖까지 넓고 치맛단 바로 위까지
-	_cape(g, Vector3(0, 0.865, 0.1), 0.76, 0.62, 0.86, cloak, cloak_in, 0.13, 0.1, 0.02, 0.009)
+	# ---- 망토: 남색(조금 밝은 남색 안감), 굵은 금 테, 세로 주름 셋, 둥근 아랫단. 윗단은 목덜미 뒤에서 어깨를 따라 내려가 뒷머리 속에 숨는다
+	_cape(g, Vector3(0, 0.905, 0.11), 0.8, 0.6, 0.86, cloak, cloak_in, 0.12, 0.1, 0.025, 0.1, 0.05, 0.015)
 	# ---- 머리·얼굴
 	_hero_head(g, skin)
 	_hero_hair(g)
 	# ---- 검(오른손, 파란 보석)
-	var hand_r := Vector3(sx, 0.516, -0.004)
+	var hand_r := Vector3(sx, 0.52, -0.084)
 	var tip := _sword(g, hand_r, 0.55, 0.05, gem, 0.13, 30.0, 0.0, 0.07)
 	return _finish(g, tip, HERO_ES, P)
 
@@ -653,7 +685,7 @@ static func _hero_head(g: DemonGeo, skin: Color) -> void:
 		var b := maxf(DemonGeo.bump(d, Vector3(-0.62, -0.32, -0.72).normalized(), 0.17), DemonGeo.bump(d, Vector3(0.62, -0.32, -0.72).normalized(), 0.17))
 		return skin.lerp(blush, clampf(b * 0.75, 0.0, 1.0))
 	g.line = 1.0
-	g.sculpt(hc, hr, skin, 20, 12, shape, col_of)
+	g.sculpt(hc, hr, skin, 18, 11, shape, col_of)
 	var keep := g.line
 	g.line = 0.0
 	var es := HERO_ES
@@ -740,7 +772,7 @@ static func _hero_hair(g: DemonGeo) -> void:
 	g.line = 1.0
 	var cap_c := hc + Vector3(0, 0.012, 0.012)
 	var cap_r := hr * 1.09
-	g.ellipsoid(cap_c, cap_r, hair, 18, 8, Basis.IDENTITY, 0.95, 2.75)
+	g.ellipsoid(cap_c, cap_r, hair, 16, 7, Basis.IDENTITY, 0.95, 2.75)
 	# 앞머리: 정수리 쪽에서 이마로 흘러내리는 납작한 갈래(끝이 뾰족). 가운데는 짧고 바깥은 관자놀이까지
 	g.line = 0.7
 	var lobes: Array = [[-1.0, 1.32, 0.04], [-0.5, 1.12, 0.045], [0.0, 1.02, 0.048], [0.5, 1.12, 0.045], [1.0, 1.32, 0.04]]
@@ -759,17 +791,17 @@ static func _hero_hair(g: DemonGeo) -> void:
 			bradii.append(lr * (1.0 - pow(t, 2.2)) * lerpf(0.8, 1.0, minf(t * 3.0, 1.0)))
 		var nrm: Vector3 = ((bp[2] as Vector3) - cap_c).normalized()
 		g.spline_tube(bp, bradii, hair, 6, false, true, nrm, 0.45, 1.0)
-	# 옆 가닥: 관자놀이에서 어깨 앞으로(위 = Head, 아래 = Spine)
+	# 옆 가닥: 관자놀이에서 넓적하게(폭 ≈ 0.18) 내려와 어깨 높이에서 안쪽으로 20° 꺾여 가슴 앞에 기대고 끝은 둥글게 모인다(위 = Head, 아래 = Spine)
 	for side: float in [-1.0, 1.0]:
 		var nodes: Array = [
-			{p = Vector3(0.14 * side, 1.12, -0.05), r = 0.03, bone = "Head", col = hair, line = 0.0},
-			{p = Vector3(0.17 * side, 1.05, -0.075), r = 0.034, bone = "Head", col = hair},
-			{p = Vector3(0.185 * side, 0.96, -0.095), r = 0.036, bone = "Head", col = hair},
-			{p = Vector3(0.195 * side, 0.86, -0.11), r = 0.033, bone = "Spine", col = hair},
-			{p = Vector3(0.21 * side, 0.76, -0.112), r = 0.029, bone = "Spine", col = hair},
-			{p = Vector3(0.22 * side, 0.67, -0.1), r = 0.018, bone = "Spine", col = hair_dk},
+			{p = Vector3(0.13 * side, 1.13, -0.04), r = 0.04, bone = "Head", col = hair, line = 0.0, fu = 2.0, fw = 0.7},
+			{p = Vector3(0.165 * side, 1.05, -0.075), r = 0.042, bone = "Head", col = hair, fu = 2.0, fw = 0.7},
+			{p = Vector3(0.19 * side, 0.95, -0.1), r = 0.04, bone = "Head", col = hair, fu = 1.9, fw = 0.72},
+			{p = Vector3(0.2 * side, 0.85, -0.115), r = 0.036, bone = "Spine", col = hair, fu = 1.7, fw = 0.75},
+			{p = Vector3(0.182 * side, 0.75, -0.125), r = 0.031, bone = "Spine", col = hair, fu = 1.5, fw = 0.8},
+			{p = Vector3(0.16 * side, 0.66, -0.12), r = 0.024, bone = "Spine", col = hair_dk, fu = 1.3, fw = 0.9},
 		]
-		g.limb(nodes, 7, Vector3.RIGHT, false, true, 2)
+		g.limb(nodes, 7, Vector3.RIGHT, false, true, 3)
 	# 뒷머리: 다섯 가닥이 뒤통수(머리 덮개 속)에서 나와 목덜미에서 모였다가 허리까지 물결치며 퍼진다. 앞뒤로 납작
 	for li in 5:
 		var u := float(li) / 2.0 - 1.0
@@ -787,7 +819,7 @@ static func _hero_hair(g: DemonGeo) -> void:
 		for N: Dictionary in nodes:
 			N.fu = 0.55
 			N.fw = 1.45
-		g.limb(nodes, 6, Vector3.BACK, false, true, 2)
+		g.limb(nodes, 5, Vector3.BACK, false, true, 2)
 	# 리본(목덜미 뒤): 남색 고리 둘 + 금 매듭 + 짧은 꼬리 둘
 	g.use("Head")
 	g.line = 0.6
