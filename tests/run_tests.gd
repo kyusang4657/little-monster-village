@@ -21,7 +21,7 @@ func _init() -> void:
 		"test_castle_levels", "test_boss_units", "test_expansion", "test_resource_sites_and_props",
 		"test_outpost_battle", "test_outpost_repair", "test_save_v3_migration", "test_story_data",
 		"test_review_fixes_core", "test_castle_models", "test_imp_design",
-		"test_units_training", "test_units_battle", "test_save_v4_units",
+		"test_units_training", "test_units_battle", "test_save_v4_units", "test_font_coverage",
 	]
 	for t in tests:
 		var before := _fail
@@ -1397,3 +1397,35 @@ func test_save_v4_units() -> void:
 	f.wood = 500
 	check(f.commit_new_building("lantern", def_cell.x, def_cell.y, 0).ok, "기본 깃발 칸에 등불")
 	check(f.rally_cell() != def_cell and f.check_rally(f.rally_cell()).ok, "기본 깃발은 빈칸으로 옮겨짐 %s" % str(f.rally_cell()))
+
+
+## 화면에 쓰는 모든 글자가 들어 있는 글꼴이 있는지(휴대폰·웹에는 시스템 대체 글꼴이 없을 수 있음)
+func test_font_coverage() -> void:
+	var fonts: Array = [load("res://assets/fonts/Jua-Regular.ttf"), load("res://assets/fonts/MonsterVillageSymbols-Regular.ttf")]
+	var files: Array = ["res://config/story.json", "res://config/prototype-defaults.json", "res://config/decorations.json"]
+	for dir in ["res://scripts/ui/", "res://scripts/", "res://scripts/core/", "res://scripts/world/"]:
+		for f in DirAccess.get_files_at(dir):
+			if f.ends_with(".gd"):
+				files.append(dir + f)
+	var missing := {}
+	for path in files:
+		var text := FileAccess.get_file_as_string(path)
+		if path.ends_with(".gd"):
+			# 주석(# 로 시작하는 줄)은 화면에 나오지 않으므로 뺀다
+			var kept: PackedStringArray = []
+			for ln in text.split("\n"):
+				if not ln.strip_edges().begins_with("#"):
+					kept.append(ln)
+			text = "\n".join(kept)
+		for i in text.length():
+			var c := text.unicode_at(i)
+			if c < 32 or (c >= 0x1100 and c <= 0x11FF) or c == 0xFEFF:
+				continue
+			var ok := false
+			for fnt in fonts:
+				if (fnt as FontFile).has_char(c):
+					ok = true
+					break
+			if not ok:
+				missing[String.chr(c)] = path
+	check(missing.is_empty(), "모든 글자를 그릴 글꼴 있음 (없음: %s)" % str(missing))

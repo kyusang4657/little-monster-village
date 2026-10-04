@@ -102,6 +102,10 @@ func _ready() -> void:
 	_font_bold = load("res://assets/fonts/Jua-Regular.ttf")
 	_font_regular = _font_bold
 	_font_title = load("res://assets/fonts/BlackHanSans-Regular.ttf")
+	# 두 글꼴에 없는 기호(· … × 「」 → - 등)는 나눔고딕에서 기호만 뽑은 보조 글꼴로 그린다
+	var sym: Font = load("res://assets/fonts/MonsterVillageSymbols-Regular.ttf")
+	_font_bold.fallbacks = [sym]
+	_font_title.fallbacks = [sym, _font_bold]
 	root = Control.new()
 	root.name = "HudRoot"
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -828,11 +832,11 @@ func _show_menu() -> void:
 		["안내 다시 보기", "ivory", "play", func(): hide_overlay(); menu_action.emit("tutorial")],
 		["이야기 다시 보기", "ivory", "chief", func(): hide_overlay(); menu_action.emit("story")],
 	], [
-		["배경음 −", "ivory", "", func(): menu_action.emit("music_down")],
+		["배경음 -", "ivory", "", func(): menu_action.emit("music_down")],
 		["배경음 %d%%" % int(round(Sound.music_volume * 100)), "ivory", "", func(): pass],
 		["배경음 +", "ivory", "", func(): menu_action.emit("music_up")],
 	], [
-		["효과음 −", "ivory", "", func(): menu_action.emit("sfx_down")],
+		["효과음 -", "ivory", "", func(): menu_action.emit("sfx_down")],
 		["효과음 %d%%" % int(round(Sound.sfx_volume * 100)), "ivory", "", func(): pass],
 		["효과음 +", "ivory", "", func(): menu_action.emit("sfx_up")],
 	]])

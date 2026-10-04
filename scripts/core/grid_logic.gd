@@ -88,7 +88,7 @@ static func gate_edges(bounds: Rect2i = Rect2i()) -> Array[String]:
 	return out
 
 
-## 바깥 울타리 = 현재 경계의 둘레 − 정문. 지도가 넓어지면 새 경계로 옮겨진다.
+## 바깥 울타리 = 현재 경계의 둘레 - 정문. 지도가 넓어지면 새 경계로 옮겨진다.
 static func fixed_edges(bounds: Rect2i = Rect2i()) -> Dictionary:
 	var out := {}
 	var b := bnd(bounds)
