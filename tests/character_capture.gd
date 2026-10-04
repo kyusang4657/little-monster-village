@@ -38,6 +38,8 @@ func _run() -> void:
 			await _strips()
 		"faces":
 			await _faces()
+		"imp":
+			await _imp()
 	quit(0)
 
 
@@ -208,3 +210,67 @@ func _faces() -> void:
 			n.call("update_blink", 1.0)
 			_aim(Vector3(0, float(sj[2]), 0), 0.0, 6.0, 0.5)
 			await _shot("face-%s-%s" % [sj[0], e])
+
+
+## 뿔이 시안: 성 레벨 1~4 정면·옆·뒤, 레벨 줄 세우기(고블린·기사와 키 비교), 동작 프레임, 표정
+func _imp() -> void:
+	if _rig == null:
+		return
+	for lv in range(1, 5):
+		_clear()
+		var n: Node3D = _add(_rig.call("imp", lv))
+		n.call("pose_idle", 0.0)
+		n.call("update_blink", 2.0)
+		for view in [["front", 0.0], ["three", 35.0], ["side", 90.0], ["back", 180.0]]:
+			_aim(Vector3(0, 0.5, 0), view[1], 8.0, 1.25)
+			await _shot("imp-lv%d-%s" % [lv, view[0]])
+	# 줄 세우기: 고블린 · 뿔이 Lv.1~4 · 기사
+	_clear()
+	var nodes: Array = [_rig.call("goblin", 0, true)]
+	for lv in range(1, 5):
+		nodes.append(_rig.call("imp", lv))
+	nodes.append(_rig.call("knight", 0))
+	var x := float(nodes.size() - 1) * 0.5 * 0.62
+	for n in nodes:
+		_add(n, Vector3(x, 0, 0))
+		n.call("pose_idle", 0.0)
+		n.call("update_blink", 2.0)
+		x -= 0.62
+	# 줄 세우기는 가로가 넓으므로 화면 비율에 맞춰 크기를 정한다
+	var vp := root.get_visible_rect().size
+	_aim(Vector3(0, 0.6, 0), 15.0, 10.0, maxf(1.6, 4.2 * vp.y / vp.x))
+	await _shot("imp-lineup")
+	# 동작: 대기 숨쉬기, 걷기, 무서운 척 → 휘청, 환호 점프
+	var specs := [["idle", 6], ["walk", 8], ["scare", 8], ["cheer", 6]]
+	for sp in specs:
+		_clear()
+		var n: Node3D = _add(_rig.call("imp", 1))
+		var frames: int = sp[1]
+		for f in frames:
+			var p := float(f) / float(frames)
+			n.call("set_expression", "normal")
+			match String(sp[0]):
+				"idle":
+					n.call("pose_idle", p * 3.0)
+					n.call("update_secondary", 1.0 / 30.0, 0.0)
+				"walk":
+					n.call("pose_walk", p)
+					n.call("update_secondary", 1.0 / 30.0, 1.0)
+				"scare":
+					n.call("pose_scare", float(f) / float(frames - 1))
+					n.call("update_secondary", 1.0 / 30.0, 0.6)
+				"cheer":
+					n.call("pose_cheer", p)
+					n.call("update_secondary", 1.0 / 30.0, 0.8)
+			n.call("update_blink", 2.0)
+			_aim(Vector3(0, 0.48, 0), -40.0, 10.0, 1.35)
+			await _shot("imp-frame-%s-%d" % [sp[0], f])
+	# 표정
+	_clear()
+	var fn: Node3D = _add(_rig.call("imp", 1))
+	fn.call("pose_idle", 0.0)
+	for e in ["normal", "happy", "angry", "hurt", "ko"]:
+		fn.call("set_expression", e)
+		fn.call("update_blink", 2.0)
+		_aim(Vector3(0, 0.62, 0), 0.0, 6.0, 0.55)
+		await _shot("imp-face-%s" % e)

@@ -20,7 +20,7 @@ func _init() -> void:
 		"test_decor", "test_assist_mode", "test_knight_spread", "test_advisor", "test_stage_curve",
 		"test_castle_levels", "test_boss_units", "test_expansion", "test_resource_sites_and_props",
 		"test_outpost_battle", "test_outpost_repair", "test_save_v3_migration", "test_story_data",
-		"test_review_fixes_core", "test_castle_models",
+		"test_review_fixes_core", "test_castle_models", "test_imp_design",
 	]
 	for t in tests:
 		var before := _fail
@@ -1219,3 +1219,34 @@ func test_castle_models() -> void:
 	var s1 := at_level(0)
 	var s4 := at_level(9)
 	check(GridLogic.attack_cells(s1.buildings, s1.all_edges()) == GridLogic.attack_cells(s4.buildings, s4.all_edges()), "성 레벨이 바뀌어도 공격 칸 동일")
+
+
+## 뿔이 시안: 관절, 예산, 짝짝이 뿔(왼쪽이 작음, Lv.4 에도), 레벨마다 뿔 성장, 대기 자세에서 지팡이 보석이 머리 위
+func test_imp_design() -> void:
+	var prev_r := 0.0
+	for lv in range(1, 5):
+		var r := CharacterRig.imp(lv)
+		for j in CharacterRig.REQUIRED_JOINTS:
+			if not r.has_joint(j):
+				check(false, "뿔이 Lv.%d 관절 %s" % [lv, j])
+		check(int(r.stats().triangles) <= 4500 and int(r.stats().draw_calls) == 1, "뿔이 Lv.%d 삼각형 %d ≤ 4500, 메시 1개" % [lv, r.stats().triangles])
+		r.pose_idle(0.0)
+		var verts := r.posed_vertices()
+		var vb: PackedInt32Array = r._def.vbones
+		var head_b := int(r._bi["Head"])
+		var hl := -1.0
+		var hr := -1.0
+		for i in verts.size():
+			# 머리 뼈에 묶인 정점만(지팡이·왕관 장식 제외는 x 범위로)
+			if vb[i] != head_b:
+				continue
+			var v := verts[i]
+			if v.x < -0.12 and v.y > 0.7:
+				hl = maxf(hl, v.y)
+			if v.x > 0.12 and v.y > 0.7:
+				hr = maxf(hr, v.y)
+		check(hr > hl, "뿔이 Lv.%d 오른뿔이 더 큼 (%.2f > %.2f)" % [lv, hr, hl])
+		check(hr >= prev_r - 0.001, "뿔이 Lv.%d 뿔이 자람" % lv)
+		prev_r = hr
+		check(r.weapon_tip_global_position().y > 0.75, "뿔이 Lv.%d 대기 자세 지팡이 보석이 머리 위 (%.2f)" % [lv, r.weapon_tip_global_position().y])
+		r.free()
