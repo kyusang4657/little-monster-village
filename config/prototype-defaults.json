@@ -394,7 +394,7 @@
     "low_fps_hint": {
       "below_fps": 24,
       "window_seconds": 8,
-      "note": "그림자가 켜진 채 이 시간 동안 FPS 가 낮으면 한 번만 '메뉴에서 그림자 끄기' 안내를 띄운다(설정은 바꾸지 않음)"
+      "note": "그림자나 외곽선이 켜진 채 이 시간 동안 FPS 가 낮으면 한 번만 '메뉴에서 그림자·외곽선 끄기' 안내를 띄운다(설정은 바꾸지 않음)"
     },
     "budgets": {
       "character_triangles_max": 3000,

@@ -729,6 +729,9 @@ func _perf_base() -> void:
 	await _shot("97-perf-base-battle")
 	main.world.set_shadows(false)
 	await _pbm("9단계 전투(그림자 끔)", 10.0)
+	main.world.set_outlines(false)
+	await _pbm("9단계 전투(그림자·외곽선 끔)", 10.0)
+	main.world.set_outlines(true)
 	_finish_log()
 
 
