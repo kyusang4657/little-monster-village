@@ -1,0 +1,36 @@
+DEFENSE MODE V1 — EXACT IMAGE PROMPTS
+Mode: built-in image_gen; static opaque gameplay UI mockup.
+Initial reference order: 02-village-before-raid.png (edit target); 03-human-knight-reference.png; 04-defense-tower-reference.png; 05-goblin-worker-reference.png.
+Final selected output: 01-defense-mode-reference.png.
+Correction applied to the first generated defense screenshot.
+Enemy count and health bars are illustrative mockup values, not tested game balance.
+
+=== INITIAL GENERATION / EDIT ===
+Use case: ui-mockup / precise-object-edit.
+Create ONE polished 16:9 landscape mobile game DEFENSE BATTLE screen by editing reference image 1, the approved starter monster village. Preserve its camera, six buildings, fence, gate, lighting, environment and cute rounded toy-like 3D style. Reference 2 supplies the human knight enemy identity; reference 3 supplies the wooden crossbow tower and operator identity; reference 4 supplies goblin villagers. Do not create a reference sheet or montage.
+PRESERVE SCENE:
+One ivory castle with two purple conical-roof front turrets and cyan door at rear center, two purple gabled houses in middle, one low lumber shed rear-left, two wooden open-top crossbow towers flanking front gate. Same positions, scale and intact structures. One continuous wooden rail fence and ONE OPEN double-leaf front gate. Existing villagers remain away from the main approach lane, standing safely near lumber shed or house. Remove the faint construction grid on the right grass entirely. No selection outline, build preview or construction toolbar.
+BATTLE SNAPSHOT:
+This is the first small raid, ongoing automated defense, not victory or defeat. Add EXACTLY FOUR human knights, all visible individually along the EXISTING central dirt approach road. They enter from the bottom of screen, pass through the OPEN front gate, and move inward toward the castle. One leading knight has reached the inside road near the central junction; a second is just inside the gate; third just outside the gate; fourth farther down the outer road but comfortably within frame. Clear spacing; no two bodies overlap. Do not add soldiers on side roads or at other edges.
+All four are the SAME Lv.1 enemy model from reference 2: silver rounded armor, modest brass edging, peach skin, small crimson helmet plume, short crimson cape, round crimson/brass shield on anatomical LEFT arm and one short sword in anatomical RIGHT hand. Mostly rear or rear-three-quarter views because they move AWAY from camera into village, capes visible. They are only a little taller than the ground goblins, not giant hero figures, and can fit through the house doors. No horses, no different classes, no banners carried, no skeletons.
+Both existing tower crossbows and their goblin operators TURN TOWARD the central road and automatically shoot at the leading two knights. Crossbow bodies are physically aimed inward at their targets, not outward in the opposite direction. Show only ONE small bolt in flight from each tower, each with a short thin warm-yellow motion streak along its straight trajectory toward a different leading knight. Two projectiles total, no continuous laser beams, no huge arcs or magic beams. One tiny golden impact spark against a knight's SHIELD is enough. No blood, wounds, body damage, fire or building destruction.
+Each of the four knights has a small thin RED health bar above its head with a dark border. Only leading knight's bar is partly depleted, others mostly full. No damage numbers or floating coins. Do not label villagers as enemies.
+INTERFACE:
+Match the existing game UI language: compact ivory rounded panels, subtle warm-gold/brown borders, dark-purple Korean typography, readable soft shadows.
+Top-left safe area: dark-purple mode chip with small shield icon and exact label "첫 번째 습격".
+Top-center safe area: compact ivory panel with tiny red knight-helmet icon and exact text "남은 적 4". Number must match exactly four visible knights.
+Top-right safe area: one rounded ivory button with clear pause symbol "Ⅱ" only. No speed control or additional buttons.
+Bottom-left safe area, over OUTSIDE foreground greenery and not over the entry road: a small unobtrusive ivory message strip with shield icon and exact Korean text "방어탑이 자동으로 공격합니다". This is a passive status message, not a button.
+Do not cover the castle, towers, gate or any enemy with interface elements. No large bottom action tray, manual skill buttons, joystick, currency, resource counts, countdown, building health text, upgrade controls, tutorial modal, English words, watermark or device frame.
+The scene must clearly read: a small red-accented HUMAN raid approaches the purple MONSTER village through its gate while its two goblin towers fire automatically. Retain plenty of open grass and readable paths, lively but uncluttered beginner battle.
+
+=== AIMING AND TRAIL CORRECTION ===
+Use case: precise-object-edit.
+Edit only the crossbow aiming and projectile trails in this defense gameplay screenshot. Preserve camera, ALL six building bodies and positions, fence, terrain, exactly FOUR human knights with their health bars, the UI and all Korean text, other villagers, colors and lighting.
+LEFT TOWER CORRECTION:
+The left tower currently still appears to point its crossbow toward screen bottom-left, while its fired projectile travels toward the leading knight on screen right. Rotate ONLY that upper crossbow and its goblin operator horizontally around the existing central mounting pivot so it ACTUALLY AIMS RIGHT, slightly downward on the screen, toward the leading knight near the crossroads.
+The loaded bolt channel/stock should have its FRONT at the tower's screen-RIGHT edge and its REAR on screen-LEFT. The bow limb at the weapon FRONT is perpendicular to that rightward firing line. The goblin stands behind the weapon toward screen-LEFT and faces right in three-quarter/profile view, holding the rear grips. The bolt must emerge from the rightward-facing front of the crossbow, not from behind the goblin. No handheld bow. Preserve tower base, posts, purple banner and its dimensions.
+The right tower continues aiming LEFT toward the second knight, with operator behind the weapon. Preserve that correct general direction.
+PROJECTILE TRAILS:
+Keep exactly one small bolt in flight between each tower and its target, two total. Remove each long continuous yellow beam linking tower and target. Replace with ONLY a short faint warm-yellow motion streak immediately BEHIND each flying bolt, about one bolt-length; show normal scenery along the rest of the space between tower and enemy. The flight directions are left tower -> leading knight, right tower -> second knight. Small existing impact spark can remain. No laser beams or extra projectiles.
+Change nothing else. This is a small aiming clarity correction to the same first-raid frame.

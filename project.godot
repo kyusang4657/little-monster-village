@@ -1,0 +1,48 @@
+; Engine configuration file.
+; Godot 4.4.1-stable, GDScript, Compatibility renderer.
+
+config_version=5
+
+[application]
+
+config/name="마물의 작은 마을"
+config/description="마물 마을 건설·방어 첫 플레이 버전"
+config/version="0.3.0"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.4", "GL Compatibility")
+boot_splash/bg_color=Color(0.56, 0.78, 0.38, 1)
+boot_splash/show_image=false
+config/icon="res://assets/icon.png"
+config/quit_on_go_back=false
+
+[autoload]
+
+Sound="*res://scripts/audio/sound.gd"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=4
+
+[gui]
+
+theme/custom_font="res://assets/fonts/NanumGothic-Bold.ttf"
+theme/default_font_antialiasing=1
+
+[input_devices]
+
+pointing/emulate_mouse_from_touch=true
+
+[internationalization]
+
+locale/fallback="ko"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
+anti_aliasing/quality/msaa_3d=1

@@ -1,0 +1,17 @@
+# Godot
+.godot/
+*.import.tmp
+# 내보내기 중간 산출물(배포용 APK는 release/ 에 둔다)
+build/
+*.idsig
+# 서명 키: 출시용 키는 절대 커밋하지 않는다(공개 디버그 키만 예외)
+*.keystore
+*.jks
+!android/debug.keystore
+
+# 에이전트 작업 공간(워크트리)
+.claude/
+
+# 검토용 임시 탐침 스크립트
+tests/_probe*
+tests/_dbg*

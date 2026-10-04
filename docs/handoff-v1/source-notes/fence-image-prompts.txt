@@ -1,0 +1,56 @@
+MODE: Built-in ImageGen (image_gen.imagegen), not CLI/API fallback.
+OUTPUT: Opaque-background modular-fence reference sheet, not a finished sprite atlas or 3D kit.
+IMPLEMENTATION NOTE: Use README-ko.md as the geometry specification. For any future regeneration, change the assembly example to a 6-by-3-unit enclosure with a centered 2-unit gate and two 1-unit bays on each side. The original prompt below requested an illustrative 5-unit-wide example; its exact drawing is not a dimensioned plan.
+
+GENERATION 1
+Reference image 1: 02-village-style-reference.png
+Reference image 2: 03-house-style-reference.png
+transparent_background: false
+Prompt:
+
+Use case: stylized-concept.
+Create ONE clean professional MODULAR WOODEN FENCE REFERENCE SHEET for the approved original mobile monster village game.
+Reference image 1: the approved village. Match the chunky friendly wooden fences surrounding the small player-built neighborhoods.
+Reference image 2: the approved goblin house sheet. Match its warm honey wood, soft rounded bevels, bright toy-like 3D materials and tidy off-white production-sheet presentation. Do not include the house itself.
+This is a component design sheet, not a village screenshot, and not a finished sprite atlas.
+
+Canvas: wide landscape, warm off-white background, crisp dark charcoal Korean typography. A title on top, TWO ROWS of THREE evenly spaced component panels, then ONE WIDE shallow assembly-example panel along the bottom. Clear generous gutters, very thin pale-gray rules, no ornate borders. Every component fully visible without overlap or cropping.
+
+CONSISTENT FENCE DESIGN:
+Early-level rustic wooden fences made of chunky square honey-brown timber posts with lightly rounded flat tops and softly chamfered corners. Two sturdy horizontal wooden rails connect posts, one upper and one lower. A few broad simple wood-grain marks and small round wooden pegs, no gritty splinters or realistic high-frequency texture. No pointed spikes, horns, skulls, stone foundation, flags, lights, vines or decorative clutter. Warm wood palette matching the approved village. The fence is around chest-to-shoulder height for the little goblin residents. All posts and rails have IDENTICAL thickness, proportions, height, material and lighting throughout the sheet.
+
+MODULAR GEOMETRY:
+Grid spacing defines one standard length. Post centers sit on grid vertices. One straight bay spans exactly ONE spacing between post centers. Adjacent bays share ONE post at their connection; no double posts, no gaps. Corners share ONE common corner post. Rails and posts are reusable pieces.
+All game views use ONE FIXED high orthographic quarter-view camera, about 55 degrees down and 45 degrees around the ground, soft light from upper left. Rotate the object on the ground to show its other orientation; DO NOT rotate the camera or change the lighting. A very faint small ground guide line or diamond is permitted beneath each component. No ground pedestal.
+
+TOP ROW, LEFT TO RIGHT:
+1. Label "직선 A": exactly one straight bay with TWO end posts and TWO rails, oriented along the ground grid axis that appears diagonally down-right on screen.
+2. Label "직선 B": the EXACT same single bay rotated 90 degrees on the ground, oriented along the other grid axis diagonally up-right on screen. Same length, thickness and post heights.
+3. Label "모서리": exactly TWO single bays meeting in a 90-degree L shape, with THREE posts total including ONE shared corner post. Both legs the same standard bay length. No diagonal cross-brace or third branch.
+
+SECOND ROW, LEFT TO RIGHT:
+4. Label "끝기둥": ONE isolated square post with a finished rounded top, showing the small attachment positions at the two rail heights on one side; no long rail protrusions. This is the end-cap/post used at the end of a fence line.
+5. Label "출입문 · 닫힘": a low TWO-LEAF wooden gate, exactly TWO standard bay lengths wide between the two outer posts. Same post height and wood material as the fences. Simple vertical wood planks and a subtle diagonal timber brace on each leaf, dark small metal hinges at the outer posts, a simple central latch. No roof, arch, banner or extra central post. The two leaves meet neatly in the center.
+6. Label "출입문 · 열림": the EXACT SAME gate and camera angle as the closed gate, but both leaves swing inward 90 degrees on their outer hinges, leaving a visibly unobstructed opening. Outer posts keep the same positions and spacing. No center post, no horizontal bar crossing the open passage.
+
+BOTTOM ASSEMBLY PANEL:
+Label "연결 예시".
+Show a small rectangular enclosure of these EXACT posts, rails and gate on a faint unobtrusive grid, viewed with the same camera. The rectangle is FIVE grid spacings wide by THREE deep. Center a two-spacing CLOSED double gate on the near long side. Use regularly spaced posts and one-spacing straight bays elsewhere, with a single shared post at every junction and corner. No decorative house or landscape inside; keep it empty so the layout is readable. This assembled example should demonstrate a coherent enclosure that the player can build one segment at a time, not a single giant prefab fence. Small soft grounding shadows only.
+
+TEXT:
+Title exactly "나무 울타리 · Lv.1".
+Use the seven panel labels exactly as supplied, clean large Korean sans serif.
+Footer exactly "직선 1칸 · 출입문 2칸 · 제작 기준 시안".
+No other labels, dimensions, numbers, logos, watermarks or interface controls.
+Prioritize matching component geometry, consistent grid scale, correctly functioning gate hinges, shared posts, and the same friendly art style.
+
+CORRECTION 2 — FINAL SELECTED OUTPUT
+Reference: the sheet produced by Generation 1
+transparent_background: false
+Prompt:
+
+Use case: precise-object-edit.
+Correct ONE panel in the attached wooden-fence reference sheet: the TOP MIDDLE panel labeled "직선 B".
+The top-left "직선 A" already runs diagonally from UPPER LEFT to LOWER RIGHT. The top-middle must show the identical fence bay rotated 90 degrees ON THE GROUND, so its two rails now run diagonally from LOWER LEFT to UPPER RIGHT.
+In panel B, place the NEAR post on the LOWER LEFT and the FAR post on the UPPER RIGHT, connected by exactly two parallel rails sloping upward-right on the image. The nearer left post should occlude the attached rail ends naturally. Keep the same high orthographic camera, upper-left studio lighting, post height and thickness, one-bay length, wood materials, rounded edges and wooden pegs. Adjust only the faint ground guide beneath B to match the new orientation. Do not simply keep the existing diagonal.
+All other panels must remain visually unchanged: "직선 A", "모서리", "끝기둥", the two gate states and the assembly example. Preserve the Korean title, every label, footer, borders, panel positions, background and overall layout. No extra objects and no redesign.

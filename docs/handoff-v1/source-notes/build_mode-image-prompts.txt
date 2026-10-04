@@ -1,0 +1,38 @@
+BUILD MODE V1 — EXACT IMAGE PROMPTS
+Mode: built-in image_gen; static opaque UI mockup.
+Initial reference order: 02-village-before-moving.png (edit target), 03-house-reference.png (supporting asset identity).
+Final selected output: 01-build-mode-reference.png.
+The correction was applied to the first generated construction-mode image.
+
+=== INITIAL GENERATION / EDIT ===
+Use case: ui-mockup / precise-object-edit.
+Create ONE polished landscape 16:9 mobile game BUILDING RELOCATION screen by editing reference image 1, the approved starter monster village. Reference image 2 is the exact goblin house model sheet for preserving the house's appearance. This is a screenshot-style interaction mockup, not a diagram or multi-panel sheet.
+PRESERVE the source camera, bright toy-like 3D rendering, grass world, castle at rear center, left house, rear-left lumber shed, two crossbow towers, fence perimeter and front open double gate, trees, paths and goblins. Do not zoom, crop, redesign or add buildings.
+WORLD EDIT:
+The user has selected the RIGHT-HAND house and is previewing its move to the empty expansion patch on the RIGHT inside the fence.
+Remove the old right-hand house completely from its original location beside the central crossroads, leaving ordinary grass there with the existing nearby dirt path unchanged. Do NOT leave a second copy or ghost at its old location.
+Place EXACTLY ONE semi-transparent preview of that SAME house a little farther right and back, on the empty buildable grass where the faint grid was in image 1. It must stay safely inside the fence, with a clear gap to the fence and to the right tower, and not overlap any road, goblin, other building, rock or bush.
+Keep the house same scale, front orientation, gabled purple roof, ivory walls, wooden arch door, warm windows and rear-right chimney. Render it about 70% opaque with a thin mint-green selection contour, retaining visible purple/ivory colors. It is the ONLY selected object.
+Below that preview show EXACTLY FOUR lightly green filled ground cells in a 2-by-2 isometric square, aligned to the village ground plane. Outline the combined square clearly in green, with one interior division each direction. The base of the house corresponds to this 2x2 footprint. A few faint neutral grid lines can surround it, but no full-map grid, second footprint or red region.
+Above the preview put one compact green pill with a checkmark and exact text "배치 가능". Keep it clear of the roof and fence. No extra world labels, arrows or upgrade icons. The scene has 6 buildings total INCLUDING the moving preview: castle1, houses2 (one stationary plus one preview), lumber1, towers2.
+INTERFACE:
+Add a restrained premium cute mobile UI overlay that fits the established purple/ivory/wood palette. Soft ivory rounded panels, thin warm brown/gold edging, dark purple/navy text, clear readable Korean, gentle shadow. Practical flat-readable UI over the detailed world, no ornate giant frames.
+Top-left safe area: compact purple rounded mode chip, small hammer icon, exact text "건설 모드". Keep margin from screen edges.
+Top-center safe area: slim ivory instruction strip, exact text "집을 끌어 원하는 곳에 놓으세요". Do not cover the castle.
+Bottom-center safe area: ONE horizontal rounded ivory action bar, low enough to cover only foreground grass and the outer approach path, not the village gate, buildings or preview. About two-thirds screen width and about 12% screen height.
+Inside bar, left block: tiny house icon, main text "고블린 주택 · Lv.1", smaller text below "2×2칸 · 이동 중".
+Inside same bar, right side: THREE large distinct horizontally arranged touch buttons with generous spacing:
+1 neutral gray/ivory button, X icon and label "취소"
+2 purple button, single clockwise rotation arrow icon and label "회전"
+3 widest and most prominent green button, checkmark icon and label "배치"
+All three labels visible, no clipped letters. Keep touch buttons and instruction strip consistent typography.
+This is MOVING an existing house, not buying a new one: NO price, currency, construction time, build-shop tabs, resource bars or purchase buttons. No mouse pointer, finger drawing, phone frame, watermark, English text or random numbers.
+The image must communicate one simple state: drag one selected house, optionally rotate, then tap the green placement button, with cancel available. Do not show multiple steps or a tutorial pop-up covering the world.
+
+=== FOOTPRINT OVERLAY CORRECTION ===
+Use case: precise-object-edit.
+Edit ONLY the green placement-footprint overlay beneath the selected semi-transparent house in the upper-right part of this construction-mode screenshot. Keep the selected house itself at EXACTLY its current position, size, orientation and appearance. Keep every other building, all scenery, the entire interface, Korean text, "배치 가능" status label, colors and lighting unchanged.
+The present bright green selection footprint is shifted too far forward, leaving an extra empty strip of bright green cells in front of the house. Correct it so the selected 2-by-2 square is CENTERED DIRECTLY UNDER the actual house base. Use FOUR equal ground-grid cells total, one interior division each axis, with a thin bright green perimeter.
+Its FRONT edge must run just in front of the house's entrance steps and front foundation feet, NOT a full empty row farther forward. Its right and left edges must hug the outer foundation with a small margin, and its rear edge goes just behind the back of the building, naturally occluded by the house. The house occupies substantially the entire selected square footprint including its steps. Do not deform the house to fit.
+Remove the old protruding bright green row in front and restore that area to ordinary grass with only faint neutral grid lines, matching the surrounding placement grid. Preserve one valid green selection footprint only, no extra green patch, no arrows, no new labels.
+This is a small accurate alignment correction to the overlay, not a change to the UI or scene.

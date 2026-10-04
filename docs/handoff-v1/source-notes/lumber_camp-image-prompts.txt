@@ -1,0 +1,35 @@
+GOBLIN LUMBER CAMP LV.1 — EXACT IMAGE PROMPTS
+Mode: built-in image_gen; opaque reference sheet.
+Initial reference order: 02-village-style-reference.png; 03-house-style-reference.png; 04-tower-material-reference.png.
+Final selected output: 01-goblin-lumber-camp-reference.png.
+Correction applied to the first generated lumber camp sheet.
+
+=== INITIAL GENERATION ===
+Use case: stylized-concept.
+Create ONE polished architectural reference sheet titled "고블린 벌목소 · Lv.1" for a cute monster-village mobile building game. This is an original small starter wood-production workshop, not a house and not an industrial factory.
+Input image roles: image 1 is the approved village for art direction and world colors. Image 2 is the house sheet for clean four-panel reference layout and rounded materials. Image 3 is the defense tower sheet for matching warm honey-brown chunky timber, ivory stone post feet, and soft toy-like 3D rendering. Do not reproduce these existing buildings.
+Layout: landscape 4:3, warm offwhite studio background, navy Korean title, two columns by two rows with thin rounded gray panel borders. Full building visible in each panel with generous margins. All panels depict ONE identical building, not variants.
+FIXED DESIGN:
+A low compact square open-sided timber shed on exactly four stout chamfered wooden corner posts, each on one small ivory stone foot. ONE simple PURPLE single-slope tiled roof: rear edge is HIGHER, front edge is LOWER. No central ridge, no gable, no second roof. Small eaves. Only a waist-high horizontal wooden back wall; front and both sides open. Keep front headroom tall enough for a goblin to work. No door, no windows, no chimney, no flag, no vines, no characters, no machinery, no motorized saw.
+Under the roof, seen from the FRONT, left half contains ONE short chunky wooden workbench with a pale thick slab top and sturdy legs; one simple stylized short hand saw resting flat on it, brown handle. RIGHT half contains exactly THREE short thick logs, two below and one centered above, supported by two small wooden chocks. Log axes run front-to-back, round pale cut ends face the FRONT. Logs and bench stay at these world-space locations in ALL views and fit inside the four-post base. Warm bark and pale rings, readable chunky shapes. No other loose materials or tools.
+Panel top left: FRONT elevation. Workbench on viewer LEFT, triangular stack of three log ends on viewer RIGHT. Open front. Low roof front edge, rear edge behind and higher.
+Panel top right: RIGHT SIDE elevation. Building FRONT is screen LEFT, rear is screen RIGHT. Shed roof visibly slopes DOWN towards screen LEFT. Log stack is near camera, logs extend horizontally front-to-back; their cut ends are toward screen LEFT. Bench is on far side and naturally occluded. Low rear wooden wall is at screen RIGHT.
+Panel bottom left: REAR elevation. Same building viewed from opposite side. Waist-high back wall is visible. Logs now occupy viewer LEFT behind wall; workbench occupies viewer RIGHT behind wall. They may be partly or fully occluded by the back wall; do NOT move them to the outside. Roof rear edge is high, front lower edge behind. No doorway added.
+Panel bottom right: GAME CAMERA, elevated fixed isometric looking at FRONT and RIGHT, roughly 45 degrees around and 50 degrees downward, matching the approved village's high viewpoint. Show low purple single-slope roof, open front with workbench to the building's front-left and three logs to its front-right. Roof has a modest overhang so logs and workbench remain visibly readable. Whole building sits within a subtle dashed 2x2 ground footprint with one interior division in each direction. Base, logs and workbench all fit inside it. No floating terrain tile, no surrounding trees.
+Style: cute bright rounded toy-like 3D, honey-brown timber with restrained grain, pale ivory feet, rich purple roof tiles, soft upper-left lighting and short contact shadows. Shapes must read at small mobile size. A low asymmetric roof and visible three-log stack distinguish this from the existing home and defense tower. Consistent geometry and materials across views; no artistic redesigns between panels.
+Exact Korean text:
+Title "고블린 벌목소 · Lv.1"
+Top left "정면"
+Top right "오른쪽"
+Bottom left "후면"
+Bottom right "게임 시점"
+Footer "점유 면적 2×2칸 · 제작 기준 시안"
+No other text, HUD, prices, logos, watermarks or decorations. This is a visual production reference sheet, not a finished sprite atlas.
+
+=== STRUCTURE CORRECTION ===
+Use case: precise-object-edit.
+Edit this goblin lumber camp reference sheet to correct the building geometry in the BOTTOM ROW ONLY, using the top-right side view as the authoritative structure. Preserve the two top panels exactly, all Korean text, borders, offwhite background, lights, style, purple roof material, bench and three logs, and overall composition.
+The building is ONE open-sided shed with a MONO-PITCH roof, rear high/front low, and ONLY a low wall on the REAR. It has NO side walls.
+1. Bottom RIGHT "게임 시점": REMOVE the horizontal brown timber infill wall from the visible RIGHT SIDE between the front-right and rear-right posts, leaving that side OPEN. Keep the four structural posts, roof, support beams and stone feet. The near right-hand log sides should now be visible through the open right side. Place/retain the single low timber back wall only along the true REAR edge, behind the workbench and logs, where it may be mostly obscured. Do not move logs or workbench. Keep the same purple single-slope roof.
+2. Bottom LEFT "후면": correct the roof silhouette to a genuine REAR elevation of that same mono-pitch shed. The two tall rear posts support the HIGH, CLOSE rear eave; the LOW front eave lies farther away. From this near-level rear view, show a broad simple thin purple rear roof edge/fascia above the taller rear posts, with only a subtle receding plane beyond, NOT the big tiled slope facing the viewer as if the front view were copied. Keep the low rear wall in the foreground, logs behind it at viewer LEFT, bench behind it at viewer RIGHT. Do not rotate or mirror the building contents. Keep roof purple and the front lower, rear higher.
+The goal is one geometrically consistent level-one shed seen from four sides. No new elements or different upgrade.
