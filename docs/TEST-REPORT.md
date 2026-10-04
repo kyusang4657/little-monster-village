@@ -553,3 +553,15 @@ RESULT: 47 passed, 0 failed              (tests/integration_driver.gd, 1280×720
 RESULT: 123 checks passed, 0 failed        (tests/run_tests.gd, 19개 시나리오)
 RESULT: 27 passed, 0 failed                (tests/integration_driver.gd, 1280×720)
 ```
+
+## 6차 교체 후보 검사(2026-10-04, 기본값 v5 유지)
+
+전 출연진의 v6 후보(`--model-set=v6`)와 기존 v5 를 같은 검사로 확인했습니다. 상세·캡처는 `docs/design/v6/README.md`.
+
+```
+tests/character_checks.gd                 RESULT: 520 passed, 0 failed (model set v5)
+tests/character_checks.gd --model-set=v6  RESULT: 520 passed, 0 failed (model set v6)
+tests/run_tests.gd                        RESULT: 605 checks passed, 0 failed
+```
+- 삼각형 예산(캐릭터 4,000 / 보스·뿔이 6,000) 안: 최대 고블린 3,949 · 기사 3,904 · 보스 5,924 · 오크 3,928 · 뿔이 Lv.1 6,000. 그리기 호출 1.
+- 게임 화면 비교(`docs/design/v6/compare/game-*.jpg`)는 xvfb·llvmpipe 캡처이며 기기 확인은 하지 않았습니다.
