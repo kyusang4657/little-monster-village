@@ -32,6 +32,8 @@ func run(p_main, p_out: String, scenario: String = "full") -> void:
 			_imp_scene()
 		"units":
 			_units_scene()
+		"showcase":
+			_showcase()
 		_:
 			_sequence()
 
@@ -814,4 +816,114 @@ func _units_scene() -> void:
 		await _focus(Vector2(r.x + 0.5, r.y + 0.8), 4.2)
 		await _wait(3)
 		await _shot("113-units-battle")
+	_finish_log()
+
+
+## 5차: 새 캐릭터를 게임 화면에서 — 마을의 뿔이·일꾼, 유닛 집결, 기사 여러 종류의 전투, 보스 전투, 이야기 창 얼굴
+func _showcase() -> void:
+	await _wait(20)
+	var s: GameState = main.state
+	main.tutorial.end(true)
+	await _advance_village(2.0)
+	var imp = main.world.imp
+	await _focus(imp.pos, 3.6)
+	await _shot("120-village-imp")
+	var tp: Vector2 = main.world.camera.unproject_position(imp.global_position + Vector3(0, 0.45, 0))
+	main._tap(tp)
+	await _wait(10)
+	await _shot("121-village-imp-tap")
+	# 일꾼 공사 현장
+	s.wood = s.capacity()
+	main.world.cam_target = WorldView.W(6.5, 0, 6.0)
+	var hc: Vector2i = main._find_spot("house")
+	s.commit_new_building("house", hc.x, hc.y, 0)
+	await _advance_village(5.0)
+	await _focus(Vector2(float(hc.x) + 0.5, float(hc.y) + 0.8), 4.0)
+	await _shot("122-village-workers")
+	# 유닛: 성 Lv.3, 막사·훈련장, 궁수 3·오크 3 집결
+	await _set_level(6)
+	for t in ["barracks", "training_ground", "house", "house"]:
+		s.wood = s.capacity()
+		main.world.cam_target = WorldView.W(10.0, 0, 6.0)
+		var c: Vector2i = main._find_spot(t)
+		s.commit_new_building(t, c.x, c.y, 0)
+	for b in s.buildings:
+		b.build_left = 0.0
+	s.units = {archer = 3, orc = 3}
+	s.commit_rally(GameConfig.entry_cell_for(s.bounds()) + Vector2i(0, 3))
+	main._sync_world()
+	await _wait(5)
+	var r := s.rally_cell()
+	await _focus(Vector2(float(r.x) + 0.5, float(r.y) + 0.8), 4.0)
+	await _shot("123-units-rally")
+	# 7단계 전투: 기사 여러 변형이 정문을 지나 길 위에 있을 때
+	await _ready_raid(7)
+	main._start_raid()
+	await _wait(2)
+	if main.sim != null:
+		main.sim.castle_hp = 100000
+		main.sim.castle_max = 100000
+		await _fast_battle(14.0)
+		var cen := Vector2.ZERO
+		var n := 0
+		for k in main.sim.knights:
+			if k.alive:
+				cen += k.pos
+				n += 1
+		if n > 0:
+			cen /= float(n)
+		await _focus(cen, 3.4)
+		for i in 4:
+			await _wait(1)
+		await _shot("124-battle-knights")
+		await _force_win()
+		main._on_result_closed("village")
+		await _wait(3)
+	# 보스 전투: 용사가 나올 때까지 버틴 뒤 용사·기사단장 근접
+	await _set_level(9)
+	main.world.reset_camera()
+	await _ready_raid(10)
+	main._start_raid()
+	await _skip_story()
+	await _wait(3)
+	if main.sim != null:
+		main.sim.castle_hp = 100000
+		main.sim.castle_max = 100000
+		var t := 0.0
+		var hero_in := false
+		while t < 200.0 and main.sim.outcome == "" and not hero_in:
+			main.sim.advance(0.1)
+			t += 0.1
+			for k in main.sim.knights:
+				if k.alive and String(k.get("kind", "")) == "hero":
+					hero_in = true
+		main.sim.advance(2.0)
+		await _wait(4)
+		var hero_pos := Vector2(6.5, 2.0)
+		for k in main.sim.knights:
+			if k.alive and String(k.get("kind", "")) == "hero":
+				hero_pos = k.pos
+		await _focus(hero_pos, 3.2)
+		for i in 4:
+			await _wait(1)
+		await _shot("125-boss-battle")
+		await _force_win()
+		main._on_result_closed("village")
+		await _wait(3)
+	# 이야기 창: 뿔이·기사단장·용사가 말하는 줄에서 얼굴 캡처
+	main._args.erase("no-story")
+	main.world.reset_camera()
+	if main.story_view.play(Story.scene_by_id("boss_intro")):
+		var seen := {}
+		for i in 12:
+			if not main.story_view.active():
+				break
+			var ln: Dictionary = (main.story_view._scene.lines as Array)[main.story_view._line]
+			var who := String(ln.get("who", ""))
+			if who in ["imp", "commander", "hero"] and not seen.has(who):
+				seen[who] = true
+				await _wait(3)
+				await _shot("126-story-" + who)
+			main.story_view.advance()
+		await _skip_story()
 	_finish_log()
