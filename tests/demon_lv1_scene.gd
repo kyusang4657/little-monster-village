@@ -181,7 +181,8 @@ func _shot(name: String) -> void:
 func _capture(rig: CharacterRig, vname: String) -> void:
 	rig.position = Vector3.ZERO
 	_world.add_child(rig)
-	rig.pose_idle(0.0)
+	# 대기 자세의 "가끔 고개 돌리기"가 없는 시각(seed 77 기준 t=1.43)으로 정적 캡처
+	rig.pose_idle(1.43)
 	rig.update_blink(2.0)
 	rig.set_expression("normal")
 	var top: float = rig.hp_bar_y()
@@ -207,7 +208,7 @@ func _capture(rig: CharacterRig, vname: String) -> void:
 		rig.pose_walk(0.3)
 		_aim(Vector3(0, 0.3, 0), 30.0, 50.0, 14.6 * vp.y / 720.0)
 		await _shot("%s-ingame" % vname)
-		rig.pose_idle(0.0)
+		rig.pose_idle(1.43)
 	if vl.has("poses"):
 		for pose in ["idle", "walk", "cheer", "scare"]:
 			rig.set_expression("normal")
@@ -226,7 +227,7 @@ func _capture(rig: CharacterRig, vname: String) -> void:
 			rig.update_blink(2.0)
 			_aim(Vector3(0, cy, 0), -40.0, 12.0, size)
 			await _shot("%s-pose-%s" % [vname, pose])
-		rig.pose_idle(0.0)
+		rig.pose_idle(1.43)
 	if vl.has("faces"):
 		var head_y: float = rig.joint_global_position("Head").y
 		for e in ["normal", "happy", "angry", "hurt", "ko"]:

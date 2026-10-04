@@ -231,3 +231,63 @@ func limb(nodes: Array, segs: int, ref_axis: Vector3 = Vector3.RIGHT, cap_start:
 static func bez(p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3, t: float) -> Vector3:
 	var s := 1.0 - t
 	return p0 * (s * s * s) + p1 * (3.0 * s * s * t) + p2 * (3.0 * s * t * t) + p3 * (t * t * t)
+
+
+## 망토 천(CharGeo.cape 와 같은 식)인데 격자 점들을 돌려준다(가장자리에 금 테를 두르거나 문양을 붙일 때). P[i][j] = i 행(위→아래), j 열(왼→오른).
+func cape_grid(top: Vector3, length: float, w_top: float, w_bot: float, col_out: Color, col_in: Color,
+		drape: float, wrap: float, hem_wave: float, cols: int, rows: int, thickness: float) -> Array:
+	var P: Array = []
+	for i in rows + 1:
+		var t := float(i) / float(rows)
+		var w := lerpf(w_top, w_bot, t)
+		var row: Array = []
+		for j in cols + 1:
+			var u := float(j) / float(cols) - 0.5
+			var y := top.y - length * t
+			if hem_wave > 0.0:
+				y -= hem_wave * t * t * (0.5 + 0.5 * cos(u * TAU * 1.5))
+			var z := top.z + drape * t * t - wrap * (u * u * 4.0) * (0.3 + 0.7 * t)
+			row.append(Vector3(top.x + u * w, y, z))
+		P.append(row)
+	var keep := line
+	line = keep * 0.8
+	for s: float in [1.0, -1.0]:
+		var col := col_out if s > 0.0 else col_in
+		var b0 := v.size()
+		for i in rows + 1:
+			for j in cols + 1:
+				var p: Vector3 = P[i][j]
+				var du: Vector3 = (P[i][mini(j + 1, cols)] as Vector3) - (P[i][maxi(j - 1, 0)] as Vector3)
+				var dt: Vector3 = (P[mini(i + 1, rows)][j] as Vector3) - (P[maxi(i - 1, 0)][j] as Vector3)
+				var nn := du.cross(dt).normalized()
+				if nn.z < 0.0:
+					nn = -nn
+				nn *= s
+				_vert(p + nn * thickness, nn, col)
+		for i in rows:
+			for j in cols:
+				var a := b0 + i * (cols + 1) + j
+				var d := a + cols + 1
+				tri(a, a + 1, d)
+				tri(a + 1, d + 1, d)
+	line = keep
+	return P
+
+
+## 코트 같은 회전체 겉면을 따라가는 띠(x0~x1, y_top~y_bot). rz_of.call(y) 가 그 높이의 앞쪽 반지름, rx_of.call(y) 가 옆 반지름.
+## 겉면에서 lift 만큼 띄워 그린다(겉면 색 띠·장식 띠). 법선은 바깥(-Z 쪽) 방향.
+func front_strip(x0: float, x1: float, y_top: float, y_bot: float, rz_of: Callable, rx_of: Callable, lift: float, col: Color, steps: int = 6) -> void:
+	var base := v.size()
+	for i in steps + 1:
+		var y := lerpf(y_top, y_bot, float(i) / float(steps))
+		var rz: float = rz_of.call(y)
+		var rx: float = rx_of.call(y)
+		for x in [x0, x1]:
+			var q := 1.0 - pow(clampf(x / maxf(rx, 0.0001), -0.999, 0.999), 2.0)
+			var z := -rz * sqrt(q) - lift
+			var nn := Vector3(x / (rx * rx), 0.0, z / (rz * rz)).normalized()
+			_vert(Vector3(x, y, z), nn, col)
+	for i in steps:
+		var a := base + i * 2
+		tri(a, a + 1, a + 2)
+		tri(a + 1, a + 3, a + 2)
