@@ -26,7 +26,7 @@ const EXPR := {
 	"hurt": {eye = 1.0, lid = 0.55, tilt = -0.25, brow = -0.45, dy = 0.3, pupil = 0.65, mouth = "MouthH"},
 	"ko": {eye = 0.0, lid = 0.0, tilt = 0.0, brow = -0.3, dy = 0.1, pupil = 1.0, mouth = "MouthH"},
 	"fierce": {eye = 1.0, lid = 0.3, tilt = 0.25, brow = 0.38, dy = -0.25, pupil = 0.9, mouth = "MouthN"},
-	"happy": {eye = 0.06, lid = 0.0, tilt = -0.15, brow = -0.25, dy = 0.25, pupil = 1.05, mouth = "MouthA"},   # 눈을 감은 웃음(◡): 눈알을 눌러 감은 눈 선이 보인다
+	"happy": {eye = 0.06, lid = 0.0, tilt = -0.15, brow = -0.25, dy = 0.25, pupil = 1.05, mouth = "MouthA"},   # 눈을 감은 웃음: 눈알을 눌러 감은 눈 선(아래로 볼록한 곡선)이 보인다
 }
 
 

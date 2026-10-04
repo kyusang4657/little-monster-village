@@ -770,7 +770,8 @@ func _units_scene() -> void:
 	await _wait(20)
 	var s: GameState = main.state
 	await _set_level(3)
-	for t in ["barracks", "training_ground", "house", "house"]:
+	# 막사·훈련장만 짓고(주택을 더 지으면 유닛이 집 사이에 가려진다) 유닛 수는 직접 넣는다
+	for t in ["barracks", "training_ground"]:
 		s.wood = s.capacity()
 		main.world.cam_target = WorldView.W(10.0, 0, 6.0)
 		var c: Vector2i = main._find_spot(t)
@@ -842,7 +843,8 @@ func _showcase() -> void:
 	await _shot("122-village-workers")
 	# 유닛: 성 Lv.3, 막사·훈련장, 궁수 3·오크 3 집결
 	await _set_level(6)
-	for t in ["barracks", "training_ground", "house", "house"]:
+	# 막사·훈련장만 짓고(주택을 더 지으면 유닛이 집 사이에 가려진다) 유닛 수는 직접 넣는다
+	for t in ["barracks", "training_ground"]:
 		s.wood = s.capacity()
 		main.world.cam_target = WorldView.W(10.0, 0, 6.0)
 		var c: Vector2i = main._find_spot(t)
