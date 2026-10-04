@@ -853,9 +853,15 @@ func _showcase() -> void:
 	s.commit_rally(GameConfig.entry_cell_for(s.bounds()) + Vector2i(0, 3))
 	main._sync_world()
 	await _wait(5)
-	var r := s.rally_cell()
-	await _focus(Vector2(float(r.x) + 0.5, float(r.y) + 0.8), 4.0)
-	await _shot("123-units-rally")
+	# 마을에서 유닛은 막사·훈련장 앞에 서 있다
+	var bx := 6.5
+	var bz := 6.0
+	for b in s.buildings:
+		if b.type == "barracks":
+			bx = float(b.x) + 1.0
+			bz = float(b.z) - 0.3
+	await _focus(Vector2(bx, bz), 4.2)
+	await _shot("123-units-barracks")
 	# 7단계 전투: 기사 여러 변형이 정문을 지나 길 위에 있을 때
 	await _ready_raid(7)
 	main._start_raid()
@@ -897,13 +903,13 @@ func _showcase() -> void:
 			for k in main.sim.knights:
 				if k.alive and String(k.get("kind", "")) == "hero":
 					hero_in = true
-		main.sim.advance(2.0)
+		main.sim.advance(6.0)
 		await _wait(4)
 		var hero_pos := Vector2(6.5, 2.0)
 		for k in main.sim.knights:
 			if k.alive and String(k.get("kind", "")) == "hero":
 				hero_pos = k.pos
-		await _focus(hero_pos, 3.2)
+		await _focus(hero_pos, 3.4)
 		for i in 4:
 			await _wait(1)
 		await _shot("125-boss-battle")
