@@ -1391,3 +1391,9 @@ func test_save_v4_units() -> void:
 	bad.rally = [99, 99]
 	check(GameState.validate_dict(bad) != "", "경계 밖 깃발 거부")
 	check(not s.check_rally(Vector2i(6, 7)).ok, "건물 위 깃발 거부")
+	# 기본 깃발 칸에 소품이 들어서면 가까운 빈칸으로
+	var f := at_level(3)
+	var def_cell := f.rally_cell()
+	f.wood = 500
+	check(f.commit_new_building("lantern", def_cell.x, def_cell.y, 0).ok, "기본 깃발 칸에 등불")
+	check(f.rally_cell() != def_cell and f.check_rally(f.rally_cell()).ok, "기본 깃발은 빈칸으로 옮겨짐 %s" % str(f.rally_cell()))

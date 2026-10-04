@@ -560,6 +560,13 @@ func _review_ui_checks(s: GameState) -> void:
 	main._confirm_edit()
 	await _wait(2)
 	check(s.rally == target and s.rally_cell() == target, "집결 깃발 옮기기 %s" % str(s.rally))
+	# 17) 전투 중 기사 외곽선 유지(맞아서 반짝인 뒤에도)
+	var kr := CharacterRig.knight(0)
+	main.world.add_child(kr)
+	main.world._set_overlay(kr, main.world._flash_mat)
+	main.world._set_overlay(kr, null)
+	check(kr.body.material_overlay != null, "반짝임 뒤 기사 외곽선 복원")
+	kr.queue_free()
 	# 9) 지도가 넓어지면 축소 한계도 넓어진다
 	check(main.world.cam_max >= 20.0 * WorldView._map_grow(s.bounds()) - 0.01, "넓힌 지도 축소 한계 %.1f" % main.world.cam_max)
 	# 11) 안내가 떠 있을 때 10단계 방어 시작: 안내를 끝내고 보스 장면 → 전투

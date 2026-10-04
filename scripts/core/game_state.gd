@@ -516,8 +516,15 @@ func rally_cell() -> Vector2i:
 	# 깃발 자리에 나중에 건물이 들어서면 성 앞으로 돌아간다
 	if rally != NO_RALLY and GridLogic.in_grid(rally, bounds()) and building_at(rally).is_empty():
 		return rally
+	# 기본: 성 앞(정문 쪽) 빈칸 중 가장 가까운 칸
 	var c := GridLogic.castle_of(buildings)
-	return Vector2i(int(c.get("x", 6)) + 1, int(c.get("z", 6)) - 1)
+	var cx := int(c.get("x", 6))
+	var cz := int(c.get("z", 6))
+	for d: Vector2i in [Vector2i(1, -1), Vector2i(0, -1), Vector2i(2, -1), Vector2i(1, -2), Vector2i(0, -2), Vector2i(2, -2), Vector2i(-1, -1), Vector2i(3, -1), Vector2i(1, -3)]:
+		var cell := Vector2i(cx, cz) + d
+		if GridLogic.in_grid(cell, bounds()) and building_at(cell).is_empty():
+			return cell
+	return Vector2i(cx + 1, cz - 1)
 
 
 func check_rally(cell: Vector2i) -> Dictionary:

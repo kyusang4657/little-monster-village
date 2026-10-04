@@ -665,8 +665,13 @@ func sync_units(units: Dictionary, buildings: Array, rally: Vector2i) -> void:
 		for i in n:
 			var rig := CharacterRig.skeleton_archer() if kind == "archer" else CharacterRig.orc()
 			rig.seed_id = 31 + i * 7 + (0 if kind == "archer" else 3)
-			var base := Vector2(rally.x + 0.5, rally.y + 0.5) if home.is_empty() else Vector2(int(home.x) + 1.0, int(home.z) - 0.45)
+			var hfp := GameConfig.footprint(String(home.get("type", "barracks")))
+			var base := Vector2(rally.x + 0.5, rally.y + 0.5) if home.is_empty() else Vector2(int(home.x) + hfp.x * 0.5, int(home.z) - 0.45)
 			var p := base + Vector2(float(i % 5) * 0.42 - 0.84, -float(i / 5) * 0.45)
+			# 마을 경계 안으로(정문 쪽 가장자리 건물이어도 밖에 서지 않게)
+			var mb := map_bounds if map_bounds.size != Vector2i.ZERO else GameConfig.initial_bounds()
+			p.x = clampf(p.x, mb.position.x + 0.3, mb.end.x - 0.3)
+			p.y = clampf(p.y, mb.position.y + 0.3, mb.end.y - 0.3)
 			rig.position = W(p.x, 0, p.y)
 			rig.rotation.y = yaw_for_dir(Vector2(0, -1))
 			rig.set_meta("t0", float(i) * 0.7)
@@ -983,6 +988,8 @@ func update_battle(sim: BattleSim, delta: float, castle_id: String) -> void:
 					_knight_nodes[e.knight].hurt = KNIGHT_HIT_TIME
 			"unit_hit":
 				Sound.play("hit", -8.0, 1.2)
+				if _knight_nodes.has(e.knight):
+					_knight_nodes[e.knight].struck = true
 			"outpost_hit":
 				Sound.play("castle_hit", -8.0, 1.15)
 				if _knight_nodes.has(e.knight):
@@ -1076,7 +1083,9 @@ func update_battle(sim: BattleSim, delta: float, castle_id: String) -> void:
 		var total: float = (bolt.start as Vector2).distance_to(tk.pos) + 0.0001
 		var left: float = (bolt.pos as Vector2).distance_to(tk.pos)
 		var p := clampf(1.0 - left / total, 0.0, 1.0)
-		var y := lerpf(2.0, 0.65, p) + sin(p * PI) * 0.35
+		# 궁수 화살은 땅에 선 궁수 손 높이에서, 방어탑 화살은 탑 위에서
+		var y0 := 1.0 if String(bolt.tower_id).begins_with("archer_") else 2.0
+		var y := lerpf(y0, 0.65, p) + sin(p * PI) * 0.35
 		var pos := W(bolt.pos.x, y, bolt.pos.y)
 		var dir := W(tk.pos.x, 0.65, tk.pos.y) - pos
 		node.position = pos
@@ -1116,7 +1125,9 @@ func _tower_node(id: String) -> Node3D:
 func _set_overlay(n: Node, mat: Material) -> void:
 	for c in n.get_children():
 		if c is MeshInstance3D and c.material_override == null:
-			(c as MeshInstance3D).material_overlay = mat
+			# 반짝임이 끝나면 만화풍 외곽선(설정이 켜져 있으면)으로 되돌린다
+			var keep: Material = c.get_meta("outline") if c.has_meta("outline") and MeshBatch.outlines_on else null
+			(c as MeshInstance3D).material_overlay = mat if mat != null else keep
 		if c.get_child_count() > 0 and not (c is MeshInstance3D):
 			_set_overlay(c, mat)
 

@@ -993,7 +993,7 @@ func show_info(b: Dictionary, state: GameState) -> void:
 		"flowerbed", "lantern":
 			desc += " · 꾸밈 소품"
 		"house":
-			desc += " · 꾸미기용 건물"
+			desc += " · 인구 +%d (유닛 %d/%d)" % [int(GameConfig.units_config().get("population_per_house", 1)), state.population(), state.population_cap()]
 		"lumber_camp":
 			desc += " · 목재 초당 %d" % int(GameConfig.economy().income_per_second)
 		"defense_tower":
@@ -1016,7 +1016,8 @@ func show_info(b: Dictionary, state: GameState) -> void:
 		var tv := state.check_train(b.id)
 		var ud := GameConfig.unit_def(trains)
 		set_button_text(info_upgrade, "%s 훈련 · 목재 %d" % [String(ud.get("label", trains)), int(ud.get("train_cost", 0))])
-		set_button_enabled(info_upgrade, tv.ok)
+		# 누를 수 없는 이유(대기열·인구·목재)는 눌렀을 때 알림으로 알려 준다
+		set_button_enabled(info_upgrade, state.is_built(b))
 	info_decor.visible = Decor.has_parts(b.type)
 	if b.type == "outpost" and bool(b.get("damaged", false)):
 		var rp := state.check_repair(b.id)

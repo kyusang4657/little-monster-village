@@ -12,6 +12,7 @@ var tutorial: Tutorial
 var story_view: StoryView
 var _story_then: Callable
 var _imp_taps := 0
+var _info_t := 0.0
 ## 성이 자란 전투 뒤, 결과·이야기가 끝나면 뿔이 축하 연출
 var _celebrate_level := 0
 var _story_current := ""
@@ -78,6 +79,8 @@ func _ready() -> void:
 		hud.toast("%s 훈련 완료! (인구 %d/%d)" % [String(GameConfig.unit_def(kind).get("label", kind)), state.population(), state.population_cap()])
 		Sound.play("build_done")
 		world.sync_units(state.units, state.buildings, state.rally_cell())
+		if not edit.is_empty() and edit.kind == "rally":
+			world.preview_rally(Vector2i(edit.x, edit.z))
 		saver.save(state))
 	world.outpost_fell.connect(func(_id: String): hud.toast("앞마당이 점령당했어요! 생산만 멈추고, 전투 뒤 수리할 수 있어요", 3.0))
 	_load_settings()
@@ -150,6 +153,12 @@ func _process(delta: float) -> void:
 	if hud.fps_on or hud.fps_label != null:
 		hud.set_fps_text("FPS %d · %.1fms" % [Engine.get_frames_per_second(), delta * 1000.0])
 	_check_low_fps(delta)
+	# 훈련 중인 건물 정보 창은 1초마다 남은 시간을 새로 고친다
+	if selected_id != "" and edit.is_empty() and hud.info_panel.visible and int(state.get_building(selected_id).get("train_queue", 0)) > 0:
+		_info_t += delta
+		if _info_t >= 1.0:
+			_info_t = 0.0
+			hud.show_info(state.get_building(selected_id), state)
 	match state.mode:
 		GameState.MODE_VILLAGE, GameState.MODE_RAID_READY, GameState.MODE_BUILD:
 			state.tick(dt)
@@ -1184,8 +1193,8 @@ func _tap(pos: Vector2) -> void:
 	if state.mode != GameState.MODE_VILLAGE and state.mode != GameState.MODE_RAID_READY:
 		return
 	hud.hide_build_menu()
-	# 뿔이를 누르면 한마디(건물보다 먼저)
-	if world.imp.hit(world.camera, pos):
+	# 뿔이를 누르면 한마디(누른 칸에 건물이 있으면 건물이 먼저)
+	if state.building_at(_cell_at(pos)).is_empty() and world.imp.hit(world.camera, pos):
 		world.imp.react(Story.imp_tap_line(_imp_taps))
 		_imp_taps += 1
 		Sound.play("click")

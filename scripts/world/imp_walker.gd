@@ -4,6 +4,7 @@ extends Node3D
 ## 산책 목적지는 성 앞·주택 앞·벌목소 앞을 차례로 돈다(난수 없음). 전투 중에는 성 뒤에 숨어서 지켜본다.
 
 const SPEED := 1.1
+var _bounds := Rect2i()
 
 var rig: CharacterRig
 var level := 0
@@ -74,17 +75,23 @@ func hit(cam: Camera3D, screen: Vector2) -> bool:
 	if rig == null or not visible:
 		return false
 	var p := cam.unproject_position(global_position + Vector3(0, 0.45, 0))
-	return p.distance_to(screen) < 70.0
+	# 확대 정도에 맞춘 판정 반경(약 0.45칸)
+	var edge := cam.unproject_position(global_position + Vector3(0.45, 0.45, 0))
+	return p.distance_to(screen) < maxf(24.0, p.distance_to(edge))
 
 
 func update_imp(buildings: Array, edges: Dictionary, bounds: Rect2i, delta: float, battle: bool) -> void:
 	if rig == null:
 		return
+	_bounds = GridLogic.bnd(bounds)
 	_time += delta
 	var castle := GridLogic.castle_of(buildings)
 	var goals := _goals(buildings, castle, battle)
-	if pos.x < -50.0 and not goals.is_empty():
+	var here := Vector2i(int(floor(pos.x)), int(floor(pos.y)))
+	if (pos.x < -50.0 or (path.is_empty() and GridLogic.occupancy(buildings).has(here))) and not goals.is_empty():
+		# 처음이거나, 서 있던 칸에 건물이 들어서면 빈 목적지로 옮긴다
 		pos = Vector2(goals[0].x + 0.5, goals[0].y + 0.5)
+		path = []
 	if path.is_empty():
 		_wait -= delta
 		if _wait <= 0.0 and not goals.is_empty():
@@ -94,9 +101,8 @@ func update_imp(buildings: Array, edges: Dictionary, bounds: Rect2i, delta: floa
 			path = []
 			for c in cells:
 				path.append(Vector2(c.x + 0.5, c.y + 0.5))
-			if path.is_empty():
-				pos = Vector2(g.x + 0.5, g.y + 0.5)
-			_wait = 3.5 + float(_goal_i % 3)
+			# 길이 없으면(울타리로 막힘 등) 순간이동하지 않고 다음 목적지를 잠시 뒤에 고른다
+			_wait = 3.5 + float(_goal_i % 3) if not path.is_empty() else 0.5
 			# 가끔(목적지 세 번에 한 번) 무서운 자세 연습
 			if _goal_i % 3 == 1:
 				_scare_t = 0.0
@@ -158,11 +164,13 @@ func _goals(buildings: Array, castle: Dictionary, battle: bool) -> Array:
 			if not occ.has(c):
 				return [c]
 		return out
-	out.append(Vector2i(castle.x + 1, castle.z - 1))
+	var cands: Array = [Vector2i(castle.x + 1, castle.z - 1)]
 	for b in buildings:
 		if b.type in ["house", "lumber_camp"] and float(b.get("build_left", 0.0)) <= 0.0:
 			var fp := GameConfig.footprint(b.type)
-			var c := Vector2i(int(b.x) + fp.x / 2, int(b.z) - 1)
-			if not occ.has(c):
-				out.append(c)
+			cands.append(Vector2i(int(b.x) + fp.x / 2, int(b.z) - 1))
+	# 경계 안 빈칸만
+	for c in cands:
+		if GridLogic.in_grid(c, _bounds) and not occ.has(c):
+			out.append(c)
 	return out
