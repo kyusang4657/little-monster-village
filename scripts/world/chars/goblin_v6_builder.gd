@@ -38,8 +38,10 @@ const HORN := Color("d9a85a")
 const HORN_TIP := Color("f2dfb0")
 const WOOD := Color("b57a3f")
 const WOOD_DARK := Color("7e4f24")
-const FANG := Color("f6f2e6")
+const FANG := Color("ede4c8")
 const MOUTH_IN := Color("3d1a22")
+const MOUTH_OPEN := Color("3a1a1a")
+const STRAP := Color("6b4a2a")
 
 ## 골격(5차와 같음: 약 2.8등신, 키 1.0)
 const P := {
@@ -58,8 +60,8 @@ const BELT_BOT := 0.345
 
 ## 몸통 회전체 단면(위 → 아래): y, rx(가로), rz(앞뒤). 조끼·끈·버클은 이 겉면을 따라간다
 const BODY_Y := [0.7, 0.64, 0.605, 0.585, 0.56, 0.52, 0.46, 0.405]
-const BODY_RX := [0.052, 0.056, 0.064, 0.105, 0.152, 0.172, 0.172, 0.16]
-const BODY_RZ := [0.052, 0.054, 0.06, 0.09, 0.121, 0.137, 0.139, 0.132]
+const BODY_RX := [0.052, 0.056, 0.064, 0.118, 0.16, 0.172, 0.172, 0.16]
+const BODY_RZ := [0.052, 0.054, 0.06, 0.098, 0.126, 0.137, 0.139, 0.132]
 
 
 static func build(v: int, with_hammer: bool) -> Dictionary:
@@ -205,24 +207,30 @@ static func _vest(g: DemonGeo) -> void:
 			radii.append(0.0085)
 		g.line = 0.5
 		g.spline_tube(pts, radii, VEST_DARK, 4, false, true, Vector3.BACK, 1.0, 0.7)
-	# 가슴을 가로지르는 가죽 끈(왼쪽 어깨 → 오른쪽 벨트 밑으로)
+	# 가슴을 가로지르는 가죽 끈: 등 조끼 속에서 올라와 왼쪽 어깨를 넘고 가슴을 비스듬히 가로질러 오른쪽 벨트 속으로 들어간다
 	var strap: Array = []
 	var strap_r: Array = []
-	for i in 6:
+	var rb := _vest_r(0.5)
+	strap.append(Vector3(-0.115, 0.49, rb.y * 0.72))
+	strap.append(_front(-0.125, 0.545, _vest_r(0.545), 0.006) * Vector3(1, 1, -1))
+	strap.append(Vector3(-0.133, 0.602, 0.006))
+	strap.append(_front(-0.133, 0.566, _vest_r(0.566), 0.007))
+	for i in range(1, 6):
 		var t := float(i) / 5.0
-		var x := lerpf(-0.135, 0.115, t)
-		var y := lerpf(0.575, BELT_TOP - 0.004, t)
-		var r := _vest_r(y)
-		strap.append(_front(x, y, r, 0.006 if i < 5 else -0.004))
-		strap_r.append(0.013)
+		var x := lerpf(-0.133, 0.115, t)
+		var y := lerpf(0.566, BELT_TOP - 0.004, t)
+		strap.append(_front(x, y, _vest_r(y), 0.007 if i < 5 else -0.004))
+	strap.append(_front(0.12, 0.352, _vest_r(0.352), -0.03))
+	for i in strap.size():
+		strap_r.append(0.014)
 	g.line = 0.5
-	g.spline_tube(strap, strap_r, LEATHER, 4, true, false, Vector3.BACK, 0.35, 1.0)
+	g.spline_tube(strap, strap_r, STRAP, 4, false, false, Vector3.BACK, 0.35, 1.0)
 	g.line = 1.0
 
 
 # ------------------------------------------------------------------ 팔다리(이어진 관)
 
-## 팔: 조끼 속 어깨에서 시작해(외곽선 0) 둥근 어깨 → 위팔 → 팔꿈치 → 굵어지는 아래팔 → 한 단 올라선 가죽 손목 띠 → 큰 주먹(둥근 끝)
+## 팔: 몸통 속 깊이 시작해(외곽선 0) 승모근 비탈에 반쯤 잠긴 둥근 어깨(몸통과 겹치는 고리는 외곽선 없음) → 위팔 → 팔꿈치 → 굵어지는 아래팔 → 한 단 올라선 가죽 손목 띠 → 큰 주먹(둥근 끝)
 static func _arms(g: DemonGeo, v: int) -> void:
 	var bulk := 1.15 if v == 1 else 1.0
 	for side: float in [-1.0, 1.0]:
@@ -232,10 +240,10 @@ static func _arms(g: DemonGeo, v: int) -> void:
 		var fore := "Forearm" + sfx
 		var hand := "Hand" + sfx
 		var nodes: Array = [
-			{p = Vector3(x * 0.55, 0.548, 0.0), r = 0.048 * bulk, bone = arm, col = SKIN, line = 0.0},
-			{p = Vector3(x * 0.88, 0.558, 0.0), r = 0.055 * bulk, bone = arm, col = SKIN, line = 0.0},
-			{p = Vector3(x * 1.02, 0.548, 0.0), r = 0.056 * bulk, bone = arm, col = SKIN},
-			{p = Vector3(x * 1.03, 0.5, 0.0), r = 0.046 * bulk, bone = arm, col = SKIN},
+			{p = Vector3(x * 0.45, 0.542, 0.0), r = 0.046 * bulk, bone = arm, col = SKIN, line = 0.0},
+			{p = Vector3(x * 0.78, 0.548, 0.0), r = 0.054 * bulk, bone = arm, col = SKIN, line = 0.0},
+			{p = Vector3(x * 0.97, 0.532, 0.0), r = 0.055 * bulk, bone = arm, col = SKIN, line = 0.0},
+			{p = Vector3(x * 1.03, 0.492, 0.0), r = 0.046 * bulk, bone = arm, col = SKIN, line = 0.35},
 			{p = Vector3(x, 0.44, 0.0), r = 0.039, bone = fore, col = SKIN},
 			{p = Vector3(x, 0.372, 0.0), r = 0.045, bone = fore, col = SKIN},
 			{p = Vector3(x, 0.355, 0.0), r = 0.052, bone = fore, col = LEATHER},
@@ -256,7 +264,7 @@ static func _arms(g: DemonGeo, v: int) -> void:
 			# 건설형: 오른쪽 어깨 가죽 어깨받이(어깨를 감싸는 덮개 + 놋쇠 징)
 			g.use(arm)
 			g.line = 0.6
-			var sc := Vector3(x * 1.03, 0.54, 0.0)
+			var sc := Vector3(x * 0.98, 0.528, 0.0)
 			g.ellipsoid(sc, Vector3(0.07, 0.07, 0.07), LEATHER_LIGHT, 10, 3, Basis(Vector3.BACK, -0.3), PI * 0.5, PI * 0.5)
 			g.line = 0.0
 			g.sphere(sc + Vector3(0.03, 0.062, 0.0), 0.009, BRASS, 6, 3)
@@ -300,13 +308,13 @@ static func _legs(g: DemonGeo) -> void:
 
 # ------------------------------------------------------------------ 머리(조각 구 한 장)
 
-## 머리 타원 공간의 방향 d(단위)에 대한 반지름 배수: 눈두덩·눈썹 능선·넓은 볼·주둥이·큰 둥근 코·주걱턱 아랫입술
+## 머리 타원 공간의 방향 d(단위)에 대한 반지름 배수: 깊은 눈구멍·눈썹 능선·넓은 볼·주둥이·큰 둥근 코·주걱턱 아랫입술
 static func _hk(d: Vector3) -> float:
 	var el := Vector3(-EYE_DX, EYE_DY, -0.89).normalized()
 	var er := Vector3(EYE_DX, EYE_DY, -0.89).normalized()
 	var k := 1.0
 	# 눈두덩(눈 방향으로 패임)
-	k -= 0.08 * (DemonGeo.bump(d, el, 0.27) + DemonGeo.bump(d, er, 0.27))
+	k -= 0.115 * (DemonGeo.bump(d, el, 0.3) + DemonGeo.bump(d, er, 0.3))
 	# 눈썹 능선(눈 위, 조금 바깥)
 	k += 0.025 * (DemonGeo.bump(d, Vector3(-0.38, 0.5, -0.78).normalized(), 0.25) + DemonGeo.bump(d, Vector3(0.38, 0.5, -0.78).normalized(), 0.25))
 	# 넓은 볼(아래 옆 앞): 5차의 통통한 볼 덩어리를 한 면으로. 아래 얼굴이 머리통보다 넓은 서양배 꼴
@@ -404,16 +412,16 @@ static func _nose(g: DemonGeo) -> void:
 	g.limb(nodes, 10, Vector3.UP, false, true, 3)
 
 
-## 아랫입술에서 위로 솟은 아랫니 송곳니 둘(뿌리는 입술 속, 끝은 입선 위로 올라온다)
+## 아랫입술에서 위로 솟은 뼈색 아랫니 송곳니 둘(뿌리는 입술 속, 끝은 입선 위로 코 높이의 1/3 만큼 올라온다)
 static func _fangs(g: DemonGeo) -> void:
 	g.use("Head")
 	g.line = 0.4
 	for side: float in [-1.0, 1.0]:
-		var d := _fd(0.24 * side, -0.7)
+		var d := _fd(0.3 * side, -0.68)
 		var nn := Vector3(d.x / HR.x, d.y / HR.y, d.z / HR.z).normalized()
-		var b := _hp(d) - nn * 0.004
-		var pts: Array = [b, b + Vector3(0.003 * side, 0.024, 0) + nn * 0.012, b + Vector3(0.007 * side, 0.048, 0) + nn * 0.016]
-		g.spline_tube(pts, [0.016, 0.012, 0.0], FANG, 6, false, true, Vector3.RIGHT, 1.0, 0.8)
+		var b := _hp(d) + nn * 0.004
+		var pts: Array = [b, b + Vector3(0.002 * side, 0.016, 0) + nn * 0.012, b + Vector3(0.004 * side, 0.036, 0) + nn * 0.02]
+		g.spline_tube(pts, [0.014, 0.011, 0.0], FANG, 6, false, true, Vector3.RIGHT, 1.0, 0.8)
 	g.line = 1.0
 
 
@@ -625,18 +633,18 @@ static func _helmet(g: DemonGeo) -> void:
 
 # ------------------------------------------------------------------ 얼굴
 
-## 눈(눈두덩 속 흰 눈알 + 큰 검은 눈동자 + 둥근 반사광, 눈알 윗부분의 짙은 뚜껑), 윗눈꺼풀, 끝이 가는 짙은 눈썹(코 쪽이 내려감), 감은 눈 선, 입 세 가지.
+## 눈(눈구멍에 들어앉은 납작한 흰 눈알(앞면이 볼과 나란) + 큰 검은 눈동자 + 둥근 반사광, 눈알 윗부분의 짙은 뚜껑), 윗눈꺼풀, 끝이 가는 짙은 눈썹(코 쪽이 내려감), 감은 눈 선, 입 세 가지.
 ## 뼈 이름은 CharacterRig 의 표정 규약 그대로(EyeL/R, PupilL/R, LidL/R, BrowL/R, MouthN/A/H)
 static func _face(g: DemonGeo) -> void:
 	var es := ES
 	var keep_line := g.line
 	g.line = 0.0
-	var er := Vector3(es * 1.22, es * 1.42, es * 0.8)
+	var er := Vector3(es * 1.22, es * 1.42, es * 0.42)
 	for side: float in [-1.0, 1.0]:
 		var sfx := "L" if side < 0.0 else "R"
 		var d := Vector3(EYE_DX * side, EYE_DY, -0.89).normalized()
 		var floor_p := _hp(d)
-		var ec := floor_p - d * (er.z * 0.38)
+		var ec := floor_p + d * 0.004
 		var eb := Basis.looking_at(d, Vector3.UP)
 		var ebt := eb * Basis(Vector3.BACK, side * 0.12)
 		# 앞을 극으로 둔 틀(정면 윤곽이 경도 분할로 둥글게 나온다): 지역 Y = 바깥(d), 지역 Z = 위
@@ -684,18 +692,23 @@ static func _face(g: DemonGeo) -> void:
 	g.add_bone("MouthN", "Head", mc)
 	g.use("MouthN")
 	var pts: Array = []
-	for i in 7:
-		var u := float(i) / 3.0 - 1.0
-		var w := -0.61 - 0.08 * u * u + 0.02 * absf(u)
-		var dm := _fd(u * 0.36, w)
+	for i in 9:
+		var u := float(i) / 4.0 - 1.0
+		var w := -0.61 - 0.07 * u * u + 0.02 * absf(u)
+		var dm := _fd(u * 0.6, w)
 		pts.append(_hp(dm) + dm * 0.002)
-	g.spline_tube(pts, [0.003, 0.0055, 0.006, 0.006, 0.006, 0.0055, 0.003], MOUTH_IN, 4, true, true)
+	g.spline_tube(pts, [0.003, 0.0055, 0.006, 0.006, 0.006, 0.006, 0.006, 0.0055, 0.003], MOUTH_IN, 4, true, true)
 	g.add_bone("MouthA", "Head", mc)
 	g.use("MouthA")
 	var dn := _fd(0.0, -0.61)
+	var mnn := Vector3(dn.x / HR.x, dn.y / HR.y, dn.z / HR.z).normalized()
 	var mb := Basis.looking_at(dn, Vector3.UP)
-	g.ellipsoid(mc - dn * 0.006, Vector3(0.064, 0.03, 0.016), MOUTH_IN, 10, 3, mb)
-	g.ellipsoid(mc + mb * Vector3(0, -0.02, -0.008), Vector3(0.046, 0.009, 0.01), Color.WHITE, 6, 2, mb)
+	var wb := Basis(Vector3.RIGHT, mnn.cross(Vector3.RIGHT).normalized(), mnn)
+	g.line = 0.5
+	g.polygon(PackedVector2Array([Vector2(-0.115, 0.012), Vector2(-0.06, 0.02), Vector2(0.06, 0.02), Vector2(0.115, 0.012),
+		Vector2(0.055, -0.04), Vector2(-0.055, -0.04)]), mc + mnn * 0.004, wb, 0.006, MOUTH_OPEN, MOUTH_OPEN)
+	g.line = 0.0
+	g.ellipsoid(mc + mb * Vector3(0, -0.026, -0.009), Vector3(0.042, 0.007, 0.008), FANG, 6, 2, mb)
 	g.add_bone("MouthH", "Head", mc)
 	g.use("MouthH")
 	g.ellipsoid(mc - dn * 0.004, Vector3(0.022, 0.024, 0.012), MOUTH_IN, 6, 3, mb)
@@ -718,7 +731,7 @@ static func _hammer(g: DemonGeo, v: int, hand: Vector3) -> Vector3:
 	g.measure = false
 	g.measure_all = false
 	var ib := _idle_hand_basis()
-	var d_w := Vector3(0.26, -0.93, 0.26) if v != 1 else Vector3(0.34, -0.94, 0.0)
+	var d_w := Vector3(0.26, -0.93, 0.26) if v != 1 else Vector3(0.54, -0.62, -0.57)
 	var d := (ib * d_w.normalized()).normalized()
 	var perp := (ib * d_w.cross(Vector3.RIGHT).normalized()).normalized()
 	var side := perp.cross(d).normalized()
