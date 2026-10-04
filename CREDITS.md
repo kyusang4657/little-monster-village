@@ -6,7 +6,6 @@
 
 | 자료 | 위치 | 만든 사람 / 출처 | 라이선스 |
 | --- | --- | --- | --- |
-| 나눔고딕(Regular, Bold) | `assets/fonts/` | NAVER Corp. · [Google Fonts 저장소](https://github.com/google/fonts/tree/main/ofl/nanumgothic) | SIL Open Font License 1.1 (`assets/fonts/OFL.txt`) |
 | 주아체(Jua) | `assets/fonts/Jua-Regular.ttf` | 우아한형제들 · [Google Fonts 저장소](https://github.com/google/fonts/tree/main/ofl/jua) | SIL Open Font License 1.1 (`assets/fonts/OFL-Jua.txt`) |
 | 검은고딕(Black Han Sans) | `assets/fonts/BlackHanSans-Regular.ttf` | Zess Type · [Google Fonts 저장소](https://github.com/google/fonts/tree/main/ofl/blackhansans) | SIL Open Font License 1.1 (`assets/fonts/OFL-BlackHanSans.txt`) |
 | 3D 모델 전부(성 Lv.1~4·주택·벌목소·방어탑·앞마당·꽃밭·버섯 등불·울타리·나무·비계) | `scripts/world/models.gd` | 이 프로젝트에서 기본 도형을 코드로 조합해 직접 제작 | 프로젝트 소스와 같음 |

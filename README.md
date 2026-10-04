@@ -1,18 +1,19 @@
-# 마물의 작은 마을 (v0.3.0)
+# 마물의 작은 마을 (v0.4.0)
 
 마물 진영의 작은 마을을 짓고 꾸미면서, 성을 노리는 인간 기사의 습격을 방어탑으로 막는 가로 화면 건설·방어 게임입니다. 습격을 막을수록 성이 자라고 땅이 넓어져, 작은 마을이 마왕성이 됩니다. 오프라인 싱글플레이이며 서버·로그인·광고·결제·런타임 생성형 AI가 없습니다.
 
-> **현재 상태: 3차 개발(마왕성으로 성장하기) A1~A5 구현과 디버그 APK·웹 빌드는 끝났고, 실제 휴대전화 검증은 하지 못했습니다.**
+> **현재 상태: 4차(만화풍 화풍·주인공 뿔이·유닛 직접 생산) 구현과 디버그 APK·웹 빌드는 끝났고, 실제 휴대전화 검증은 하지 못했습니다.**
 > 자동 검사·데스크톱(가상 디스플레이)·헤드리스 브라우저로 확인한 범위와 미검증 항목은 [`docs/TEST-REPORT.md`](docs/TEST-REPORT.md)에 구분해 두었습니다.
 
 | 항목 | 내용 |
 | --- | --- |
-| 설치 파일 | [`release/monster-village-0.3.0-debug.apk`](release/monster-village-0.3.0-debug.apk) (**디버그용 APK**, arm64-v8a + armeabi-v7a, 약 58MB) |
+| 설치 파일 | [`release/monster-village-0.4.0-debug.apk`](release/monster-village-0.4.0-debug.apk) (**디버그용 APK**, arm64-v8a + armeabi-v7a, 약 58MB) |
 | 웹(itch.io용) | `godot --headless --path . --export-release "Web" build/web/index.html` → `build/web` 압축(약 12.7MB). 안내: [`docs/release/ITCH-IO.md`](docs/release/ITCH-IO.md) |
-| 패키지 ID / 버전 | `io.github.kyusang4657.monstervillage` / 0.3.0 (versionCode 3). 0.1.0·0.2.0과 같은 디버그 서명이라 덮어 설치하면 저장이 이어집니다 |
+| 패키지 ID / 버전 | `io.github.kyusang4657.monstervillage` / 0.4.0 (versionCode 4). 이전 버전과 같은 디버그 서명이라 덮어 설치하면 저장이 이어집니다 |
 | 엔진 | Godot **4.4.1-stable** · GDScript · **Compatibility** 렌더러 · 실시간 3D |
 | 권한 | 추가 권한 없음(인터넷·위치·카메라·연락처 사용 안 함) |
 | 출처·라이선스 | [`CREDITS.md`](CREDITS.md) (폰트 OFL, 모델·소리는 직접 제작, 소리는 CC0) |
+| 4차 설계 결정 | [`docs/DESIGN-v0.4.md`](docs/DESIGN-v0.4.md) (화풍 규칙, 뿔이, 유닛·인구·집결 깃발과 균형) |
 | 3차 설계 결정 | [`docs/DESIGN-v0.3.md`](docs/DESIGN-v0.3.md) (장·성 레벨·넓히기·앞마당·이야기·자유도 결정과 이유) |
 | 출시 준비 | [`docs/release/`](docs/release) (itch.io, Google Play, 개인정보처리방침), [`docs/store/`](docs/store) (아이콘·대표 이미지·스크린샷·설명) |
 
@@ -22,9 +23,9 @@
 
 1. 휴대전화에서 APK를 내려받습니다(GitHub 파일 화면 → *Download raw file*).
 2. "출처를 알 수 없는 앱" 설치를 허용하고 설치합니다. 인터넷 연결은 필요 없습니다.
-3. PC에서는 `adb install -r release/monster-village-0.3.0-debug.apk`로 설치합니다.
+3. PC에서는 `adb install -r release/monster-village-0.4.0-debug.apk`로 설치합니다.
 
-이전 버전 저장 데이터(형식 v1·v2)는 처음 실행할 때 v3으로 자동 이전됩니다. 성 레벨은 이미 깬 단계에 맞춰지고, 이미 지나온 장의 이야기는 본 것으로 표시됩니다.
+이전 버전 저장 데이터(형식 v1~v3)는 처음 실행할 때 v4로 자동 이전됩니다(유닛 0, 집결 깃발은 성 앞). 성 레벨은 이미 깬 단계에 맞춰지고, 이미 지나온 장의 이야기는 본 것으로 표시됩니다.
 
 ## 2. 조작법
 
@@ -39,12 +40,22 @@
 | 방어탑 강화 | Lv.2(목재 60, 공격력 15) → Lv.3(목재 120, 공격력 22) |
 | 꾸미기 | 정보 패널 **꾸미기** → 오른쪽 패널에서 부품 선택(바로 미리보기) → **완료**(무료) / **취소** |
 | 습격 | 위쪽 **방어 시작**(자동으로 시작하지 않음). 전투 중 ‖ = 일시정지 |
-| 메뉴 ≡ | 그림자·FPS 표시, 도움 모드, 안내 다시 보기, **이야기 다시 보기**, 배경음·효과음 음량, 카메라 초기화, 새 게임 |
+| 유닛 | **건설 → 해골 막사**(Lv.1)·**오크 훈련장**(Lv.2) → 건물을 눌러 **훈련**(목재·시간, 주택 1채당 1명). 전투에 자동으로 나가 **집결 깃발**(건설 메뉴에서 옮기기) 근처에서 싸움 |
+| 뿔이 | 마을을 걸어 다니는 주인공. 누르면 한마디, 성이 자라면 축하 |
+| 메뉴 ≡ | 그림자·외곽선·FPS 표시, 도움 모드, 안내 다시 보기, **이야기 다시 보기**, 배경음·효과음 음량, 카메라 초기화, 새 게임 |
 | 뒤로 가기 키 | 편집 취소·창 닫기, 전투 중에는 일시정지 |
 
 처음 실행하면 짧은 프롤로그 뒤에 고블린 촌장 꼬블의 안내 말풍선 9단계(건설 → 배치 → 공사 → 강화 → 방어 시작)가 나옵니다. 이야기와 안내 모두 **건너뛰기**를 누를 수 있고, 메뉴에서 다시 볼 수 있습니다.
 
-## 3. 3차 개발에서 바뀐 것: 마왕성으로 성장하기
+## 3. 4차에서 바뀐 것: 만화풍 화풍, 주인공 뿔이, 유닛 직접 생산
+
+자세한 규칙과 이유는 [`docs/DESIGN-v0.4.md`](docs/DESIGN-v0.4.md), 화풍 규칙은 [`docs/design/style/`](docs/design/style), 뿔이 시안은 [`docs/design/imp/`](docs/design/imp)에 있습니다.
+
+- **화풍:** 캐릭터·건물·울타리에 짙은 외곽선, 칠한 듯한 명암, 큰 주먹·장화·방패의 두툼한 비율. 젤리 버튼·양피지 창·자원 막대·외곽선 글자(주아체·검은고딕). 느린 기기는 메뉴에서 외곽선을 끌 수 있습니다.
+- **뿔이(어린 마왕):** 짝짝이 뿔·물려받은 큰 망토·사탕 지팡이. 성 레벨에 따라 자라고, 마을을 산책하며 누르면 한마디, 성이 자라면 빛기둥과 함께 축하합니다.
+- **유닛:** 해골 궁수(깃발 뒤에서 활), 꼬마 오크(깃발 줄에서 기사를 2명까지 막음). 쓰러져도 전투가 끝나면 돌아옵니다. 초반에 큰 도움이 되지만 후반은 방어탑이 꼭 필요하도록 맞췄습니다.
+
+## 3-1. 3차 개발에서 바뀐 것: 마왕성으로 성장하기
 
 자세한 규칙과 자유도 결정의 이유는 [`docs/DESIGN-v0.3.md`](docs/DESIGN-v0.3.md)에 있습니다.
 
@@ -139,9 +150,9 @@ scripts/ui/                      hud(패널·꾸미기 패널·넓히기·이야
 scripts/audio/sound.gd           자동 로드 Sound(버스·효과음·배경음)
 scripts/main.gd                  흐름·입력·저장 시점·앱 상태
 scripts/debug/shot_driver.gd     실행 화면 자동 캡처(내보내기 제외)
-tests/run_tests.gd               규칙·밸런스 자동 검사 532개(헤드리스)
+tests/run_tests.gd               규칙·밸런스 자동 검사 586개(헤드리스)
 tests/character_checks.gd        캐릭터 관절·비율·동작·예산 검사 447개(헤드리스)
-tests/integration_driver.gd      실제 장면 통합 검사 88개(디스플레이 필요)
+tests/integration_driver.gd      실제 장면 통합 검사 99개(디스플레이 필요)
 tools/make_sounds.py             효과음·배경음 합성기(CC0)
 docs/store, docs/release         스토어 자료, 출시 안내
 ```
@@ -166,10 +177,11 @@ python3 tools/make_sounds.py                                         # 소리 �
 
 Android 내보내기 도구 구성(Godot 4.4.1 공식 템플릿, Gradle 미사용, apksigner, 디버그 키 `android/debug.keystore`)은 0.1.0과 같습니다. 편집기 설정 경로는 `export/android/*`입니다. 출시용 AAB는 `docs/release/GOOGLE-PLAY.md`를 따르세요.
 
-## 7. 저장 데이터(형식 v3)
+## 7. 저장 데이터(형식 v4)
 
 - 위치: Android `/data/data/io.github.kyusang4657.monstervillage/files/`, 웹은 브라우저 IndexedDB, Linux 데스크톱 `~/.local/share/godot/app_userdata/마물의 작은 마을/`
 - 파일: `save.json`, `save.bak.json`(직전 정상본), `settings.cfg`(그림자·FPS·음량·안내 완료)
+- v3 대비 추가 필드(v4): `units`(궁수·오크 수), `rally`(집결 깃발 칸, 비면 성 앞), 건물별 `train_queue`·`train_left`(훈련 대기·남은 초). 유닛 수는 주택 수 × 인구 배수를 넘으면 거부합니다.
 - v2 대비 추가 필드(v3): `expansions`(넓힌 방향), `story_seen`(본 장면), 건물별 `damaged`·`repairing`(앞마당 점령·수리). 지도 경계는 `expansions`에서 계산하고 최대 크기를 넘으면 거부합니다.
 - v1 대비 추가 필드(v2):
   - 건물별 `build_left`(남은 공사 초)
