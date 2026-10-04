@@ -2,15 +2,15 @@ class_name OrcV6Builder
 extends RefCounted
 ## 6차 교체 후보(꼬마 오크). 5차 디자인(OrcBuilder)을 그대로 두고 조립한 기본 도형 대신 이어지는 곡면으로 다시 만든다.
 ## 머리 = 조각 구 한 장(넓은 아래턱·주걱턱·굵은 눈썹 능선·둥근 코·눈두덩 패임), 눈은 눈두덩 속 크림색 눈알 + 눈알 위 짙은 뚜껑,
-## 모히칸 = 정수리 가운데 줄을 따라가는 한 장의 쐐기 지느러미(윗날이 톱니처럼 뾰족, 뿌리는 주황빛 갈색 → 붉은 볏),
-## 몸통 = 회전체 두 장(목 피부·짙은 가죽 조끼와 치마), 둥근 어깨 받이 = 어깨 위 회전체(갈색 테가 한 면에 이어짐),
+## 모히칸 = 정수리 가운데 줄을 따라가는 한 장의 쐐기 지느러미(뒤로 쓸린 큰 볏 셋이 겹친다, 뿌리는 주황빛 갈색 → 붉은 볏),
+## 몸통 = 회전체 두 장(목 피부·짙은 가죽 조끼와 치마), 둥근 어깨 받이 = 어깨 위 가죽 회전체(아래 테가 짙고, 안쪽 반은 가슴 속에 묻힌다),
 ## 팔다리 = 몸속에서 시작하는 이어진 관(팔뚝이 손목 쪽으로 굵어지고 가죽 손목 띠, 바지 → 장화), 왕주먹·장화 = 조각 구,
 ## 옹이 몽둥이 = 축을 따라 반지름이 부푸는 관 한 장(옹이 혹이 면에 이어짐) + 놋쇠 징. 기본 키 HEIGHT 1.0(게임에서 1.3 배).
 
-const SKIN := Color("6f9a3a")
-const SKIN_DARK := Color("577d2c")
-const SKIN_LIGHT := Color("83ad48")
-const EAR_IN := Color("4c6e27")
+const SKIN := Color("6b8e3a")
+const SKIN_DARK := Color("53722a")
+const SKIN_LIGHT := Color("7fa24a")
+const EAR_IN := Color("486424")
 const MOHAWK := Color("d0352a")
 const MOHAWK_HI := Color("ee6a40")
 const ROOT := Color("b9652c")
@@ -22,6 +22,9 @@ const ARMOR := Color("4b4752")
 const ARMOR_DARK := Color("36323c")
 const STRAP := Color("a0622e")
 const STRAP_DARK := Color("74441e")
+const PAD := Color("6e4a2a")
+const PAD_LIGHT := Color("7e5832")
+const PAD_RIM := Color("4a3018")
 const BRASS := Color("cfa548")
 const BRASS_DARK := Color("9c7a2e")
 const TROUSER := Color("6e4524")
@@ -278,8 +281,8 @@ static func _arms(g: DemonGeo) -> void:
 		var fshape := func(d: Vector3) -> float:
 			var k := 1.0
 			for kd: Vector3 in knuck:
-				k += 0.1 * DemonGeo.bump(d, kd, 0.2)
-			k += 0.12 * DemonGeo.bump(d, thumb, 0.3)
+				k += 0.2 * DemonGeo.bump(d, kd, 0.17)
+			k += 0.22 * DemonGeo.bump(d, thumb, 0.26)
 			k -= 0.08 * DemonGeo.bump(d, Vector3.DOWN, 0.5)
 			k -= 0.05 * DemonGeo.bump(d, Vector3(side, 0.0, 0.3).normalized(), 0.6)
 			return k
@@ -287,25 +290,27 @@ static func _arms(g: DemonGeo) -> void:
 			# 손가락 사이 홈은 조금 어둡게(앞 아래쪽, 마디 사이)
 			var groove := 0.0
 			for k in 2:
-				groove = maxf(groove, DemonGeo.bump(d, Vector3((float(k) - 0.5) * 0.42, -0.3, -0.86).normalized(), 0.07))
-			return SKIN.lerp(SKIN_DARK, clampf(groove * 0.9, 0.0, 1.0))
+				groove = maxf(groove, DemonGeo.bump(d, Vector3((float(k) - 0.5) * 0.42, -0.3, -0.86).normalized(), 0.09))
+			groove = maxf(groove, DemonGeo.bump(d, Vector3(-side * 0.55, -0.1, -0.78).normalized(), 0.07) * 0.8)
+			return SKIN.lerp(SKIN_DARK.darkened(0.15), clampf(groove, 0.0, 1.0))
 		g.sculpt(fc, Vector3(ar * 1.82, ar * 1.72, ar * 1.85), SKIN, 10, 7, fshape, fcol)
-		# 어깨 받이(회전체: 둥근 지붕 → 갈색 테 → 안으로 말린 끝). 팔 뼈에 붙는다
+		# 어깨 받이(가죽 회전체: 밝은 꼭대기 → 둥근 지붕 → 짙은 아래 테). 안쪽 반은 가슴 속에 묻히고 아래는 팔 위로 늘어진다.
+		# 가슴 속에 들어가는 아래 고리는 외곽선 0(받이와 가슴 사이에 이음새 테가 생기지 않는다). 팔 뼈에 붙는다
 		g.use("Arm" + sfx)
-		var pc := Vector3(x + 0.022 * side, 0.0, 0.0)
+		var pc := Vector3(x - 0.004 * side, 0.0, 0.0)
 		var pad: Array = [
-			{y = 0.66, rx = 0.012, rz = 0.011, bone = "Arm" + sfx, col = ARMOR},
-			{y = 0.634, rx = 0.09, rz = 0.08, bone = "Arm" + sfx, col = ARMOR},
-			{y = 0.605, rx = 0.111, rz = 0.099, bone = "Arm" + sfx, col = ARMOR},
-			{y = 0.573, rx = 0.121, rz = 0.108, bone = "Arm" + sfx, col = ARMOR},
-			{y = 0.556, rx = 0.123, rz = 0.11, bone = "Arm" + sfx, col = STRAP},
-			{y = 0.538, rx = 0.121, rz = 0.108, bone = "Arm" + sfx, col = STRAP},
-			{y = 0.532, rx = 0.104, rz = 0.094, bone = "Arm" + sfx, col = STRAP_DARK},
+			{y = 0.665, rx = 0.012, rz = 0.011, bone = "Arm" + sfx, col = PAD_LIGHT},
+			{y = 0.64, rx = 0.095, rz = 0.085, bone = "Arm" + sfx, col = PAD},
+			{y = 0.61, rx = 0.12, rz = 0.106, bone = "Arm" + sfx, col = PAD},
+			{y = 0.578, rx = 0.134, rz = 0.118, bone = "Arm" + sfx, col = PAD},
+			{y = 0.557, rx = 0.142, rz = 0.125, bone = "Arm" + sfx, col = PAD_RIM},
+			{y = 0.53, rx = 0.145, rz = 0.127, bone = "Arm" + sfx, col = PAD_RIM},
+			{y = 0.506, rx = 0.136, rz = 0.119, bone = "Arm" + sfx, col = PAD_RIM},
 		]
-		g.lathe(pad, 10, true, false, pc.x, pc.z)
+		g.lathe(pad, 10, true, false, pc.x, pc.z, func(i: int) -> float: return 0.0 if i >= 5 else 1.0)
 		# 놋쇠 징(어깨 받이 꼭대기 바깥)
 		g.line = 0.3
-		g.ellipsoid(Vector3(pc.x + 0.045 * side, 0.645, 0.0), Vector3(0.017, 0.012, 0.017), BRASS, 6, 2, Basis(Vector3.BACK, -side * 0.45))
+		g.ellipsoid(Vector3(pc.x + 0.05 * side, 0.648, 0.0), Vector3(0.017, 0.012, 0.017), BRASS, 6, 2, Basis(Vector3.BACK, -side * 0.45))
 		g.line = 1.0
 
 
@@ -387,21 +392,22 @@ static func _head(g: DemonGeo) -> void:
 	_mohawk(g)
 
 
-## 엄니: 아래턱 입꼬리 속에서 겉면 법선 방향으로 나와 위로 솟고 끝이 안쪽으로 휜다(게임 화면에서도 읽히게 크게)
+## 엄니: 아래턱 속 깊이(아랫입술 아래)에서 뿌리가 시작해 겉면 법선 방향으로 나와 바깥쪽으로 20° 벌어지며 위로 길게 솟고, 끝만 살짝 안으로 휜다
+## (턱에서 자라는 느낌, 게임 화면에서도 읽히게 크게)
 static func _tusks(g: DemonGeo) -> void:
 	g.use("Head")
 	var keep := g.line
 	for side: float in [-1.0, 1.0]:
-		var d := Vector3(0.4 * side, -0.56, -0.73).normalized()
-		var p0 := _hs(d, 0.86)
-		var p1 := _hs(d, 1.06)
-		var p2 := p1 + Vector3(0.012 * side, 0.058, -0.018)
-		var p3 := p1 + Vector3(-0.016 * side, 0.105, -0.01)
+		var d := Vector3(0.4 * side, -0.62, -0.7).normalized()
+		var p0 := _hs(d, 0.76)
+		var p1 := _hs(d, 1.04)
+		var p2 := p1 + Vector3(0.03 * side, 0.072, -0.024)
+		var p3 := p1 + Vector3(0.036 * side, 0.138, -0.012)
 		var nodes: Array = []
 		var n := 5
 		for i in n + 1:
 			var t := float(i) / float(n)
-			var r := 0.036 * (1.0 - pow(t, 1.6))
+			var r := 0.04 * (1.0 - pow(t, 1.7))
 			if i == n:
 				r = 0.0
 			nodes.append({p = DemonGeo.bez(p0, p1, p2, p3, t), r = r, bone = "Head", col = TUSK, line = 0.0 if i < 2 else 0.5})
@@ -409,7 +415,7 @@ static func _tusks(g: DemonGeo) -> void:
 	g.line = keep
 
 
-## 옆으로 뻗은 뾰족 귀(앞뒤로 납작한 잎, 뿌리는 머리 속), 앞면에 짙은 초록 안쪽 귀. EarL/EarR 뼈(2차 움직임)
+## 옆으로 뻗은 뾰족 귀(두께가 있는 잎: 뿌리는 머리 속, 끝으로 갈수록 위·뒤로 말린다), 앞면에 짙은 초록 안쪽 귀. EarL/EarR 뼈(2차 움직임)
 static func _ears(g: DemonGeo) -> void:
 	g.measure = false
 	for side: float in [-1.0, 1.0]:
@@ -417,52 +423,52 @@ static func _ears(g: DemonGeo) -> void:
 		var base := Vector3(0.165 * side, 0.8, 0.0)
 		g.add_bone("Ear" + sfx, "Head", base)
 		g.use("Ear" + sfx)
-		var dir := Vector3(side, 0.5, -0.12).normalized()
-		var L := 0.19
+		var dir := Vector3(side, 0.46, -0.1).normalized()
+		var L := 0.2
 		var pts: Array = []
 		var radii: Array = []
 		var prof: Array = [0.055, 0.068, 0.062, 0.046, 0.024, 0.0]
 		for i in 6:
 			var t := float(i) / 5.0
-			pts.append(base + dir * (L * t) + Vector3(0, 0.03 * t * t, 0.01 * t * t))
+			pts.append(base + dir * (L * t) + Vector3(0, 0.07 * t * t, 0.045 * t * t))
 			radii.append(prof[i])
-		g.spline_tube(pts, radii, SKIN, 6, false, false, Vector3.UP, 1.0, 0.32)
+		g.spline_tube(pts, radii, SKIN, 6, false, false, Vector3.UP, 1.0, 0.52)
 		# 안쪽 귀: 귀 앞면에 얇게 붙은 짙은 잎(외곽선 없음)
 		var inner: Array = []
 		var inner_r: Array = []
 		for i in range(1, 6):
 			var t := float(i) / 5.0
-			inner.append((pts[i] as Vector3) + Vector3(0, -0.004, -0.011) + dir * 0.008)
+			inner.append((pts[i] as Vector3) + Vector3(0, -0.004, -0.02) + dir * 0.008)
 			inner_r.append(float(prof[i]) * 0.55)
 		var keep := g.line
 		g.line = 0.0
-		g.spline_tube(inner, inner_r, EAR_IN, 4, false, false, Vector3.UP, 1.0, 0.26)
+		g.spline_tube(inner, inner_r, EAR_IN, 4, false, false, Vector3.UP, 1.0, 0.3)
 		g.line = keep
 	g.measure = true
 	g.use("Head")
 
 
-## 붉은 모히칸: 정수리 가운데 줄(이마 위 → 뒤통수)을 따라가는 한 장의 쐐기 지느러미. 행 = 앞→뒤, 열 = 왼쪽 뿌리 → 꼭대기 → 오른쪽 뿌리.
-## 뿌리는 두피 속에 묻히고, 높이는 가운데가 가장 높으며 윗날은 뾰족한 볏 다섯 개(번갈아 좌우로 아주 조금 기울어 정면에서도 끝이 보인다),
-## 끝은 뒤로 쓸린다. 색은 뿌리 주황빛 갈색 → 붉은색 → 끝 밝은 주황.
+## 붉은 모히칸: 정수리 가운데 줄(이마 위 → 뒤통수, 머리 앞뒤 길이의 60%)을 따라가는 한 장의 쐐기 지느러미. 행 = 앞→뒤, 열 = 왼쪽 뿌리 → 꼭대기 → 오른쪽 뿌리.
+## 뿌리는 두피 속에 묻히고, 윗날은 크고 뾰족한 볏 셋(높이 ≈ 머리 높이의 절반, 뒤로 쓸려 앞 볏의 끝이 뒷 볏의 뿌리 위에 겹친다,
+## 번갈아 좌우로 아주 조금 기울어 정면에서도 끝이 보인다). 색은 뿌리 주황빛 갈색 → 붉은색 → 끝 밝은 주황.
 static func _mohawk(g: DemonGeo) -> void:
 	g.measure = false
 	g.use("Head")
-	var S := 18
+	var S := 15
 	var N := 4
-	var spikes := 5.0
+	var spikes := 3.0
 	var pts: Array = []
 	var tcol: Array = []
 	for i in S + 1:
 		var s := float(i) / float(S)
-		var phi := lerpf(-0.95, 0.95, s)                 # 앞(-Z) → 뒤(+Z)
+		var phi := lerpf(-0.6, 0.68, s)                  # 앞(-Z) → 뒤(+Z)
 		var d := Vector3(0, cos(phi), sin(phi))
 		var root := _hs(d, 0.955)
-		var env := pow(sin(PI * s), 0.55)
+		var env := pow(sin(PI * s), 0.3)
 		var saw := 1.0 - absf(fposmod(s * spikes, 1.0) - 0.5) * 2.0    # 볏 꼭대기에서 1
-		var hgt := 0.205 * env * (0.6 + 0.4 * pow(saw, 1.5)) * (1.0 + 0.18 * (1.0 - s))
-		var wid := 0.088 * pow(sin(PI * s), 0.4) + 0.004
-		var fdir := (d * 0.7 + Vector3.UP * 0.55 + Vector3.BACK * (0.15 + 0.3 * s)).normalized()
+		var hgt := 0.26 * env * (0.3 + 0.7 * pow(saw, 1.2)) * (1.0 + 0.12 * (1.0 - s))
+		var wid := 0.095 * pow(sin(PI * s), 0.4) + 0.004
+		var fdir := (d * 0.55 + Vector3.UP * 0.6 + Vector3.BACK * (0.42 + 0.22 * s)).normalized()
 		var spike_i := int(floor(s * spikes))
 		var sway := (0.05 if spike_i % 2 == 0 else -0.05) * saw
 		var row: Array = []
@@ -471,7 +477,7 @@ static func _mohawk(g: DemonGeo) -> void:
 			var t := 1.0 - absf(float(j - N)) / float(N)
 			var sd := signf(float(j - N))
 			var x := sd * wid * pow(1.0 - t, 0.75)
-			var p := root + fdir * (hgt * t) + Vector3(x + sway * t * t, 0.0, 0.07 * hgt * t * t / 0.2)
+			var p := root + fdir * (hgt * t) + Vector3(x + sway * t * t, 0.0, 0.09 * hgt * t * t / 0.2)
 			row.append(p)
 			crow.append(t)
 		pts.append(row)

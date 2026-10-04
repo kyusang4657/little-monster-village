@@ -1,17 +1,18 @@
 class_name SkeletonV6Builder
 extends RefCounted
 ## 6차 교체 후보(해골 궁수). 5차 디자인(SkeletonBuilder)을 그대로 두고 조립한 기본 도형 대신 이어지는 곡면으로 다시 만든다.
-## 해골 = 조각 구 한 장(둥근 머리통 → 광대뼈 → 좁아지는 턱, 크게 파인 눈구멍·코 구멍 자리, 눈구멍 안쪽은 정점 색으로 새까맣게),
-## 붉은 빛점은 눈구멍 바닥에 앉고, 눈두덩 능선은 끝이 가는 짙은 띠. 이빨 줄은 입 뼈(표정)로 바뀐다.
+## 해골 = 조각 구 한 장(둥근 머리통 → 광대뼈 → 좁아지는 턱, 둥근 타원으로 움푹 파인 눈구멍(얼굴 폭의 약 22%)·코 구멍 자리,
+## 눈구멍 안쪽은 정점 색으로 새까맣게), 큼직한 붉은 빛점이 눈구멍 바닥에 앉고, 눈구멍 위에는 가는 짙은 홈 하나씩. 이빨 줄은 입 뼈(표정)로 바뀐다.
 ## 두건 = 머리통을 바짝 감싸는 한 장의 껍데기(앞 구멍 가장자리가 두툼하게 안으로 말린 밝은 단이 같은 면에 이어지고, 정수리 뒤 뾰족한 꼭지도
 ## 같은 면을 부풀려 만든다. 모두 Head 뼈), 어깨 덮개·로브는 회전체(밑단은 너덜너덜한 톱니), 등 망토(Cape 뼈), 가는 뼈 팔다리는 이어진 관
-## (팔꿈치·무릎은 고리 반지름을 부풀린 마디, 팔 보호대·장화는 고리 색), 왼손의 큰 활(def.tip = 활 쥔 손)과 등의 화살통.
+## (팔꿈치·무릎은 고리 반지름을 부풀린 마디, 팔 보호대·장화는 고리 색), 왼손은 활 손잡이를 감아 쥔 주먹(조각 구)이고 오른손은 뼈 손가락 넷,
+## 큰 활(def.tip = 활 쥔 손, 시위는 짙은 갈색 가는 관)과 등의 화살통.
 ## 기본 키 HEIGHT 1.15(게임에서 0.95 배).
 
 const BONE := Color("faf5e8")
 const BONE_DARK := Color("e4dcc6")
 const BONE_SHADE := Color("cfc5aa")
-const RIDGE := Color("6e6252")
+const RIDGE := Color("4a4036")
 const SOCKET := Color("0d0a10")
 const EYE := Color("ff4a44")
 const EYE_CORE := Color("ffd0b0")
@@ -28,7 +29,7 @@ const BOOT := Color("6b4a2a")
 const BOOT_CUFF := Color("8a6238")
 const BOW := Color("d8a048")
 const BOW_DARK := Color("8f5a2b")
-const STRING := Color("f0e8d8")
+const STRING := Color("4e3418")
 const FLETCH := Color("c8343a")
 const FLETCH2 := Color("f4efe4")
 const MOUTH := Color("1a1218")
@@ -40,7 +41,7 @@ const P := {
 }
 const HC := Vector3(0, 0.95, -0.005)       # 머리통 중심
 const HR := Vector3(0.212, 0.198, 0.205)   # 머리통 반지름(조각 전)
-const ES := 0.06                            # 눈구멍 크기
+const ES := 0.046                           # 눈구멍 크기(반지름 ≈ 얼굴 폭의 11%)
 const EYE_DX := 0.42
 const EYE_DY := 0.03
 
@@ -50,11 +51,11 @@ static func build() -> Dictionary:
 	g.bake = 0.0
 	CharGeo.skeleton(g, P)
 	_torso(g)
-	_limbs(g)
+	var hl := Vector3(-float(P.shoulder_x), float(P.wrist) - float(P.arm_r) * 1.0, -0.02)
+	_limbs(g, hl)
 	_cape(g)
 	_head(g)
 	_quiver(g)
-	var hl := Vector3(-float(P.shoulder_x), float(P.wrist) - float(P.arm_r) * 1.0, -0.02)
 	_bow(g, hl)
 	var def := g.build(CharacterRig.character_material())
 	def.tip = hl
@@ -206,8 +207,9 @@ static func _torso(g: DemonGeo) -> void:
 # ------------------------------------------------------------------ 팔다리
 
 ## 가는 뼈 팔다리: 어깨 속에서 손끝까지 이어진 관(팔꿈치는 부푼 마디, 아래팔 아래쪽 절반은 갈색 가죽 팔 보호대 고리),
-## 세 손가락 뼈(짧은 관). 다리는 치마 속에서 장화까지 한 관(무릎 마디, 장화 목의 접힌 단 = 부푼 고리), 장화 발은 바닥이 납작한 조각 구
-static func _limbs(g: DemonGeo) -> void:
+## 오른손은 세 손가락 뼈 + 엄지(짧은 관), 왼손(활 손)은 손잡이를 감아 쥔 주먹(조각 구: 앞쪽 손가락 마디 혹 셋·안쪽 엄지 혹, 마디 사이는 그늘).
+## 다리는 치마 속에서 장화까지 한 관(무릎 마디, 장화 목의 접힌 단 = 부푼 고리), 장화 발은 바닥이 납작한 조각 구
+static func _limbs(g: DemonGeo, hl: Vector3) -> void:
 	for side: float in [-1.0, 1.0]:
 		var sfx := "L" if side < 0.0 else "R"
 		var x := float(P.shoulder_x) * side
@@ -225,18 +227,39 @@ static func _limbs(g: DemonGeo) -> void:
 			{p = Vector3(x * 1.03, 0.4, -0.006), r = 0.028, bone = "Hand" + sfx, col = BONE},
 			{p = Vector3(x * 1.03, 0.38, -0.012), r = 0.028, bone = "Hand" + sfx, col = BONE},
 		]
-		g.limb(arm, 8, Vector3.FORWARD, false, true, 2)
-		# 세 손가락 뼈 + 엄지(손바닥 속에서 앞·아래로 굽는다)
+		var open_hand := side > 0.0
+		g.limb(arm, 8, Vector3.FORWARD, false, open_hand, 2 if open_hand else 0)
 		g.use("Hand" + sfx)
 		var hc := Vector3(x * 1.03, 0.385, -0.012)
 		var keep := g.line
-		g.line = 0.5
-		for k in 3:
-			var fx := (float(k) - 1.0) * 0.016
-			var b0 := hc + Vector3(fx, -0.006, -0.012)
-			g.spline_tube([b0, b0 + Vector3(fx * 0.2, -0.022, -0.012), b0 + Vector3(fx * 0.3, -0.038, 0.0)], [0.009, 0.008, 0.006], BONE, 4, false, true)
-		var tb := hc + Vector3(-side * 0.02, 0.004, -0.012)
-		g.spline_tube([tb, tb + Vector3(-side * 0.008, -0.01, -0.018)], [0.009, 0.007], BONE, 4, false, true)
+		if open_hand:
+			# 세 손가락 뼈 + 엄지(손바닥 속에서 앞·아래로 굽는다)
+			g.line = 0.5
+			for k in 3:
+				var fx := (float(k) - 1.0) * 0.016
+				var b0 := hc + Vector3(fx, -0.006, -0.012)
+				g.spline_tube([b0, b0 + Vector3(fx * 0.2, -0.022, -0.012), b0 + Vector3(fx * 0.3, -0.038, 0.0)], [0.009, 0.008, 0.006], BONE, 4, false, true)
+			var tb := hc + Vector3(-side * 0.02, 0.004, -0.012)
+			g.spline_tube([tb, tb + Vector3(-side * 0.008, -0.01, -0.018)], [0.009, 0.007], BONE, 4, false, true)
+		else:
+			# 활 손잡이가 한가운데를 지나는 쥔 주먹: 손목 관 끝을 감싸는 조각 구, 앞쪽에 손가락 마디 혹 셋, 안쪽(몸 쪽) 앞에 엄지 혹
+			var knuck: Array = []
+			for k in 3:
+				knuck.append(Vector3((float(k) - 1.0) * 0.45, -0.25, -0.86).normalized())
+			var thumb := Vector3(-side * 0.8, 0.1, -0.55).normalized()
+			var fshape := func(d: Vector3) -> float:
+				var k := 1.0
+				for kd: Vector3 in knuck:
+					k += 0.18 * DemonGeo.bump(d, kd, 0.2)
+				k += 0.2 * DemonGeo.bump(d, thumb, 0.28)
+				k -= 0.06 * DemonGeo.bump(d, Vector3.DOWN, 0.5)
+				return k
+			var fcol := func(d: Vector3, _p: Vector3) -> Color:
+				var groove := 0.0
+				for k in 2:
+					groove = maxf(groove, DemonGeo.bump(d, Vector3((float(k) - 0.5) * 0.45, -0.27, -0.86).normalized(), 0.09))
+				return BONE.lerp(BONE_SHADE.darkened(0.2), clampf(groove, 0.0, 1.0))
+			g.sculpt(hl, Vector3(0.044, 0.04, 0.043), BONE, 8, 6, fshape, fcol)
 		g.line = keep
 		# 다리
 		var lx := float(P.hip_x) * side
@@ -292,8 +315,8 @@ static func _cape(g: DemonGeo) -> void:
 static func _shape(d: Vector3) -> float:
 	var k := 1.0
 	for side: float in [-1.0, 1.0]:
-		# 눈구멍(크고 깊게), 그 위 눈두덩, 광대뼈, 광대 아래·턱 옆이 들어가 턱이 좁아진다, 관자놀이
-		k -= 0.17 * DemonGeo.bump(d, Vector3(EYE_DX * side, EYE_DY, -0.9).normalized(), 0.28)
+		# 눈구멍(얼굴 폭의 약 22%, 둥근 타원으로 움푹), 그 위 눈두덩, 광대뼈, 광대 아래·턱 옆이 들어가 턱이 좁아진다, 관자놀이
+		k -= 0.13 * DemonGeo.bump(d, Vector3(EYE_DX * side, EYE_DY, -0.9).normalized(), 0.17)
 		k += 0.03 * DemonGeo.bump(d, Vector3(0.4 * side, 0.36, -0.84).normalized(), 0.2)
 		k += 0.05 * DemonGeo.bump(d, Vector3(0.72 * side, -0.3, -0.62).normalized(), 0.24)
 		k -= 0.15 * DemonGeo.bump(d, Vector3(0.85 * side, -0.55, -0.05).normalized(), 0.45)
@@ -316,9 +339,9 @@ static func _head(g: DemonGeo) -> void:
 	var col_of := func(d: Vector3, _p: Vector3) -> Color:
 		var s := 0.0
 		for side: float in [-1.0, 1.0]:
-			s = maxf(s, DemonGeo.bump(d, Vector3(EYE_DX * side, EYE_DY, -0.9).normalized(), 0.28))
-		var c := BONE.lerp(BONE_SHADE, smoothstep(0.25, 0.5, s) * 0.35)
-		c = c.lerp(SOCKET, smoothstep(0.5, 0.7, s))
+			s = maxf(s, DemonGeo.bump(d, Vector3(EYE_DX * side, EYE_DY, -0.9).normalized(), 0.17))
+		var c := BONE.lerp(BONE_SHADE, smoothstep(0.3, 0.6, s) * 0.35)
+		c = c.lerp(SOCKET, smoothstep(0.6, 0.8, s))
 		# 광대 아래·턱 옆은 조금 그늘진 뼈색
 		var hol := maxf(DemonGeo.bump(d, Vector3(-0.85, -0.55, -0.05).normalized(), 0.3), DemonGeo.bump(d, Vector3(0.85, -0.55, -0.05).normalized(), 0.3))
 		return c.lerp(BONE_DARK, hol * 0.6)
@@ -381,7 +404,8 @@ static func _hood(g: DemonGeo) -> void:
 	g.measure = true
 
 
-## 눈구멍 속 붉은 빛점(밝은 심), 눈꺼풀 = 뼈색 두덩(깜빡임·표정에서 눈구멍을 덮는다), 눈두덩 능선 = 눈구멍 위 가장자리의 끝이 가는 짙은 띠,
+## 눈구멍 속 큼직한 붉은 빛점(밝은 심, 지름 ≈ 눈구멍의 40%), 눈꺼풀 = 뼈색 얇은 판(쉴 때는 눈두덩 홈 속에 숨고, 표정·깜빡임에서 내려와 눈구멍을 덮는다),
+## 눈두덩 홈 = 눈구멍 위 가장자리를 따라가는 가는 짙은 홈 하나,
 ## 입 = 보통(짙은 틈 위 이빨 줄)·화남(벌린 입)·아픔(작은 ○). 뼈 이름은 CharacterRig 표정 규약 그대로.
 static func _face(g: DemonGeo) -> void:
 	var es := ES
@@ -397,22 +421,22 @@ static func _face(g: DemonGeo) -> void:
 		# 눈 뼈(빛점의 부모)가 눌리면 붉은 빛만 꺼진다(기절·웃음)
 		var ec := floor_p + d * 0.002
 		g.use("Head")
-		g.ellipsoid(ec, Vector3(es * 1.25, es * 1.35, es * 0.3), SOCKET, 10, 4, eb * Basis(Vector3.BACK, side * 0.12))
+		g.ellipsoid(ec, Vector3(es * 1.0, es * 1.12, es * 0.3), SOCKET, 10, 4, eb * Basis(Vector3.BACK, side * 0.12))
 		g.add_bone("Eye" + sfx, "Head", ec)
 		# 붉은 빛점과 밝은 심: 눈구멍 바닥 바로 앞에 떠 있다
 		var pc := floor_p + d * 0.016 + Vector3(0, -es * 0.05, 0)
 		g.add_bone("Pupil" + sfx, "Eye" + sfx, pc)
 		g.use("Pupil" + sfx)
-		g.ellipsoid(pc, Vector3(es * 0.3, es * 0.32, es * 0.18), EYE, 10, 5, eb)
-		g.polygon(_ellipse(es * 0.11, es * 0.11, 6), pc + d * (es * 0.19) + eb * Vector3(es * 0.06 * side, es * 0.08, 0), eb, 0.0, EYE_CORE)
-		# 윗눈꺼풀(뼈색 반구 덮개): 눈구멍 위 가장자리에 피벗, 표정이 Y 크기를 키우면 내려와 눈구멍을 덮는다
+		g.ellipsoid(pc, Vector3(es * 0.4, es * 0.42, es * 0.2), EYE, 10, 5, eb)
+		g.polygon(_ellipse(es * 0.14, es * 0.14, 6), pc + d * (es * 0.21) + eb * Vector3(es * 0.08 * side, es * 0.1, 0), eb, 0.0, EYE_CORE)
+		# 윗눈꺼풀(뼈색 얇은 판): 눈구멍 위 가장자리 속에 피벗을 묻어 쉴 때는 홈 아래 숨고, 표정이 Y 크기를 키우면 내려와 눈구멍을 덮는다
 		var ud := (d + Vector3(0, 0.3, 0)).normalized()
-		var lid_p := _hs(ud, 0.985)
+		var lid_p := _hs(ud, 0.96)
 		var lb := Basis.looking_at(ud.lerp(d, 0.5).normalized(), Vector3.UP)
 		g.add_bone("Lid" + sfx, "Head", lid_p)
 		g.use("Lid" + sfx)
-		g.ellipsoid(lid_p, Vector3(es * 1.3, es * 2.1, es * 0.75), BONE_DARK, 8, 3, lb * Basis(Vector3.BACK, PI), PI * 0.5, PI * 0.5)
-		# 눈두덩 능선: 눈구멍 위 가장자리를 따라가는 짙은 띠(양 끝은 가늘어져 뼈 속으로)
+		g.ellipsoid(lid_p, Vector3(es * 1.2, es * 2.5, es * 0.26), BONE, 8, 3, lb * Basis(Vector3.BACK, PI), PI * 0.5, PI * 0.5)
+		# 눈두덩 홈: 눈구멍 위 가장자리를 따라가는 가는 짙은 홈(양 끝은 가늘어져 뼈 속으로)
 		var bp := _hs(Vector3(EYE_DX * side, 0.3, -0.88), 1.0)
 		g.add_bone("Brow" + sfx, "Head", bp)
 		g.use("Brow" + sfx)
@@ -423,7 +447,7 @@ static func _face(g: DemonGeo) -> void:
 			_hs(Vector3(0.62 * side, 0.27, -0.74), 1.0),
 			_hs(Vector3(0.72 * side, 0.16, -0.66), 0.985),
 		]
-		g.spline_tube(bpts, [0.0, es * 0.1, es * 0.12, es * 0.1, 0.0], RIDGE, 5, false, false, Vector3.RIGHT, 0.6, 1.0)
+		g.spline_tube(bpts, [0.0, es * 0.1, es * 0.11, es * 0.1, 0.0], RIDGE, 5, false, false, Vector3.RIGHT, 0.6, 1.0)
 	# 입: 위턱 이빨 줄 자리
 	var md := Vector3(0, -0.56, -0.83).normalized()
 	var mp := _hs(md, 1.0)
@@ -458,14 +482,15 @@ static func _face(g: DemonGeo) -> void:
 
 # ------------------------------------------------------------------ 활·화살통
 
-## 큰 황금빛 활(왼손, 길이 ≈ 키의 0.9): 축은 손에서 위로 뻗되 앞쪽 30°·바깥쪽 22° 기울어 몸에서 비스듬히 벌어지고(v5 와 같은 축),
-## 활대는 바깥·앞으로 휘며 끝은 되감긴다. 활대·가죽 손잡이·금 끝이 한 관(마디마다 색이 바뀐다), 시위는 가는 관.
+## 큰 황금빛 활(왼손, 길이 ≈ 키의 0.9): 축은 손에서 위로 뻗되 앞쪽 24°·바깥쪽 37° 기울어 몸에서 비스듬히 벌어진다(v5 보다 15° 더 바깥으로 눕혀
+## 쉴 때 망토·로브를 벗어나 초록 배경 위에 읽힌다). 활대는 바깥·앞으로 휘며 끝은 되감긴다. 활대·금 끝이 한 관(마디마다 색이 바뀐다),
+## 손잡이 자리는 가늘어져 주먹(조각 구) 한가운데를 지나고, 시위는 끝에서 끝까지 잇는 짙은 갈색 가는 관.
 static func _bow(g: DemonGeo, hl: Vector3) -> void:
 	g.use("HandL")
 	g.measure = false
 	g.measure_all = false
-	var tilt := deg_to_rad(30.0)
-	var out := deg_to_rad(22.0)
+	var tilt := deg_to_rad(24.0)
+	var out := deg_to_rad(37.0)
 	var a := Vector3(-sin(out), cos(out) * cos(tilt), -cos(out) * sin(tilt)).normalized()
 	var f := Vector3(-0.72, 0, -0.6)
 	f = (f - a * f.dot(a)).normalized()
@@ -486,17 +511,17 @@ static func _bow(g: DemonGeo, hl: Vector3) -> void:
 		var grip := absf((mid + a * (t * half)).distance_to(hl))
 		if grip < 0.075:
 			col = LEATHER
-			r += 0.008
+			r = 0.026
 		if absf(t) >= 0.999:
 			r = 0.012
 		nodes.append({p = p, r = r, bone = "HandL", col = col})
 		if absf(t) >= 0.999:
 			tips.append(p)
 	g.limb(nodes, 6, Vector3.FORWARD, true, true)
-	# 시위
+	# 시위: 끝에서 끝까지 잇는 짙은 갈색 가는 관
 	var keep := g.line
-	g.line = 0.4
-	g.spline_tube([tips[0], tips[1]], [0.006, 0.006], STRING, 4, false, false)
+	g.line = 0.5
+	g.spline_tube([tips[0], tips[1]], [0.005, 0.005], STRING, 4, false, false)
 	g.line = keep
 	g.measure = true
 	g.measure_all = true
