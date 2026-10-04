@@ -2,13 +2,14 @@ extends SceneTree
 ## 캐릭터 캡처(개발·검수용, 디스플레이 필요). 게임과 같은 조명에서 근접 렌더링해 PNG 로 저장한다.
 ## 실행: xvfb-run -a -s "-screen 0 1700x1100x24" godot --path . --rendering-driver opengl3 --resolution 360x480 \
 ##        --script res://tests/character_capture.gd -- --out=<폴더> --mode=views --tag=before
-## 모드: views(정면·옆·뒤), lineup(변형·보스 한 줄), strips(동작 프레임), ingame(게임 시점 소형)
+## 모드: views(정면·옆·뒤), lineup(변형·보스 한 줄), strips(동작 프레임), ingame(게임 시점 소형), imp(뿔이 Lv.1~4 + 동작·표정, --lv= 로 프레임 레벨)
 ## CharacterRig 는 load() 로 불러와 새 모델이 없을 때(이전 모델 캡처)도 이 스크립트가 해석된다.
 
 var out := ""
 var mode := "views"
 var tag := "after"
 var who := "imp:4"
+var frame_lv := 1   # imp 모드의 동작·표정 프레임에 쓰는 뿔이 레벨(--lv=)
 var _world: Node3D
 var _cam: Camera3D
 var _rig: Script = null
@@ -26,6 +27,8 @@ func _initialize() -> void:
 			who = a.substr(6)
 		elif a.begins_with("--model-set="):
 			CharacterRig.model_set = a.substr(12)
+		elif a.begins_with("--lv="):
+			frame_lv = int(a.substr(5))
 	DirAccess.make_dir_recursive_absolute(out)
 	if ResourceLoader.exists("res://scripts/world/character_rig.gd"):
 		_rig = load("res://scripts/world/character_rig.gd")
@@ -393,7 +396,7 @@ func _imp() -> void:
 	var specs := [["idle", 6], ["walk", 8], ["scare", 8], ["cheer", 6]]
 	for sp in specs:
 		_clear()
-		var n: Node3D = _add(_rig.call("imp", 1))
+		var n: Node3D = _add(_rig.call("imp", frame_lv))
 		var frames: int = sp[1]
 		for f in frames:
 			var p := float(f) / float(frames)
@@ -416,7 +419,7 @@ func _imp() -> void:
 			await _shot("imp-frame-%s-%d" % [sp[0], f])
 	# 표정
 	_clear()
-	var fn: Node3D = _add(_rig.call("imp", 1))
+	var fn: Node3D = _add(_rig.call("imp", frame_lv))
 	fn.call("pose_idle", 0.0)
 	for e in ["normal", "happy", "angry", "hurt", "ko"]:
 		fn.call("set_expression", e)

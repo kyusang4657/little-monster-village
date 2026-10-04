@@ -939,23 +939,25 @@ func _showcase() -> void:
 	_finish_log()
 
 
-## 6차: 악마형 마왕 Lv.1 교체 후보를 실제 게임 안에서 본다(게임 코드는 그대로, 뿔이 노드의 리그만 바꿔 끼운다).
-## 같은 자리·같은 카메라로 기존 모델 → 후보 순서로 찍는다: 마을 산책(걷기), 누르기(환호·말풍선), 무서운 척, 확대·게임 기본 크기.
+## 6차: 악마형 마왕 교체 후보를 실제 게임 안에서 본다(게임 코드는 그대로, 뿔이 노드의 리그만 바꿔 끼운다).
+## 같은 자리·같은 카메라로 기존 뿔이 Lv.1(ImpBuilder) → 후보 Lv.1 → 후보 Lv.3 → 후보 Lv.4 순서로 찍는다: 마을 산책(걷기), 누르기(환호·말풍선), 무서운 척, 확대·게임 기본 크기.
+## 모델 세트 기본값과 무관하게 빌더를 직접 부른다.
 func _demon_lv1() -> void:
 	await _wait(20)
 	main.tutorial.end(true)
 	var imp = main.world.imp
-	for who in ["old", "new"]:
-		if who == "new":
-			var old_rig: CharacterRig = imp.rig
-			imp.remove_child(old_rig)
-			old_rig.queue_free()
-			var rig := CharacterRig._instance(DemonLv1Builder.build(), "imp", 1, 1.0)
-			rig.name = "Imp"
-			rig.seed_id = 77
-			imp.rig = rig
-			imp.add_child(rig)
-			_log("후보 리그 교체: 삼각형 %d" % rig.stats().triangles)
+	for who in ["old", "new", "new3", "new4"]:
+		var old_rig: CharacterRig = imp.rig
+		imp.remove_child(old_rig)
+		old_rig.queue_free()
+		var lv := 1 if who.length() < 4 else int(who.substr(3))
+		var def: Dictionary = ImpBuilder.build(1) if who == "old" else DemonBuilder.build(lv)
+		var rig := CharacterRig._instance(def, "imp", lv, 1.0)
+		rig.name = "Imp"
+		rig.seed_id = 77
+		imp.rig = rig
+		imp.add_child(rig)
+		_log("%s 리그 교체: Lv.%d 삼각형 %d" % [who, lv, rig.stats().triangles])
 		# 같은 출발 상태: 성 앞으로 보내고 산책 시작
 		imp.pos = Vector2(-99, -99)
 		imp.path = []

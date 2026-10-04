@@ -9,7 +9,7 @@
 | 기사 | `scripts/world/chars/knight_v6_builder.gd` | 일반·중갑·창·망치·성기사 | 3,870 / 3,814 / 3,530 / 3,648 / 3,904 | 3,762 / 3,856 / 3,572 / 3,602 / 3,846 |
 | 보스 | `scripts/world/chars/boss_v6_builder.gd` | 용사 루루·기사단장 | 5,924 / 5,402 | 5,865 / 5,714 |
 | 오크·해골 | `scripts/world/chars/orc_v6_builder.gd`, `skeleton_v6_builder.gd` | 꼬마 오크·해골 궁수 | 3,928 / 3,900 | 3,907 / 3,582 |
-| 뿔이 Lv.1 | `scripts/world/chars/demon_lv1_builder.gd` | 악마형 마왕(Lv.2~4 는 v5 그대로) | 6,000 | 2,9xx |
+| 뿔이 Lv.1~4 | `scripts/world/chars/demon_builder.gd` | 악마형 마왕(성장: Lv.2 견갑·장화 테, Lv.3 왕관·홀, Lv.4 큰 왕관·긴 망토·금 꼬리) | 4,862 / 4,898 / 5,471 / 5,747 | 5,189 / 5,xxx / 5,xxx / 5,xxx (docs/design/v6/imp/) |
 
 예산(config): 캐릭터 4,000 / 보스·뿔이 6,000. 그리기 호출은 모두 1, 키(HEIGHT)·무기 끝·방패·보조 뼈(망토·깃·귀) 계약은 v5 와 같습니다.
 

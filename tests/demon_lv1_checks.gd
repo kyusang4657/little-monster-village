@@ -1,6 +1,7 @@
 extends SceneTree
-## 악마형 마왕 Lv.1 교체 후보 리그 검사(헤드리스): godot --headless --path . --script res://tests/demon_lv1_checks.gd
-## character_checks.gd 와 같은 기준(관절, 발 높이, 정면, 무기 손, 걷기 접지·무릎, 표정·깜빡임, 2차 움직임, 예산)을 후보와 기존 뿔이 Lv.1에 같이 적용한다.
+## 악마형 마왕 교체 후보(Lv.1~4) 리그 검사(헤드리스): godot --headless --path . --script res://tests/demon_lv1_checks.gd
+## character_checks.gd 와 같은 기준(관절, 발 높이, 정면, 무기 손, 걷기 접지·무릎, 표정·깜빡임, 2차 움직임, 예산)을 후보 네 레벨과 기존 뿔이 Lv.1에 같이 적용한다.
+## 기존 뿔이는 모델 세트 기본값과 무관하게 ImpBuilder.build(1) 로 직접 만든다.
 ## 뿔이는 쓰러지지 않지만(게임에서 pose_die 를 쓰지 않음) 환호·무서운 척 자세에서도 발이 땅 아래로 내려가지 않는지 본다.
 
 var _pass := 0
@@ -22,16 +23,17 @@ func check(cond: bool, what: String) -> void:
 func _run() -> void:
 	var budget := int(GameConfig.defaults().get("performance_targets", {}).get("budgets", {}).get("imp_triangles_max", 6000))
 	var cases: Array = [
-		{rig = CharacterRig.imp(1), label = "old-imp1"},
-		{rig = CharacterRig._instance(DemonLv1Builder.build(), "imp", 1, 1.0), label = "demon-lv1"},
+		{rig = CharacterRig._instance(ImpBuilder.build(1), "imp", 1, 1.0), label = "old-imp1"},
 	]
+	for lv in range(1, 5):
+		cases.append({rig = CharacterRig._instance(DemonBuilder.build(lv), "imp", lv, 1.0), label = "demon-lv%d" % lv})
 	for c in cases:
 		root.add_child(c.rig)
 	for c in cases:
 		_check_rig(c.rig, c.label, budget)
 	# 결정적: 같은 입력이면 같은 메시·같은 자세
-	var a := CharacterRig._instance(DemonLv1Builder.build(), "imp", 1, 1.0)
-	var b := CharacterRig._instance(DemonLv1Builder.build(), "imp", 1, 1.0)
+	var a := CharacterRig._instance(DemonBuilder.build(1), "imp", 1, 1.0)
+	var b := CharacterRig._instance(DemonBuilder.build(1), "imp", 1, 1.0)
 	root.add_child(a)
 	root.add_child(b)
 	a.pose_walk(0.37)

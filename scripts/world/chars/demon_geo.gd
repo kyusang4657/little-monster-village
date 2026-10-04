@@ -234,8 +234,9 @@ static func bez(p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3, t: float) ->
 
 
 ## 망토 천(CharGeo.cape 와 같은 식)인데 격자 점들을 돌려준다(가장자리에 금 테를 두르거나 문양을 붙일 때). P[i][j] = i 행(위→아래), j 열(왼→오른).
+## corner_lift > 0 이면 아랫단의 양 모서리가 그만큼 올라간다(제비꼬리 자락: 긴 망토가 몸 기울임에 땅에 덜 파묻힌다).
 func cape_grid(top: Vector3, length: float, w_top: float, w_bot: float, col_out: Color, col_in: Color,
-		drape: float, wrap: float, hem_wave: float, cols: int, rows: int, thickness: float) -> Array:
+		drape: float, wrap: float, hem_wave: float, cols: int, rows: int, thickness: float, corner_lift: float = 0.0) -> Array:
 	var P: Array = []
 	for i in rows + 1:
 		var t := float(i) / float(rows)
@@ -246,6 +247,7 @@ func cape_grid(top: Vector3, length: float, w_top: float, w_bot: float, col_out:
 			var y := top.y - length * t
 			if hem_wave > 0.0:
 				y -= hem_wave * t * t * (0.5 + 0.5 * cos(u * TAU * 1.5))
+			y += corner_lift * t * t * (u * u * 4.0)
 			var z := top.z + drape * t * t - wrap * (u * u * 4.0) * (0.3 + 0.7 * t)
 			row.append(Vector3(top.x + u * w, y, z))
 		P.append(row)

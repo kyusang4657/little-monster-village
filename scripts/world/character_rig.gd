@@ -151,8 +151,8 @@ static func imp(level: int = 1) -> CharacterRig:
 	var lv := clampi(level, 1, 4)
 	var key := "%s:imp:%d" % [model_set, lv]
 	if not _defs.has(key):
-		# v6 는 아직 Lv.1(악마형 마왕)만 있다. Lv.2~4 는 5차 모델을 그대로 쓴다
-		_defs[key] = DemonLv1Builder.build() if (_v6() and lv == 1) else ImpBuilder.build(lv)
+		# v6 = 악마형 마왕(Lv.1~4 성장), v5 = 기존 뿔이
+		_defs[key] = DemonBuilder.build(lv) if _v6() else ImpBuilder.build(lv)
 	return _instance(_defs[key], "imp", lv, 1.0)
 
 

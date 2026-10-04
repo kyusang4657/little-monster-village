@@ -84,9 +84,9 @@ func _setup_scene() -> void:
 static func make_variant(vname: String) -> CharacterRig:
 	var rig: CharacterRig
 	if vname.begins_with("old"):
-		rig = CharacterRig.imp(1)
+		rig = CharacterRig._instance(ImpBuilder.build(1), "imp", 1, 1.0)
 	elif vname.begins_with("new"):
-		var def := DemonLv1Builder.build(vname == "new_gray")
+		var def := DemonBuilder.build(1, vname == "new_gray")
 		rig = CharacterRig._instance(def, "imp", 1, 1.0)
 	else:
 		return null

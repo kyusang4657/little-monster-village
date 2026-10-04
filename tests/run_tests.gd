@@ -1231,8 +1231,19 @@ func test_castle_models() -> void:
 ## 뿔이 시안: 관절, 예산, 짝짝이 뿔(왼쪽이 작음, Lv.4 에도), 레벨마다 뿔 성장, 대기 자세에서 지팡이 보석이 머리 위
 ## 5차 뿔이(작은 마룡왕): 관절, 메시 1개·삼각형 예산, 좌우 대칭이며 레벨마다 자라는 뿔, 매 레벨 왕관(Lv.4 가 가장 높음),
 ## Lv.3~4 망토 뼈, 네 레벨이 서로 다른 메시, 가리키는 손(오른손 발톱 끝)
+## 뿔이 성장 규칙을 두 모델 세트(v5 기존 뿔이, v6 악마형 마왕)에 모두 적용한다. 왕관 규칙만 다르다:
+## v5 는 모든 레벨에 왕관이 있고 Lv.4 가 Lv.1 보다 높다, v6 는 Lv.1~2 에 금 왕관 정점이 없고 Lv.3~4 에 있으며 Lv.4 꼭대기가 Lv.3 보다 0.03 이상 높다.
 func test_imp_design() -> void:
+	var prev_set := CharacterRig.model_set
+	for ms in ["v5", "v6"]:
+		CharacterRig.model_set = ms
+		_imp_design_set(ms)
+	CharacterRig.model_set = prev_set
+
+
+func _imp_design_set(ms: String) -> void:
 	var budget := int(GameConfig.defaults().get("performance_targets", {}).get("budgets", {}).get("imp_triangles_max", 6000))
+	var v6 := ms == "v6"
 	var prev_horn := 0.0
 	var crown_top: Array = []
 	var tris := {}
@@ -1240,8 +1251,8 @@ func test_imp_design() -> void:
 		var r := CharacterRig.imp(lv)
 		for j in CharacterRig.REQUIRED_JOINTS:
 			if not r.has_joint(j):
-				check(false, "뿔이 Lv.%d 관절 %s" % [lv, j])
-		check(int(r.stats().triangles) <= budget and int(r.stats().draw_calls) == 1, "뿔이 Lv.%d 삼각형 %d ≤ %d, 메시 1개" % [lv, r.stats().triangles, budget])
+				check(false, "뿔이(%s) Lv.%d 관절 %s" % [ms, lv, j])
+		check(int(r.stats().triangles) <= budget and int(r.stats().draw_calls) == 1, "뿔이(%s) Lv.%d 삼각형 %d ≤ %d, 메시 1개" % [ms, lv, r.stats().triangles, budget])
 		tris[int(r.stats().triangles)] = true
 		# 쉬는 자세의 골격 공간 정점(자세와 무관하게 결정적)
 		var verts: PackedVector3Array = r._def.verts
@@ -1264,17 +1275,20 @@ func test_imp_design() -> void:
 			var c := cols[i]
 			if absf(v.x) < 0.1 and v.y > 0.85 and c.r > 0.65 and c.g > 0.45 and c.g < 0.9 and c.b < 0.45:
 				ct = maxf(ct, v.y)
-		check(absf(hl - hr) < 0.01, "뿔이 Lv.%d 뿔 좌우 대칭 (%.3f / %.3f)" % [lv, hl, hr])
-		check(hr > prev_horn + 0.03, "뿔이 Lv.%d 뿔이 자람 (%.3f > %.3f)" % [lv, hr, prev_horn])
+		check(absf(hl - hr) < 0.01, "뿔이(%s) Lv.%d 뿔 좌우 대칭 (%.3f / %.3f)" % [ms, lv, hl, hr])
+		check(hr > prev_horn + 0.03, "뿔이(%s) Lv.%d 뿔이 자람 (%.3f > %.3f)" % [ms, lv, hr, prev_horn])
 		prev_horn = hr
-		check(ct > 0.85, "뿔이 Lv.%d 왕관 있음 (금색 꼭대기 %.3f)" % [lv, ct])
+		if v6 and lv <= 2:
+			check(ct < 0.0, "뿔이(%s) Lv.%d 왕관 없음 (금색 꼭대기 %.3f)" % [ms, lv, ct])
+		else:
+			check(ct > 0.85, "뿔이(%s) Lv.%d 왕관 있음 (금색 꼭대기 %.3f)" % [ms, lv, ct])
 		crown_top.append(ct)
-		check(r.HEIGHT <= 1.0 and r.HEIGHT > 0.85, "뿔이 Lv.%d 키 %.3f (0.85~1.0)" % [lv, r.HEIGHT])
+		check(r.HEIGHT <= 1.0 and r.HEIGHT > 0.85, "뿔이(%s) Lv.%d 키 %.3f (0.85~1.0)" % [ms, lv, r.HEIGHT])
 		if lv >= 3:
-			check(r.has_joint("Cape"), "뿔이 Lv.%d 망토 뼈" % lv)
+			check(r.has_joint("Cape"), "뿔이(%s) Lv.%d 망토 뼈" % [ms, lv])
 		var tip: Vector3 = r.def_vec("tip")
 		var hand: Vector3 = (r._def.pos as PackedVector3Array)[int(r._bi["HandR"])]
-		check(tip.x > 0.05 and tip.y < hand.y and tip.distance_to(hand) < 0.2, "뿔이 Lv.%d 가리키는 손 끝이 오른손 발톱 (%s)" % [lv, str(tip)])
+		check(tip.x > 0.05 and tip.y < hand.y and tip.distance_to(hand) < 0.2, "뿔이(%s) Lv.%d 가리키는 손 끝이 오른손 (%s)" % [ms, lv, str(tip)])
 		# 표정이 얼굴 뼈를 움직인다(눈꺼풀 크기·입 모양 전환)
 		r.set_expression("normal")
 		var lid_n := r.skeleton.get_bone_pose_scale(int(r._bi["LidL"])).y
@@ -1282,10 +1296,13 @@ func test_imp_design() -> void:
 		r.set_expression("angry")
 		var lid_a := r.skeleton.get_bone_pose_scale(int(r._bi["LidL"])).y
 		var mouth_a := r.skeleton.get_bone_pose_scale(int(r._bi["MouthA"])).y
-		check(lid_a > lid_n + 0.1 and mouth_n < 0.01 and mouth_a > 0.99, "뿔이 Lv.%d 표정 변화(눈꺼풀 %.2f→%.2f, 벌린 입 %.3f→%.3f)" % [lv, lid_n, lid_a, mouth_n, mouth_a])
+		check(lid_a > lid_n + 0.1 and mouth_n < 0.01 and mouth_a > 0.99, "뿔이(%s) Lv.%d 표정 변화(눈꺼풀 %.2f→%.2f, 벌린 입 %.3f→%.3f)" % [ms, lv, lid_n, lid_a, mouth_n, mouth_a])
 		r.free()
-	check(float(crown_top[3]) > float(crown_top[0]) + 0.04, "뿔이 Lv.4 왕관이 Lv.1 보다 높음 (%.3f > %.3f)" % [crown_top[3], crown_top[0]])
-	check(tris.size() == 4, "뿔이 네 레벨의 메시가 서로 다름")
+	if v6:
+		check(float(crown_top[3]) > float(crown_top[2]) + 0.03, "뿔이(%s) Lv.4 왕관이 Lv.3 보다 높음 (%.3f > %.3f)" % [ms, crown_top[3], crown_top[2]])
+	else:
+		check(float(crown_top[3]) > float(crown_top[0]) + 0.04, "뿔이(%s) Lv.4 왕관이 Lv.1 보다 높음 (%.3f > %.3f)" % [ms, crown_top[3], crown_top[0]])
+	check(tris.size() == 4, "뿔이(%s) 네 레벨의 메시가 서로 다름" % ms)
 
 
 ## 4차: 유닛 훈련(막사·훈련장), 인구 한도, 목재 한 번, 시간 진행, 성 레벨 잠금
