@@ -397,12 +397,13 @@
       "note": "그림자나 외곽선이 켜진 채 이 시간 동안 FPS 가 낮으면 한 번만 '메뉴에서 그림자·외곽선 끄기' 안내를 띄운다(설정은 바꾸지 않음)"
     },
     "budgets": {
-      "character_triangles_max": 3000,
-      "boss_triangles_max": 4500,
+      "character_triangles_max": 4000,
+      "boss_triangles_max": 6000,
+      "imp_triangles_max": 6000,
       "character_draw_calls_max": 2,
       "scene_draw_calls_max": 500,
       "scene_triangles_regression_ceiling": 600000,
-      "note": "캐릭터 예산은 tests/character_checks.gd 가 확인. 장면 값은 예산이 아니라 회귀 감시 상한: 최대 부하(24×18, 건물 24동, 10단계 16명) 만화풍 외곽선 켬 그리기 호출 453·삼각형 51.3만(그림자 켬), 그림자·외곽선 끔 261·20.7만. 데스크톱 소프트웨어 렌더러 수치, 실기기 미검증. 느린 기기는 메뉴에서 그림자·외곽선을 끈다"
+      "note": "캐릭터 예산은 tests/character_checks.gd 와 test_imp_design 이 확인(5차: 컨셉 시트의 2,000~5,000 삼각형 기준에 맞춰 3,000/4,500 → 4,000/6,000, 뿔이 6,000). 장면 값은 예산이 아니라 회귀 감시 상한: 최대 부하(24×18, 건물 24동, 10단계 16명) 만화풍 외곽선 켬 그리기 호출 453·삼각형 51.3만(그림자 켬), 그림자·외곽선 끔 261·20.7만. 데스크톱 소프트웨어 렌더러 수치, 실기기 미검증. 느린 기기는 메뉴에서 그림자·외곽선을 끈다"
     }
   },
   "exclusions": [

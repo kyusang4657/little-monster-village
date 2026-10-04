@@ -1236,7 +1236,8 @@ func test_imp_design() -> void:
 		for j in CharacterRig.REQUIRED_JOINTS:
 			if not r.has_joint(j):
 				check(false, "뿔이 Lv.%d 관절 %s" % [lv, j])
-		check(int(r.stats().triangles) <= 4500 and int(r.stats().draw_calls) == 1, "뿔이 Lv.%d 삼각형 %d ≤ 4500, 메시 1개" % [lv, r.stats().triangles])
+		var budget := int(GameConfig.defaults().get("performance_targets", {}).get("budgets", {}).get("imp_triangles_max", 6000))
+		check(int(r.stats().triangles) <= budget and int(r.stats().draw_calls) == 1, "뿔이 Lv.%d 삼각형 %d ≤ %d, 메시 1개" % [lv, r.stats().triangles, budget])
 		r.pose_idle(0.0)
 		var verts := r.posed_vertices()
 		var vb: PackedInt32Array = r._def.vbones

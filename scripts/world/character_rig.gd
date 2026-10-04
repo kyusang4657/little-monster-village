@@ -75,9 +75,23 @@ void fragment() { ALBEDO = line_color.rgb; }
 	return _outline_mat
 
 
+static var _char_mat: StandardMaterial3D = null
+
 ## 캐릭터 공용 재질(정점 색 = 바탕색). 모든 빌더가 이 재질을 쓴다.
+## 건물보다 부드럽고 살짝 윤이 나는 장난감 질감: 감싸는 확산광(그늘이 부드럽게), 약한 반사광, 가장자리 림 라이트.
 static func character_material() -> Material:
-	return MeshBatch.shared_material()
+	if _char_mat == null:
+		_char_mat = StandardMaterial3D.new()
+		_char_mat.vertex_color_use_as_albedo = true
+		_char_mat.vertex_color_is_srgb = true
+		_char_mat.diffuse_mode = BaseMaterial3D.DIFFUSE_LAMBERT_WRAP
+		_char_mat.roughness = 0.62
+		_char_mat.metallic = 0.0
+		_char_mat.metallic_specular = 0.42
+		_char_mat.rim_enabled = true
+		_char_mat.rim = 0.3
+		_char_mat.rim_tint = 0.55
+	return _char_mat
 
 
 # ================================================================== 만들기

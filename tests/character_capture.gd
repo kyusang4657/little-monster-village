@@ -8,6 +8,7 @@ extends SceneTree
 var out := ""
 var mode := "views"
 var tag := "after"
+var who := "imp:4"
 var _world: Node3D
 var _cam: Camera3D
 var _rig: Script = null
@@ -21,6 +22,8 @@ func _initialize() -> void:
 			mode = a.substr(7)
 		elif a.begins_with("--tag="):
 			tag = a.substr(6)
+		elif a.begins_with("--who="):
+			who = a.substr(6)
 	DirAccess.make_dir_recursive_absolute(out)
 	if ResourceLoader.exists("res://scripts/world/character_rig.gd"):
 		_rig = load("res://scripts/world/character_rig.gd")
@@ -42,7 +45,146 @@ func _run() -> void:
 			await _imp()
 		"units":
 			await _units()
+		"solo":
+			await _solo()
+		"cast":
+			await _cast()
+		"geo":
+			await _geo()
 	quit(0)
+
+
+## --who 문자열 하나를 리그로. 예: imp:4, knight:2, boss:hero, goblin:1, goblin:0:nohammer, orc, skeleton
+func _make(spec: String) -> Node3D:
+	var parts := spec.split(":")
+	var k := parts[0]
+	var arg := parts[1] if parts.size() > 1 else ""
+	match k:
+		"imp":
+			return _rig.call("imp", int(arg) if arg != "" else 4)
+		"knight":
+			return _rig.call("knight", int(arg) if arg != "" else 0)
+		"boss":
+			return _rig.call("boss", arg if arg != "" else "hero")
+		"goblin":
+			return _rig.call("goblin", int(arg) if arg != "" else 0, not (parts.size() > 2 and parts[2] == "nohammer"))
+		"orc":
+			return _rig.call("orc")
+		"skeleton":
+			return _rig.call("skeleton_archer")
+	return _rig.call("knight", 0)
+
+
+## 한 캐릭터를 모든 각도·동작·표정으로(빌더 작업용). --who=imp:4,knight:2 처럼 여러 개 가능.
+## 파일: solo-<who>-front/three/side/back, solo-<who>-pose-idle/walk/action/hit, solo-<who>-face-<표정>
+func _solo() -> void:
+	if _rig == null:
+		return
+	for spec in who.split(","):
+		var tagn := spec.replace(":", "")
+		_clear()
+		var n: Node3D = _add(_make(spec))
+		n.call("pose_idle", 0.0)
+		n.call("update_blink", 2.0)
+		var h: float = n.get("HEIGHT")
+		var top: float = n.call("hp_bar_y")
+		var cy := top * 0.5
+		var size := maxf(top * 1.35, 0.9)
+		for view in [["front", 0.0], ["three", 35.0], ["side", 90.0], ["back", 180.0]]:
+			_aim(Vector3(0, cy, 0), view[1], 8.0, size)
+			await _shot("solo-%s-%s" % [tagn, view[0]])
+		var kind: String = n.get("kind")
+		for pose in ["idle", "walk", "action", "hit"]:
+			n.call("set_expression", "normal")
+			match pose:
+				"idle":
+					n.call("pose_idle", 1.3)
+					n.call("update_secondary", 1.0 / 30.0, 0.0)
+				"walk":
+					n.call("pose_walk", 0.3)
+					for i in 20:
+						n.call("update_secondary", 1.0 / 30.0, 1.0)
+				"action":
+					if kind == "goblin":
+						n.call("pose_hammer", 0.05)
+					elif kind == "imp":
+						n.call("pose_cheer", 0.25)
+						n.call("set_expression", "happy")
+					elif kind == "skeleton":
+						n.call("pose_crossbow", 0.0)
+						n.call("set_expression", "angry")
+					else:
+						n.call("pose_attack", 0.9)
+						n.call("set_expression", "angry")
+				"hit":
+					n.call("pose_idle", 0.0)
+					n.call("pose_hit", 0.2)
+					n.call("set_expression", "hurt")
+			n.call("update_blink", 2.0)
+			_aim(Vector3(0, cy, 0), -40.0, 12.0, size)
+			await _shot("solo-%s-pose-%s" % [tagn, pose])
+		n.call("pose_idle", 0.0)
+		var head_y: float = n.call("joint_global_position", "Head").y
+		for e in ["normal", "happy", "angry", "hurt", "ko"]:
+			n.call("set_expression", e)
+			n.call("update_blink", 2.0)
+			_aim(Vector3(0, head_y + h * 0.04, 0), 0.0, 6.0, h * 0.5)
+			await _shot("solo-%s-face-%s" % [tagn, e])
+		# 게임 시점 크기(화면에서 실제로 보이는 크기, 약 60px 높이)
+		n.call("set_expression", "normal")
+		n.call("pose_walk", 0.3)
+		_aim(Vector3(0, cy, 0), 20.0, 52.0, size * 4.0)
+		await _shot("solo-%s-ingame" % tagn)
+
+
+## 전체 출연진 한 줄(기사 5·기사단장·용사·고블린 3·오크·해골·뿔이 Lv.1·Lv.4)
+func _cast() -> void:
+	if _rig == null:
+		return
+	_clear()
+	var specs := ["knight:0", "knight:1", "knight:2", "knight:3", "knight:4", "boss:commander", "boss:hero",
+		"goblin:0", "goblin:1", "goblin:2:nohammer", "orc", "skeleton", "imp:1", "imp:4"]
+	var x := float(specs.size() - 1) * 0.5 * 0.72
+	for s in specs:
+		var n: Node3D = _add(_make(s), Vector3(x, 0, 0))
+		n.call("pose_idle", 0.0)
+		n.call("update_blink", 2.0)
+		x -= 0.72
+	var vp := root.get_visible_rect().size
+	_aim(Vector3(0, 0.7, 0), 12.0, 10.0, maxf(2.0, 11.0 * vp.y / vp.x))
+	await _shot("cast")
+
+
+## 새 기본 도형 견본(rounded_box·spline_tube·horn·torus·polygon·star·wing·cape·눈 옵션)
+func _geo() -> void:
+	_clear()
+	var g := CharGeo.new()
+	g.add_bone("Root", "", Vector3.ZERO)
+	g.add_bone("Head", "Root", Vector3(0, 0.5, 0))
+	g.use("Root")
+	# 얼굴은 x = 0 기준이므로 머리를 가운데 두고 나머지 견본을 양옆에 놓는다
+	g.rounded_box(Vector3(-2.0, 0.3, 0), Vector3(0.25, 0.3, 0.2), Color("4a3a5c"), 0.45)
+	g.spline_tube([Vector3(-1.4, 0.0, 0), Vector3(-1.4, 0.25, 0.05), Vector3(-1.3, 0.45, 0.15), Vector3(-1.1, 0.55, 0.3)], [0.08, 0.07, 0.045, 0.0], Color("c9c2c6"), 10)
+	g.horn(Vector3(-0.8, 0.0, 0), Vector3(0.3, 1.0, 0), Vector3(0.5, -0.2, 0.3), 0.55, 0.09, Color("c9c2c6"), 7, 10, Color("8d8489"))
+	g.torus(Vector3(0.7, 0.1, 0), 0.22, 0.07, Color("f3ece4"), 14, 8)
+	g.polygon(CharGeo.star(5, 0.2, 0.09), Vector3(0.7, 0.55, 0), Basis.IDENTITY, 0.04, Color("e0b04c"), Color("a87c2a"))
+	g.wing(Vector3(1.3, 0.3, 0), [Vector3(1.85, 0.75, 0.1), Vector3(2.0, 0.4, 0.1), Vector3(1.9, 0.05, 0.1)], 0.018, Color("3a2a3f"), Color("7a2634"), 0.3)
+	g.cape(Vector3(2.6, 0.75, 0.0), 0.7, 0.3, 0.5, Color("b3202c"), Color("5a1018"), 0.12, 0.08, 0.03)
+	g.use("Head")
+	var hc := Vector3(0.0, 0.45, 0)
+	var hr := Vector3(0.2, 0.19, 0.19)
+	g.ellipsoid(hc, hr, Color("3a2a3f"), 16, 10)
+	CharGeo.face(g, {hc = hc, hr = hr, es = 0.05, eye_y = 0.47, eye_dx = 0.085, mouth_y = 0.38, mouth_w = 0.08,
+		skin = Color("3a2a3f"), pupil = Color("151015"), brow = Color("251a28"), sclera = Color("f5c43a"), pupil_shape = "slit",
+		eye_rim = Color("1a1018"), lid = Color("3a2a3f"), brow_t = 1.3})
+	var def := g.build(_rig.call("character_material"))
+	var mi := MeshInstance3D.new()
+	mi.mesh = def.mesh
+	mi.material_overlay = _rig.call("outline_material")
+	_add(mi)
+	_aim(Vector3(0.3, 0.35, 0), 20.0, 14.0, 2.6)
+	await _shot("geo")
+	print("geo tris ", def.tris)
 
 
 func _setup_scene() -> void:

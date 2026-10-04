@@ -20,14 +20,19 @@ func check(cond: bool, what: String) -> void:
 
 
 func _run() -> void:
+	var budgets: Dictionary = GameConfig.defaults().get("performance_targets", {}).get("budgets", {})
+	var b_char := int(budgets.get("character_triangles_max", 4000))
+	var b_boss := int(budgets.get("boss_triangles_max", 6000))
 	var cases: Array = []
 	for v in 3:
-		cases.append({rig = CharacterRig.goblin(v, true), label = "goblin%d" % v, kind = "goblin", h = 1.0, budget = 3000})
-	cases.append({rig = CharacterRig.goblin(0, false), label = "goblin-nohammer", kind = "goblin_nh", h = 1.0, budget = 3000})
+		cases.append({rig = CharacterRig.goblin(v, true), label = "goblin%d" % v, kind = "goblin", h = 1.0, budget = b_char})
+	cases.append({rig = CharacterRig.goblin(0, false), label = "goblin-nohammer", kind = "goblin_nh", h = 1.0, budget = b_char})
 	for v in 5:
-		cases.append({rig = CharacterRig.knight(v), label = "knight%d" % v, kind = "knight", h = 1.15, budget = 3000})
-	cases.append({rig = CharacterRig.boss("hero"), label = "hero", kind = "boss", h = 1.3, budget = 4500})
-	cases.append({rig = CharacterRig.boss("commander"), label = "commander", kind = "boss", h = 1.3, budget = 4500})
+		cases.append({rig = CharacterRig.knight(v), label = "knight%d" % v, kind = "knight", h = 1.15, budget = b_char})
+	cases.append({rig = CharacterRig.boss("hero"), label = "hero", kind = "boss", h = 1.3, budget = b_boss})
+	cases.append({rig = CharacterRig.boss("commander"), label = "commander", kind = "boss", h = 1.3, budget = b_boss})
+	cases.append({rig = CharacterRig.orc(), label = "orc", kind = "unit", h = 1.0, budget = b_char})
+	cases.append({rig = CharacterRig.skeleton_archer(), label = "skeleton", kind = "unit_bow", h = 1.15, budget = b_char})
 	var x := 0.0
 	for c in cases:
 		var r: CharacterRig = c.rig
@@ -100,7 +105,7 @@ func _check_rig(c: Dictionary) -> void:
 	var hand_r := _local(r, r.joint_global_position("HandR"))
 	var hand_l := _local(r, r.joint_global_position("HandL"))
 	check(hand_r.x > 0.05 and hand_l.x < -0.05, "%s: HandR +X, HandL -X" % label)
-	if c.kind != "goblin_nh":
+	if c.kind != "goblin_nh" and c.kind != "unit_bow":
 		var tip := _local(r, r.weapon_tip_global_position())
 		check(tip.x > 0.05, "%s: 무기(검/망치)가 +X 쪽 HandR 에 있음 (x=%.2f)" % [label, tip.x])
 		check(tip.distance_to(hand_r) > 0.2, "%s: 무기 끝이 손에서 떨어져 있음" % label)
