@@ -25,10 +25,15 @@ signal result_closed(action: String)
 signal menu_action(action: String)
 signal story_replay(id: String)
 
-const C_IVORY := Color("fff7e6")
-const C_IVORY_EDGE := Color("dcc79c")
-const C_TEXT := Color("4a2b5e")
-const C_TEXT_SOFT := Color("7a6488")
+const C_IVORY := Color("fdf3dc")
+const C_IVORY_EDGE := Color("4a2a12")
+const C_TEXT := Color("4a2e1a")
+const C_TEXT_SOFT := Color("8a6a4a")
+## 두툼한 만화풍 UI: 젤리 버튼 바탕색과 글자 외곽선
+const C_BTN_GREEN := Color("5cbf2a")
+const C_BTN_PURPLE := Color("8a52d6")
+const C_BTN_CREAM := Color("f3e3bd")
+const C_OUTLINE := Color("2e1a0e")
 const C_PURPLE := Color("7a4fc0")
 const C_PURPLE_EDGE := Color("55308f")
 const C_GREEN := Color("3fae4a")
@@ -41,6 +46,7 @@ var root: Control
 var frame: Control
 var _font_bold: Font
 var _font_regular: Font
+var _font_title: Font
 
 var wood_label: Label
 var wood_sub: Label
@@ -49,6 +55,7 @@ var raid_icon: UiIcon
 var raid_label: Label
 var raid_sub: Label
 var wood_panel: PanelContainer
+var wood_bar: ProgressBar
 var raid_btn: Button
 var battle_panel: PanelContainer
 var battle_label: Label
@@ -90,8 +97,10 @@ var overlay_scroll: ScrollContainer
 
 func _ready() -> void:
 	layer = 10
-	_font_bold = load("res://assets/fonts/NanumGothic-Bold.ttf")
-	_font_regular = load("res://assets/fonts/NanumGothic-Regular.ttf")
+	# 둥근 만화풍 글꼴(주아체), 큰 제목·숫자는 검은고딕(Black Han Sans). 둘 다 OFL
+	_font_bold = load("res://assets/fonts/Jua-Regular.ttf")
+	_font_regular = _font_bold
+	_font_title = load("res://assets/fonts/BlackHanSans-Regular.ttf")
 	root = Control.new()
 	root.name = "HudRoot"
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -137,20 +146,22 @@ func _apply_safe_area() -> void:
 
 # ------------------------------------------------------------------ 테마
 
+## 단색 상자(카드·말풍선용). 만화풍: 굵은 짙은 테두리, 아래로 떨어지는 단단한 그림자
 func _style(bg: Color, edge: Color, radius: int = 18, border: int = 3, shadow: bool = true) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
 	s.bg_color = bg
-	s.border_color = edge
-	s.set_border_width_all(border)
+	s.border_color = edge.darkened(0.25)
+	s.set_border_width_all(maxi(border, 3) + 1)
 	s.set_corner_radius_all(radius)
 	s.content_margin_left = 18
 	s.content_margin_right = 18
 	s.content_margin_top = 10
 	s.content_margin_bottom = 10
+	s.anti_aliasing = true
 	if shadow:
-		s.shadow_color = Color(0.2, 0.1, 0.25, 0.25)
-		s.shadow_size = 4
-		s.shadow_offset = Vector2(0, 3)
+		s.shadow_color = Color(0.18, 0.1, 0.05, 0.45)
+		s.shadow_size = 1
+		s.shadow_offset = Vector2(0, 5)
 	return s
 
 
@@ -159,13 +170,15 @@ func _make_theme() -> Theme:
 	t.default_font = _font_bold
 	t.default_font_size = 26
 	t.set_color("font_color", "Label", C_TEXT)
-	t.set_stylebox("panel", "PanelContainer", _style(C_IVORY, C_IVORY_EDGE))
-	var pb_bg := _style(Color("3a2443"), Color("3a2443"), 10, 0, false)
-	pb_bg.content_margin_top = 0
-	pb_bg.content_margin_bottom = 0
-	var pb_fill := _style(Color("e0443c"), Color("e0443c"), 10, 0, false)
+	t.set_color("font_outline_color", "Label", C_OUTLINE)
+	t.set_stylebox("panel", "PanelContainer", UiSkin.panel())
+	var pb_bg := StyleBoxFlat.new()
+	pb_bg.bg_color = Color(0.1, 0.06, 0.04, 0.85)
+	pb_bg.border_color = C_OUTLINE
+	pb_bg.set_border_width_all(3)
+	pb_bg.set_corner_radius_all(10)
 	t.set_stylebox("background", "ProgressBar", pb_bg)
-	t.set_stylebox("fill", "ProgressBar", pb_fill)
+	t.set_stylebox("fill", "ProgressBar", UiSkin.bar_fill(Color("e0443c")))
 	t.set_font_size("font_size", "ProgressBar", 1)
 	return t
 
@@ -191,6 +204,9 @@ func _button(text: String, variant: String, icon: String = "", min_w: float = 0.
 		l.text = text
 		l.add_theme_font_size_override("font_size", 28)
 		l.add_theme_color_override("font_color", b.get_theme_color("font_color"))
+		if variant != "ivory":
+			l.add_theme_color_override("font_outline_color", C_OUTLINE)
+			l.add_theme_constant_override("outline_size", 9)
 		hb.add_child(l)
 		b.add_child(hb)
 		var w := 0.0
@@ -204,22 +220,23 @@ func _button(text: String, variant: String, icon: String = "", min_w: float = 0.
 
 
 func _apply_variant(b: Button, variant: String) -> void:
-	var bg := C_IVORY
-	var edge := C_IVORY_EDGE
+	var bg := C_BTN_CREAM
 	var fc := C_TEXT
 	match variant:
 		"purple":
-			bg = C_PURPLE
-			edge = C_PURPLE_EDGE
+			bg = C_BTN_PURPLE
 			fc = Color.WHITE
 		"green":
-			bg = C_GREEN
-			edge = C_GREEN_EDGE
+			bg = C_BTN_GREEN
 			fc = Color.WHITE
-	b.add_theme_stylebox_override("normal", _style(bg, edge))
-	b.add_theme_stylebox_override("hover", _style(bg.lightened(0.08), edge))
-	b.add_theme_stylebox_override("pressed", _style(bg.darkened(0.12), edge, 18, 3, false))
-	b.add_theme_stylebox_override("disabled", _style(C_DISABLED, C_DISABLED.darkened(0.15), 18, 3, false))
+	# 젤리 버튼(외곽선·광택·아래 두께). 누르면 쑥 들어간다
+	b.add_theme_stylebox_override("normal", UiSkin.button(bg))
+	b.add_theme_stylebox_override("hover", UiSkin.button(bg, "hover"))
+	b.add_theme_stylebox_override("pressed", UiSkin.button(bg, "pressed"))
+	b.add_theme_stylebox_override("disabled", UiSkin.button(C_DISABLED))
+	if variant != "ivory":
+		b.add_theme_color_override("font_outline_color", C_OUTLINE)
+		b.add_theme_constant_override("outline_size", 9)
 	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	b.add_theme_color_override("font_color", fc)
 	b.add_theme_color_override("font_hover_color", fc)
@@ -252,6 +269,12 @@ func _label(text: String, size: int = 26, color: Color = C_TEXT, regular: bool =
 	l.add_theme_color_override("font_color", color)
 	if regular:
 		l.add_theme_font_override("font", _font_regular)
+	# 큰 제목: 굵은 제목 글꼴, 흰 글자에 두꺼운 짙은 외곽선
+	if size >= 34 and color == C_TEXT:
+		l.add_theme_font_override("font", _font_title)
+		l.add_theme_color_override("font_color", Color.WHITE)
+		l.add_theme_color_override("font_outline_color", C_OUTLINE)
+		l.add_theme_constant_override("outline_size", 14)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return l
 
@@ -273,15 +296,29 @@ func _anchor(c: Control, preset: int, grow_h: int, grow_v: int) -> void:
 
 func _build_top() -> void:
 	# 목재
+	# 자원 막대: 어두운 바탕, 큰 아이콘, 채워지는 금빛 막대 위에 흰 숫자(외곽선)
 	var wp := _panel()
+	wp.add_theme_stylebox_override("panel", UiSkin.panel("dark"))
 	var whb := HBoxContainer.new()
 	whb.add_theme_constant_override("separation", 10)
-	whb.add_child(UiIcon.new("wood", 44))
+	whb.add_child(UiIcon.new("wood", 48))
 	var wvb := VBoxContainer.new()
-	wvb.add_theme_constant_override("separation", 0)
-	wood_label = _label("목재 100 / 500", 28)
-	wood_sub = _label("+1/초", 18, C_TEXT_SOFT, true)
-	wvb.add_child(wood_label)
+	wvb.add_theme_constant_override("separation", 2)
+	wood_bar = ProgressBar.new()
+	wood_bar.custom_minimum_size = Vector2(210, 34)
+	wood_bar.show_percentage = false
+	wood_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wood_bar.add_theme_stylebox_override("fill", UiSkin.bar_fill(Color("e8a93a")))
+	wood_label = _label("100 / 500", 26, Color.WHITE)
+	wood_label.add_theme_font_override("font", _font_title)
+	wood_label.add_theme_constant_override("outline_size", 10)
+	wood_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	wood_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	wood_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	wood_bar.add_child(wood_label)
+	wood_sub = _label("+1/초", 18, Color("f3e3bd"), true)
+	wood_sub.add_theme_constant_override("outline_size", 6)
+	wvb.add_child(wood_bar)
 	wvb.add_child(wood_sub)
 	whb.add_child(wvb)
 	wp.add_child(whb)
@@ -360,7 +397,7 @@ func _build_top() -> void:
 	# 짧은 알림
 	toast_panel = _panel()
 	toast_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	toast_panel.add_theme_stylebox_override("panel", _style(Color("4a2b5e"), Color("2f1a3d")))
+	toast_panel.add_theme_stylebox_override("panel", UiSkin.panel("dark"))
 	toast_label = _label("", 26, Color.WHITE)
 	toast_panel.add_child(toast_label)
 	_anchor(toast_panel, Control.PRESET_CENTER, Control.GROW_DIRECTION_BOTH, Control.GROW_DIRECTION_BOTH)
@@ -390,7 +427,8 @@ func _build_bottom() -> void:
 		card.pressed.connect(func(): Sound.play("click"))
 		card.custom_minimum_size = Vector2(176, 104)
 		_apply_variant(card, "ivory")
-		card.add_theme_stylebox_override("normal", _style(Color("fffaf0"), C_IVORY_EDGE, 16))
+		card.add_theme_stylebox_override("normal", UiSkin.panel("card"))
+		card.add_theme_stylebox_override("hover", UiSkin.panel("card"))
 		var vb := VBoxContainer.new()
 		vb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		vb.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -600,7 +638,7 @@ func _build_overlay() -> void:
 	overlay.add_child(center)
 	overlay_panel = _panel()
 	overlay_panel.custom_minimum_size = Vector2(520, 0)
-	var st := _style(C_IVORY, C_IVORY_EDGE, 24, 4)
+	var st: StyleBoxTexture = UiSkin.panel().duplicate()
 	st.content_margin_left = 36
 	st.content_margin_right = 36
 	st.content_margin_top = 26
@@ -822,7 +860,9 @@ func toast(msg: String, seconds: float = 2.2) -> void:
 
 
 func set_wood(wood: int, cap: int, producing: bool, rate: float = 1.0) -> void:
-	wood_label.text = "목재 %d / %d" % [wood, cap]
+	wood_label.text = "%d / %d" % [wood, cap]
+	wood_bar.max_value = maxi(cap, 1)
+	wood_bar.value = wood
 	if wood >= cap:
 		wood_sub.text = "창고가 가득 찼어요"
 	elif producing:

@@ -810,7 +810,8 @@ func update_battle(sim: BattleSim, delta: float, castle_id: String) -> void:
 		var f: Vector2 = k.facing
 		n.rotation.y = lerp_angle(n.rotation.y, yaw_for_dir(f), minf(1.0, delta * 12.0))
 		var speed := 0.0
-		var expr := "normal"
+		# 걷는 기사는 잔뜩 벼른 얼굴(만화풍), 공격 중에는 화남
+		var expr := "fierce"
 		if k.state == "walk":
 			n.pose_walk(t_now * CharacterRig.WALK_RATE + float(id) * 0.37)
 			speed = 1.0

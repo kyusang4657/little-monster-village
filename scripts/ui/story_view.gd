@@ -34,7 +34,7 @@ func setup(p_hud: Hud) -> void:
 			advance())
 	_root.add_child(_dim)
 	_box = PanelContainer.new()
-	var st := hud._style(Hud.C_IVORY, Hud.C_PURPLE, 22, 4)
+	var st: StyleBoxTexture = UiSkin.panel().duplicate()
 	st.content_margin_left = 20
 	st.content_margin_right = 22
 	st.content_margin_top = 14

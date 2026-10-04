@@ -49,7 +49,7 @@ func setup(p_hud: Hud) -> void:
 	_root.add_child(_arrow)
 	_bubble = PanelContainer.new()
 	_bubble.mouse_filter = Control.MOUSE_FILTER_STOP
-	var st := hud._style(Hud.C_IVORY, Hud.C_PURPLE, 20, 4)
+	var st: StyleBoxTexture = UiSkin.panel().duplicate()
 	st.content_margin_left = 22
 	st.content_margin_right = 22
 	st.content_margin_top = 14

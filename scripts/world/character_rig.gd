@@ -25,6 +25,7 @@ const EXPR := {
 	"angry": {eye = 1.0, lid = 0.42, tilt = 0.35, brow = 0.5, dy = -0.35, pupil = 0.85, mouth = "MouthA"},
 	"hurt": {eye = 1.0, lid = 0.55, tilt = -0.25, brow = -0.45, dy = 0.3, pupil = 0.65, mouth = "MouthH"},
 	"ko": {eye = 0.0, lid = 0.0, tilt = 0.0, brow = -0.3, dy = 0.1, pupil = 1.0, mouth = "MouthH"},
+	"fierce": {eye = 1.0, lid = 0.3, tilt = 0.25, brow = 0.38, dy = -0.25, pupil = 0.9, mouth = "MouthN"},
 	"happy": {eye = 0.85, lid = 0.3, tilt = -0.15, brow = -0.25, dy = 0.25, pupil = 1.05, mouth = "MouthA"},
 }
 
@@ -57,6 +58,27 @@ var _prev_pelvis_y := 0.0
 var _pelvis_vy := 0.0
 
 static var _defs: Dictionary = {}
+static var _outline_mat: ShaderMaterial = null
+
+## 만화풍 외곽선 두께(월드 단위). 0 이면 외곽선 없음
+const OUTLINE_WIDTH := 0.011
+
+
+## 뒤집은 껍데기 외곽선: 법선 방향으로 부풀린 면의 뒷면만 짙은 갈색으로 그린다(스키닝 뒤 정점 기준)
+static func outline_material() -> ShaderMaterial:
+	if _outline_mat == null:
+		var sh := Shader.new()
+		sh.code = """shader_type spatial;
+render_mode unshaded, cull_front, depth_draw_opaque, shadows_disabled;
+uniform vec4 line_color : source_color = vec4(0.17, 0.09, 0.05, 1.0);
+uniform float width = 0.011;
+void vertex() { VERTEX += NORMAL * width * COLOR.a; }
+void fragment() { ALBEDO = line_color.rgb; }
+"""
+		_outline_mat = ShaderMaterial.new()
+		_outline_mat.shader = sh
+		_outline_mat.set_shader_parameter("width", OUTLINE_WIDTH)
+	return _outline_mat
 
 
 # ================================================================== 만들기
@@ -138,6 +160,8 @@ func _setup(def: Dictionary, scl: float) -> void:
 	var h: float = def.all_top
 	# 자세(쓰러짐·팔 들기)로 원래 경계를 벗어나도 잘리지 않게 넉넉한 경계 상자
 	body.custom_aabb = AABB(Vector3(-h, -0.3, -h), Vector3(h * 2.0, h * 1.6, h * 2.0))
+	if OUTLINE_WIDTH > 0.0:
+		body.material_overlay = outline_material()
 	skeleton.add_child(body)
 	set_expression("normal")
 	pose_idle(0.0)
@@ -603,6 +627,7 @@ class Geo:
 	var bone := 0
 	var measure := true        # HEIGHT(머리 꼭대기)에 넣는가
 	var measure_all := true    # 체력 막대 높이에 넣는가(무기 제외)
+	var line := 1.0            # 외곽선 두께 배율(정점 색 알파에 저장, 얼굴 부품은 0)
 	var top := 0.0
 	var all_top := 0.0
 
@@ -617,8 +642,12 @@ class Geo:
 
 	func _vert(p: Vector3, nn: Vector3, col: Color) -> void:
 		v.append(p)
-		n.append(nn.normalized())
-		c.append(col)
+		var nm := nn.normalized()
+		n.append(nm)
+		# 칠한 듯한 입체감: 위를 보는 면은 밝게, 아래를 보는 면은 어둡게 정점 색에 미리 넣는다
+		var shaded := col.lightened(0.16 * maxf(nm.y, 0.0)).darkened(0.2 * maxf(-nm.y, 0.0))
+		shaded.a = line
+		c.append(shaded)
 		vb.append(bone)
 		if measure:
 			top = maxf(top, p.y)
@@ -790,6 +819,14 @@ static func _surf_z(hc: Vector3, hr: Vector3, x: float, y: float) -> float:
 
 ## 얼굴: 흰자+눈동자+반사광, 눈꺼풀(깜빡임/표정), 눈썹, 입 세 가지(보통·화남·아픔), 코, 볼
 static func _face(g: Geo, F: Dictionary) -> void:
+	# 눈·입 같은 작은 얼굴 부품에는 외곽선을 두르지 않는다(얼굴이 지저분해 보이지 않게)
+	var keep_line := g.line
+	g.line = 0.0
+	_face_parts(g, F)
+	g.line = keep_line
+
+
+static func _face_parts(g: Geo, F: Dictionary) -> void:
 	var hc: Vector3 = F.hc
 	var hr: Vector3 = F.hr
 	var es: float = F.es
@@ -881,7 +918,8 @@ static func _limbs(g: Geo, P: Dictionary, C: Dictionary) -> void:
 		g.use("Hand" + sfx)
 		if C.has("cuff"):
 			g.tube(Vector3(x, P.wrist + ar * 0.9, 0), Vector3(x, P.wrist - ar * 0.2, 0), ar * 1.05, ar * 1.12, C.cuff, 7, true)
-		g.ellipsoid(Vector3(x, P.wrist - ar * 0.75, -ar * 0.1), Vector3(ar * 1.12, ar * 1.2, ar * 1.15), C.hand, 8, 5)
+		var hs: float = C.get("hand_s", 1.0)
+		g.ellipsoid(Vector3(x, P.wrist - ar * 0.75, -ar * 0.1), Vector3(ar * 1.12, ar * 1.2, ar * 1.15) * hs, C.hand, 8, 5)
 		var lx := hx * side
 		g.use("Leg" + sfx)
 		g.tube(Vector3(lx, P.hip + lr * 0.4, 0), Vector3(lx, P.knee, 0), lr * 1.15, lr * 0.95, C.thigh, 7, false)
@@ -892,7 +930,8 @@ static func _limbs(g: Geo, P: Dictionary, C: Dictionary) -> void:
 		var fl: float = P.foot_len
 		var fh: float = P.ankle
 		g.tube(Vector3(lx, P.ankle + lr * 0.6, 0), Vector3(lx, P.ankle - lr * 0.3, 0), lr * 0.95, lr * 1.0, C.cuff_leg, 7, true)
-		g.ellipsoid(Vector3(lx, fh * 0.55, -fl * 0.22), Vector3(lr * 1.3, fh * 0.56, fl * 0.5), C.boot, 8, 5)
+		var bs: float = C.get("boot_s", 1.0)
+		g.ellipsoid(Vector3(lx, fh * 0.55 * bs, -fl * 0.22 * bs), Vector3(lr * 1.3 * bs, fh * 0.56 * bs, fl * 0.5 * bs), C.boot, 8, 5)
 		if C.has("toe"):
 			g.tube(Vector3(lx, fh * 0.55, -fl * 0.55), Vector3(lx, fh * 1.2, -fl * 0.95), lr * 0.75, 0.0, C.toe, 6, true)
 
@@ -1160,21 +1199,22 @@ static func _knight_spec(v: int) -> Dictionary:
 		P = {
 			ankle = 0.08, knee = 0.245, hip = 0.425, hip_x = 0.085, pelvis = 0.44, spine = 0.5,
 			shoulder = 0.72, shoulder_x = 0.2, elbow = 0.575, wrist = 0.44, neck = 0.75, head = 0.8,
-			arm_r = 0.04, leg_r = 0.047, foot_len = 0.2,
+			arm_r = 0.047, leg_r = 0.052, foot_len = 0.2,
 		},
 		hc = Vector3(0, 0.955, -0.005), hr = Vector3(0.17, 0.165, 0.165),
+		hand_s = 1.4, boot_s = 1.22,
 		es = 0.034, eye_dx = 0.062, eye_y = 0.935, mouth_y = 0.868, mouth_w = 0.075,
 		skin = Color(KNIGHT_SKIN[v]),
-		chest = Models.SILVER, chest_c = Vector3(0, 0.645, 0), chest_r = Vector3(0.18, 0.125, 0.125),
-		waist = Color("7d8792"), waist_r = Vector2(0.1, 0.13), belt_y = 0.515,
+		chest = Models.SILVER, chest_c = Vector3(0, 0.65, 0), chest_r = Vector3(0.205, 0.135, 0.135),
+		waist = Color("7d8792"), waist_r = Vector2(0.092, 0.13), belt_y = 0.515,
 		skirt = Models.RED, skirt_y = Vector2(0.52, 0.37), skirt_r = Vector2(0.115, 0.15),
 		trouser = Color("6d6a78"), armor = Models.SILVER, armor_dark = Models.SILVER_DARK, trim = Models.GOLD,
 		boot = Models.BOOT, glove = Color("8a5530"),
-		pauldron = Vector3(0.1, 0.08, 0.105),
-		cape = Color("b02a32"), cape_len = 0.36, cape_w = Vector2(0.11, 0.15),
+		pauldron = Vector3(0.13, 0.1, 0.13),
+		cape = Color("b02a32"), cape_len = 0.36, cape_w = Vector2(0.12, 0.16),
 		helmet = KNIGHT_HELMET[v], plumes = [Color(KNIGHT_PLUME[v])], plume_size = 1.0,
-		shield = KNIGHT_SHIELD[v], shield_r = 0.21, shield_c = Models.RED, shield_rim = Models.GOLD, shield_mark = Models.GOLD,
-		sword_len = 0.4, sword_w = 0.03, mustache = (v == 3),
+		shield = KNIGHT_SHIELD[v], shield_r = 0.255, shield_c = Models.RED, shield_rim = Models.GOLD, shield_mark = Models.GOLD,
+		sword_len = 0.46, sword_w = 0.038, mustache = (v == 3),
 	}
 
 
@@ -1257,7 +1297,8 @@ static func _build_human(S: Dictionary) -> Dictionary:
 	g.tube(Vector3(0, float(P.neck) - 0.04, 0), Vector3(0, float(P.neck) + 0.005, 0), 0.085, 0.07, S.armor_dark, 10, true)
 	# 팔다리
 	_limbs(g, P, {upper = S.trouser, elbow = armor, fore = armor, hand = S.glove, cuff = S.armor_dark,
-		thigh = S.trouser, knee = armor, shin = armor, boot = S.boot, cuff_leg = S.boot.darkened(0.2)})
+		thigh = S.trouser, knee = armor, shin = armor, boot = S.boot, cuff_leg = S.boot.darkened(0.2),
+		hand_s = S.get("hand_s", 1.0), boot_s = S.get("boot_s", 1.0)})
 	# 어깨 갑옷(넓은 어깨 실루엣)
 	var pd: Vector3 = S.pauldron
 	for side: float in [-1.0, 1.0]:
