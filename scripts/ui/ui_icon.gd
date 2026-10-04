@@ -155,38 +155,43 @@ func _shapes() -> void:
 			draw_colored_polygon(PackedVector2Array([c + Vector2(-0.2, -0.4) * s, c + Vector2(0.38, -0.22) * s, c + Vector2(-0.2, -0.04) * s]), _k(Color("7a4bc4")))
 			draw_circle(c + Vector2(-0.2, -0.44) * s, s * 0.06, _k(Color("e1b23c")))
 		"imp":
-			# 뿔이(5차): 흑자색 얼굴, 양쪽으로 뻗은 회색 뿔, 금 왕관과 붉은 보석, 노란 눈에 세로 동공, 송곳니 하나, 볼 홍조
-			_face_bg(c, s, _k(Color("ffe9e0")))
+			# 뿔이(6차 악마형 마왕): 산호 붉은 얼굴, 양옆에서 뒤로 눕는 검은 숫양 뿔, 금빛 눈에 세로 동공, 살구색 눈썹, 작은 송곳니 둘, 볼 홍조. 왕관 없음(Lv.3 부터 3D 모델에만)
+			_face_bg(c, s, _k(Color("ffe3dc")))
 			for sx in [-1.0, 1.0]:
-				# 뿔: 머리 옆에서 바깥·위로 휘는 곡선(두꺼운 선 여러 개로 굵기 변화)
+				# 뿔: 관자놀이에서 바깥·위로 솟았다가 뒤로 말리는 곡선(굵기 줄어드는 선 여러 개), 밑동이 굵다
 				var pts := PackedVector2Array()
+				for i in 7:
+					var t := float(i) / 6.0
+					pts.append(c + Vector2(sx * (0.22 + 0.2 * t + 0.08 * t * t), -0.18 - 0.42 * t + 0.3 * t * t) * s)
 				for i in 6:
-					var t := float(i) / 5.0
-					pts.append(c + Vector2(sx * (0.2 + 0.26 * t), -0.2 - 0.34 * t + 0.14 * t * t) * s)
-				for i in 5:
-					draw_line(pts[i], pts[i + 1], _k(Color("c9c2c6")), maxf(2.0, s * (0.085 - 0.014 * i)), true)
-			draw_circle(c + Vector2(0, 0.05) * s, s * 0.34, _k(Color("3a2a3f")))
-			# 왕관: 금 띠 + 톱니 셋 + 붉은 보석
-			draw_rect(Rect2(c + Vector2(-0.19, -0.33) * s, Vector2(0.38, 0.07) * s), _k(Color("e0b04c")))
-			draw_colored_polygon(PackedVector2Array([c + Vector2(-0.19, -0.33) * s, c + Vector2(-0.13, -0.46) * s, c + Vector2(-0.07, -0.33) * s]), _k(Color("e0b04c")))
-			draw_colored_polygon(PackedVector2Array([c + Vector2(-0.07, -0.33) * s, c + Vector2(0, -0.52) * s, c + Vector2(0.07, -0.33) * s]), _k(Color("e0b04c")))
-			draw_colored_polygon(PackedVector2Array([c + Vector2(0.07, -0.33) * s, c + Vector2(0.13, -0.46) * s, c + Vector2(0.19, -0.33) * s]), _k(Color("e0b04c")))
-			draw_colored_polygon(PackedVector2Array([c + Vector2(0, -0.38) * s, c + Vector2(0.035, -0.33) * s, c + Vector2(0, -0.28) * s, c + Vector2(-0.035, -0.33) * s]), _k(Color("d8303a")))
+					draw_line(pts[i], pts[i + 1], _k(Color("3a2824")), maxf(2.0, s * (0.1 - 0.013 * i)), true)
+				# 뿔 홈
+				draw_line(pts[1], pts[2], _k(Color("2a1b18")), maxf(1.0, s * 0.02), true)
+				# 잎 모양 귀: 머리 옆에서 바깥으로
+				draw_colored_polygon(PackedVector2Array([c + Vector2(sx * 0.3, 0.02) * s, c + Vector2(sx * 0.46, -0.06) * s, c + Vector2(sx * 0.31, 0.14) * s]), _k(Color("d6504f")))
+				draw_colored_polygon(PackedVector2Array([c + Vector2(sx * 0.33, 0.03) * s, c + Vector2(sx * 0.42, -0.03) * s, c + Vector2(sx * 0.33, 0.1) * s]), _k(Color("ef8a7a")))
+			draw_circle(c + Vector2(0, 0.05) * s, s * 0.34, _k(Color("d6504f")))
+			# 불꽃 돌기: 정수리 가운데 작은 산 셋
+			draw_colored_polygon(PackedVector2Array([c + Vector2(-0.14, -0.26) * s, c + Vector2(-0.08, -0.4) * s, c + Vector2(-0.02, -0.28) * s]), _k(Color("d9484e")))
+			draw_colored_polygon(PackedVector2Array([c + Vector2(-0.06, -0.28) * s, c + Vector2(0, -0.48) * s, c + Vector2(0.06, -0.28) * s]), _k(Color("d9484e")))
+			draw_colored_polygon(PackedVector2Array([c + Vector2(0.02, -0.28) * s, c + Vector2(0.08, -0.4) * s, c + Vector2(0.14, -0.26) * s]), _k(Color("d9484e")))
 			for ex in [-0.13, 0.13]:
-				# 노란 눈(살짝 기울어진 타원)과 세로 동공, 반사광
+				# 금빛 눈(살짝 기울어진 타원)과 세로 동공, 반사광
 				draw_set_transform(_off + c + Vector2(ex, 0.04) * s, -0.25 * signf(ex), Vector2(1.0, 1.25))
-				draw_circle(Vector2.ZERO, s * 0.085, _k(Color("f5c43a")))
+				draw_circle(Vector2.ZERO, s * 0.085, _k(Color("f6c63a")))
 				draw_set_transform(_off + c + Vector2(ex, 0.045) * s, 0.0, Vector2(0.38, 1.0))
-				draw_circle(Vector2.ZERO, s * 0.07, _k(Color("151015")))
+				draw_circle(Vector2.ZERO, s * 0.07, _k(Color("1a1013")))
 				draw_set_transform(_off)
 				draw_circle(c + Vector2(ex + 0.03, 0.0) * s, s * 0.02, _k(Color.WHITE))
-			# 눈썹(위엄 있게 안쪽이 내려감), 입꼬리 올라간 입, 송곳니
+			# 살구색 눈썹(안쪽이 내려간 위엄), 작은 코, 입꼬리 올라간 입, 송곳니 둘
 			for sx in [-1.0, 1.0]:
-				draw_line(c + Vector2(sx * 0.2, -0.1) * s, c + Vector2(sx * 0.07, -0.06) * s, _k(Color("1a1018")), maxf(1.5, s * 0.03), true)
-			draw_arc(c + Vector2(0, 0.17) * s, s * 0.08, PI * 0.15, PI * 0.85, 8, _k(Color("1a1018")), maxf(1.5, s * 0.03))
-			draw_colored_polygon(PackedVector2Array([c + Vector2(0.05, 0.22) * s, c + Vector2(0.09, 0.22) * s, c + Vector2(0.07, 0.29) * s]), _k(Color.WHITE))
+				draw_line(c + Vector2(sx * 0.21, -0.11) * s, c + Vector2(sx * 0.07, -0.06) * s, _k(Color("ee7a6a")), maxf(1.5, s * 0.035), true)
+			draw_colored_polygon(PackedVector2Array([c + Vector2(-0.025, 0.12) * s, c + Vector2(0.025, 0.12) * s, c + Vector2(0, 0.15) * s]), _k(Color("2a1416")))
+			draw_arc(c + Vector2(0, 0.17) * s, s * 0.08, PI * 0.15, PI * 0.85, 8, _k(Color("3a1216")), maxf(1.5, s * 0.03), true)
+			for fx in [-0.055, 0.055]:
+				draw_colored_polygon(PackedVector2Array([c + Vector2(fx - 0.02, 0.23) * s, c + Vector2(fx + 0.02, 0.23) * s, c + Vector2(fx, 0.29) * s]), _k(Color.WHITE))
 			for ex in [-0.25, 0.25]:
-				draw_circle(c + Vector2(ex, 0.17) * s, s * 0.05, _k(Color(0.85, 0.35, 0.45, 0.7)))
+				draw_circle(c + Vector2(ex, 0.17) * s, s * 0.05, _k(Color(0.96, 0.55, 0.43, 0.75)))
 		"commander":
 			# 기사단장 번쩍경(5차): 짙은 강철 통투구와 금 테, T자 눈 틈 속 빛나는 눈, 붉은 깃, 큰 콧수염은 투구 아래
 			_face_bg(c, s, _k(Color("ffe9e4")))
