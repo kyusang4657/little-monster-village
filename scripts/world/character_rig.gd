@@ -96,51 +96,63 @@ static func character_material() -> Material:
 
 # ================================================================== 만들기
 
+## 모델 세트: "v5" = 5차 모델(기본, 게임이 쓰는 것), "v6" = 6차 교체 후보(조각 구·회전체·이어진 관, scripts/world/chars/*_v6_builder.gd).
+## 테스트 씬·디버그 시나리오가 바꿔 끼워 비교한다. 본 게임 기본값은 승인 전까지 "v5".
+static var model_set := "v5"
+
+
+static func _v6() -> bool:
+	return model_set == "v6"
+
+
 static func goblin(v: int = 0, with_hammer: bool = true) -> CharacterRig:
 	var vv := posmod(v, 3)
-	var key := "goblin:%d:%s" % [vv, with_hammer]
+	var key := "%s:goblin:%d:%s" % [model_set, vv, with_hammer]
 	if not _defs.has(key):
-		_defs[key] = GoblinBuilder.build(vv, with_hammer)
+		_defs[key] = GoblinV6Builder.build(vv, with_hammer) if _v6() else GoblinBuilder.build(vv, with_hammer)
 	return _instance(_defs[key], "goblin", vv, 1.0)
 
 
 static func knight(v: int = 0) -> CharacterRig:
 	var vv := posmod(v, 5)
-	var key := "knight:%d" % vv
+	var key := "%s:knight:%d" % [model_set, vv]
 	if not _defs.has(key):
-		_defs[key] = KnightBuilder.build(vv)
+		_defs[key] = KnightV6Builder.build(vv) if _v6() else KnightBuilder.build(vv)
 	return _instance(_defs[key], "knight", vv, float(KnightBuilder.SCALE[vv]))
 
 
 ## kind: "hero"(용사) 또는 "commander"(기사단장)
 static func boss(k: String) -> CharacterRig:
 	var kk := "commander" if k == "commander" else "hero"
-	var key := "boss:" + kk
+	var key := "%s:boss:%s" % [model_set, kk]
 	if not _defs.has(key):
-		_defs[key] = BossBuilder.build(kk)
+		_defs[key] = BossV6Builder.build(kk) if _v6() else BossBuilder.build(kk)
 	return _instance(_defs[key], kk, 0, 1.0)
 
 
 ## 꼬마 오크(4차 유닛): 고블린 골격을 키우고 올리브색 피부·엄니·몽둥이
 static func orc() -> CharacterRig:
-	if not _defs.has("orc"):
-		_defs["orc"] = OrcBuilder.build()
-	return _instance(_defs["orc"], "orc", 0, 1.3)
+	var key := model_set + ":orc"
+	if not _defs.has(key):
+		_defs[key] = OrcV6Builder.build() if _v6() else OrcBuilder.build()
+	return _instance(_defs[key], "orc", 0, 1.3)
 
 
 ## 해골 궁수(4차 유닛): 뼈 색 몸, 검은 철모, 붉게 빛나는 눈, 활
 static func skeleton_archer() -> CharacterRig:
-	if not _defs.has("skeleton"):
-		_defs["skeleton"] = SkeletonBuilder.build()
-	return _instance(_defs["skeleton"], "skeleton", 0, 0.95)
+	var key := model_set + ":skeleton"
+	if not _defs.has(key):
+		_defs[key] = SkeletonV6Builder.build() if _v6() else SkeletonBuilder.build()
+	return _instance(_defs[key], "skeleton", 0, 0.95)
 
 
 ## 뿔이(어린 마왕, 주인공): level = 성 레벨 1~4. 뿔·망토·장식이 성과 함께 자란다.
 static func imp(level: int = 1) -> CharacterRig:
 	var lv := clampi(level, 1, 4)
-	var key := "imp:%d" % lv
+	var key := "%s:imp:%d" % [model_set, lv]
 	if not _defs.has(key):
-		_defs[key] = ImpBuilder.build(lv)
+		# v6 는 아직 Lv.1(악마형 마왕)만 있다. Lv.2~4 는 5차 모델을 그대로 쓴다
+		_defs[key] = DemonLv1Builder.build() if (_v6() and lv == 1) else ImpBuilder.build(lv)
 	return _instance(_defs[key], "imp", lv, 1.0)
 
 

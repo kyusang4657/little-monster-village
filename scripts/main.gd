@@ -46,6 +46,9 @@ var _args: Dictionary = {}
 
 func _ready() -> void:
 	_args = _parse_args()
+	# 개발·검수용: --model-set=v6 이면 6차 캐릭터 교체 후보로 실행한다(기본 v5, 출시 빌드 동작 변화 없음)
+	if _args.has("model-set"):
+		CharacterRig.model_set = String(_args.get("model-set"))
 	state = GameState.new()
 	saver = SaveManager.new(String(_args.get("save-dir", "user://")))
 	if _args.has("save-dir"):

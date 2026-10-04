@@ -8,6 +8,10 @@ var _fail := 0
 
 
 func _initialize() -> void:
+	# --model-set=v6 이면 6차 교체 후보를 같은 기준으로 검사한다(기본 v5)
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--model-set="):
+			CharacterRig.model_set = a.substr(12)
 	_run.call_deferred()
 
 
@@ -42,7 +46,7 @@ func _run() -> void:
 	for c in cases:
 		_check_rig(c)
 	_check_misc()
-	print("RESULT: %d passed, %d failed" % [_pass, _fail])
+	print("RESULT: %d passed, %d failed (model set %s)" % [_pass, _fail, CharacterRig.model_set])
 	quit(1 if _fail > 0 else 0)
 
 

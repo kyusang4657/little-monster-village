@@ -24,6 +24,8 @@ func _initialize() -> void:
 			tag = a.substr(6)
 		elif a.begins_with("--who="):
 			who = a.substr(6)
+		elif a.begins_with("--model-set="):
+			CharacterRig.model_set = a.substr(12)
 	DirAccess.make_dir_recursive_absolute(out)
 	if ResourceLoader.exists("res://scripts/world/character_rig.gd"):
 		_rig = load("res://scripts/world/character_rig.gd")
