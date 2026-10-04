@@ -96,9 +96,9 @@ static func character_material() -> Material:
 
 # ================================================================== 만들기
 
-## 모델 세트: "v5" = 5차 모델(기본, 게임이 쓰는 것), "v6" = 6차 교체 후보(조각 구·회전체·이어진 관, scripts/world/chars/*_v6_builder.gd).
-## 테스트 씬·디버그 시나리오가 바꿔 끼워 비교한다. 본 게임 기본값은 승인 전까지 "v5".
-static var model_set := "v5"
+## 모델 세트: "v6" = 6차 모델(기본, 게임이 쓰는 것: 조각 구·회전체·이어진 관, scripts/world/chars/*_v6_builder.gd·demon_builder.gd),
+## "v5" = 5차 모델(비교·복원용, --model-set=v5). 테스트 씬·디버그 시나리오가 바꿔 끼워 비교한다.
+static var model_set := "v6"
 
 
 static func _v6() -> bool:

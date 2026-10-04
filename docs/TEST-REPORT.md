@@ -554,7 +554,7 @@ RESULT: 123 checks passed, 0 failed        (tests/run_tests.gd, 19개 시나리�
 RESULT: 27 passed, 0 failed                (tests/integration_driver.gd, 1280×720)
 ```
 
-## 6차 교체 후보 검사(2026-10-04, 기본값 v5 유지)
+## 6차 교체 후보 검사(2026-10-04, 당시 기본값 v5)
 
 전 출연진의 v6 후보(`--model-set=v6`)와 기존 v5 를 같은 검사로 확인했습니다. 상세·캡처는 `docs/design/v6/README.md`.
 
@@ -565,3 +565,17 @@ tests/run_tests.gd                        RESULT: 605 checks passed, 0 failed
 ```
 - 삼각형 예산(캐릭터 4,000 / 보스·뿔이 6,000) 안: 최대 고블린 3,949 · 기사 3,904 · 보스 5,924 · 오크 3,928 · 뿔이 Lv.1 6,000. 그리기 호출 1.
 - 게임 화면 비교(`docs/design/v6/compare/game-*.jpg`)는 xvfb·llvmpipe 캡처이며 기기 확인은 하지 않았습니다.
+
+## 6차 적용 검사(2026-10-04, 기본값 v6)
+
+뿔이 Lv.2~4(악마형 성장)를 더하고 `CharacterRig.model_set` 기본값을 "v6" 로 바꾼 뒤 다시 돌렸습니다. 5차 모델은 `--model-set=v5` 로 남아 있어 두 세트를 모두 검사합니다.
+
+```
+tests/run_tests.gd                        RESULT: 637 checks passed, 0 failed   (뿔이 설계 시험이 v5·v6 두 번 돎)
+tests/character_checks.gd                 RESULT: 520 passed, 0 failed (model set v6)
+tests/character_checks.gd --model-set=v5  RESULT: 520 passed, 0 failed (model set v5)
+tests/demon_lv1_checks.gd                 RESULT: 221 passed, 0 failed   (옛 뿔이 Lv.1 + 악마형 Lv.1~4)
+```
+- 뿔이 삼각형: Lv.1 4,862 / Lv.2 4,898 / Lv.3 5,471 / Lv.4 5,747 (예산 6,000). 왕관은 Lv.3 부터(시험 규칙을 v6 에 맞춰 분리: Lv.1~2 왕관 없음, Lv.4 가 Lv.3 보다 높음).
+- 게임 화면(xvfb·llvmpipe): `docs/screenshots/v0.6/` — 마을·병영·스토리 장면과 뿔이 Lv.1/3/4 최대 줌, 누르기 환호. 기기 확인은 하지 않았습니다.
+- 통합 검사(`--integration`)는 아래 "통합 검사 결과" 항목 참고.
