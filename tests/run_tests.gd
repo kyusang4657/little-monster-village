@@ -1229,35 +1229,63 @@ func test_castle_models() -> void:
 
 
 ## 뿔이 시안: 관절, 예산, 짝짝이 뿔(왼쪽이 작음, Lv.4 에도), 레벨마다 뿔 성장, 대기 자세에서 지팡이 보석이 머리 위
+## 5차 뿔이(작은 마룡왕): 관절, 메시 1개·삼각형 예산, 좌우 대칭이며 레벨마다 자라는 뿔, 매 레벨 왕관(Lv.4 가 가장 높음),
+## Lv.3~4 망토 뼈, 네 레벨이 서로 다른 메시, 가리키는 손(오른손 발톱 끝)
 func test_imp_design() -> void:
-	var prev_r := 0.0
+	var budget := int(GameConfig.defaults().get("performance_targets", {}).get("budgets", {}).get("imp_triangles_max", 6000))
+	var prev_horn := 0.0
+	var crown_top: Array = []
+	var tris := {}
 	for lv in range(1, 5):
 		var r := CharacterRig.imp(lv)
 		for j in CharacterRig.REQUIRED_JOINTS:
 			if not r.has_joint(j):
 				check(false, "뿔이 Lv.%d 관절 %s" % [lv, j])
-		var budget := int(GameConfig.defaults().get("performance_targets", {}).get("budgets", {}).get("imp_triangles_max", 6000))
 		check(int(r.stats().triangles) <= budget and int(r.stats().draw_calls) == 1, "뿔이 Lv.%d 삼각형 %d ≤ %d, 메시 1개" % [lv, r.stats().triangles, budget])
-		r.pose_idle(0.0)
-		var verts := r.posed_vertices()
+		tris[int(r.stats().triangles)] = true
+		# 쉬는 자세의 골격 공간 정점(자세와 무관하게 결정적)
+		var verts: PackedVector3Array = r._def.verts
 		var vb: PackedInt32Array = r._def.vbones
+		var cols: PackedColorArray = (r._def.mesh as ArrayMesh).surface_get_arrays(0)[Mesh.ARRAY_COLOR]
 		var head_b := int(r._bi["Head"])
 		var hl := -1.0
 		var hr := -1.0
+		var ct := -1.0
 		for i in verts.size():
-			# 머리 뼈에 묶인 정점만(지팡이·왕관 장식 제외는 x 범위로)
 			if vb[i] != head_b:
 				continue
 			var v := verts[i]
-			if v.x < -0.12 and v.y > 0.7:
+			# 뿔: 머리 뼈 정점 중 머리 옆(|x| > 0.1)의 최고점
+			if v.x < -0.1:
 				hl = maxf(hl, v.y)
-			if v.x > 0.12 and v.y > 0.7:
+			if v.x > 0.1:
 				hr = maxf(hr, v.y)
-		check(hr > hl, "뿔이 Lv.%d 오른뿔이 더 큼 (%.2f > %.2f)" % [lv, hr, hl])
-		check(hr >= prev_r - 0.001, "뿔이 Lv.%d 뿔이 자람" % lv)
-		prev_r = hr
-		check(r.weapon_tip_global_position().y > 0.75, "뿔이 Lv.%d 대기 자세 지팡이 보석이 머리 위 (%.2f)" % [lv, r.weapon_tip_global_position().y])
+			# 왕관: 머리 위(y > 0.85) 가운데(|x| < 0.1)의 금색 정점
+			var c := cols[i]
+			if absf(v.x) < 0.1 and v.y > 0.85 and c.r > 0.65 and c.g > 0.45 and c.g < 0.9 and c.b < 0.45:
+				ct = maxf(ct, v.y)
+		check(absf(hl - hr) < 0.01, "뿔이 Lv.%d 뿔 좌우 대칭 (%.3f / %.3f)" % [lv, hl, hr])
+		check(hr > prev_horn + 0.03, "뿔이 Lv.%d 뿔이 자람 (%.3f > %.3f)" % [lv, hr, prev_horn])
+		prev_horn = hr
+		check(ct > 0.85, "뿔이 Lv.%d 왕관 있음 (금색 꼭대기 %.3f)" % [lv, ct])
+		crown_top.append(ct)
+		check(r.HEIGHT <= 1.0 and r.HEIGHT > 0.85, "뿔이 Lv.%d 키 %.3f (0.85~1.0)" % [lv, r.HEIGHT])
+		if lv >= 3:
+			check(r.has_joint("Cape"), "뿔이 Lv.%d 망토 뼈" % lv)
+		var tip: Vector3 = r.def_vec("tip")
+		var hand: Vector3 = (r._def.pos as PackedVector3Array)[int(r._bi["HandR"])]
+		check(tip.x > 0.05 and tip.y < hand.y and tip.distance_to(hand) < 0.2, "뿔이 Lv.%d 가리키는 손 끝이 오른손 발톱 (%s)" % [lv, str(tip)])
+		# 표정이 얼굴 뼈를 움직인다(눈꺼풀 크기·입 모양 전환)
+		r.set_expression("normal")
+		var lid_n := r.skeleton.get_bone_pose_scale(int(r._bi["LidL"])).y
+		var mouth_n := r.skeleton.get_bone_pose_scale(int(r._bi["MouthA"])).y
+		r.set_expression("angry")
+		var lid_a := r.skeleton.get_bone_pose_scale(int(r._bi["LidL"])).y
+		var mouth_a := r.skeleton.get_bone_pose_scale(int(r._bi["MouthA"])).y
+		check(lid_a > lid_n + 0.1 and mouth_n < 0.01 and mouth_a > 0.99, "뿔이 Lv.%d 표정 변화(눈꺼풀 %.2f→%.2f, 벌린 입 %.3f→%.3f)" % [lv, lid_n, lid_a, mouth_n, mouth_a])
 		r.free()
+	check(float(crown_top[3]) > float(crown_top[0]) + 0.04, "뿔이 Lv.4 왕관이 Lv.1 보다 높음 (%.3f > %.3f)" % [crown_top[3], crown_top[0]])
+	check(tris.size() == 4, "뿔이 네 레벨의 메시가 서로 다름")
 
 
 ## 4차: 유닛 훈련(막사·훈련장), 인구 한도, 목재 한 번, 시간 진행, 성 레벨 잠금
