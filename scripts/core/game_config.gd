@@ -108,6 +108,10 @@ static func type_label(type: String) -> String:
 			return "꽃밭"
 		"lantern":
 			return "버섯 등불"
+		"barracks":
+			return "해골 막사"
+		"training_ground":
+			return "오크 훈련장"
 	return type
 
 
@@ -234,3 +238,22 @@ static func stage_units(stage_id: int) -> Array:
 	for l in late:
 		list.insert(mini(int(l.at), list.size()), l.unit)
 	return list
+
+
+# ---------------------------------------------------------------- 4차: 직접 만드는 유닛
+
+static func units_config() -> Dictionary:
+	return defaults().get("units", {})
+
+
+static func unit_def(kind: String) -> Dictionary:
+	return units_config().get(kind, {})
+
+
+## 이 건물이 훈련하는 유닛 종류("" = 없음)
+static func trains_of(building_type: String) -> String:
+	return String(building_def(building_type).get("trains", ""))
+
+
+static func unit_kinds() -> Array:
+	return ["archer", "orc"]

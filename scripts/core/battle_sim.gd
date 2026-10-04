@@ -21,6 +21,8 @@ var abort_reason: String = ""
 var knights: Array = []
 var towers: Array = []
 var bolts: Array = []
+## 4차: 직접 만든 마물 유닛(해골 궁수·꼬마 오크). 집결 깃발 근처에 선다
+var defenders: Array = []
 ## 화면 연출용 이벤트(소비 측이 비운다)
 var events: Array = []
 
@@ -86,8 +88,57 @@ func setup(buildings: Array, edges: Dictionary, p_stage: int, p_hp_multiplier: f
 			damage = int(lv.damage), range = float(lv.range_cells), cooldown = float(lv.cooldown_seconds),
 			cooldown_left = 0.0, target_id = -1, aim = Vector2(0, -1), shots = 0,
 		})
+	_setup_defenders(opts.get("units", {}), opts.get("rally", Vector2i(_castle.get("x", 6) + 1, _castle.get("z", 6) - 1)))
 	if route.is_empty():
 		_abort(GridLogic.REASON_NO_ROUTE)
+
+
+## 유닛 배치: 오크는 깃발 칸 가로줄(길을 막는 앞줄), 궁수는 그 뒤(성 쪽 +z) 두 줄. 순서·간격 고정(결정적)
+func _setup_defenders(counts: Dictionary, rally: Vector2i) -> void:
+	defenders = []
+	var r := Vector2(rally.x + 0.5, rally.y + 0.5)
+	var offs := [0.0, -0.45, 0.45, -0.9, 0.9, -1.35, 1.35, -1.8, 1.8, -2.25, 2.25, -2.7, 2.7]
+	var od := GameConfig.unit_def("orc")
+	for i in int(counts.get("orc", 0)):
+		var hp := int(od.get("hp", 150))
+		defenders.append({id = "orc_%d" % (i + 1), kind = "orc", pos = r + Vector2(float(offs[i % offs.size()]), 0.0), alive = true,
+			hp = hp, max_hp = hp, damage = int(od.get("damage", 8)), interval = float(od.get("attack_interval_seconds", 1.0)),
+			attack_timer = float(od.get("attack_interval_seconds", 1.0)), blocking = [], range = float(od.get("block_range_cells", 0.6)),
+			block_max = int(od.get("block_max", 2)), aim = Vector2(0, -1), shots = 0})
+	var ad := GameConfig.unit_def("archer")
+	for i in int(counts.get("archer", 0)):
+		var row := 0.75 + 0.6 * float(i / 7)
+		var c := r + Vector2(float(offs[i % 7]), row)
+		defenders.append({id = "archer_%d" % (i + 1), kind = "archer", pos = c, center = c, alive = true,
+			damage = int(ad.get("damage", 6)), range = float(ad.get("range_cells", 2.5)), cooldown = float(ad.get("cooldown_seconds", 1.0)),
+			cooldown_left = 0.0, target_id = -1, aim = Vector2(0, -1), shots = 0})
+
+
+func _defender(id: String) -> Dictionary:
+	for d in defenders:
+		if d.id == id:
+			return d
+	return {}
+
+
+## 기사가 쓰러지거나 오크가 쓰러지면 막힘을 푼다
+func _release(k: Dictionary) -> void:
+	var bid := String(k.get("blocked_by", ""))
+	if bid == "":
+		return
+	var o := _defender(bid)
+	if not o.is_empty():
+		(o.blocking as Array).erase(k.id)
+	k.blocked_by = ""
+
+
+func _kill_knight(k: Dictionary) -> void:
+	if not k.alive:
+		return
+	k.alive = false
+	killed += 1
+	_release(k)
+	events.append({type = "kill", knight = k.id})
 
 
 ## 멀쩡하고 완성된 앞마당이 있고 길이 닿으면 그곳을 노리는 소대를 만든다
@@ -149,7 +200,39 @@ func step(dt: float) -> void:
 				break
 		if k.state == "attack" and k.target == "castle":
 			k.reached = true
+		# 오크에게 막힌 기사: 그 자리에서 오크와 싸운다
+		if String(k.get("blocked_by", "")) != "":
+			var o := _defender(String(k.blocked_by))
+			if o.is_empty() or not o.alive:
+				k.blocked_by = ""
+			else:
+				k.facing = (o.pos - k.pos).normalized() if (o.pos - k.pos).length() > 0.001 else k.facing
+				k.attack_timer -= dt
+				if k.attack_timer <= 0.0:
+					k.attack_timer += float(k.attack_interval)
+					progress = true
+					o.hp = int(o.hp) - int(k.attack_damage)
+					events.append({type = "unit_hit", unit = o.id, knight = k.id, damage = int(k.attack_damage)})
+					if int(o.hp) <= 0:
+						o.alive = false
+						o.hp = 0
+						events.append({type = "unit_down", unit = o.id})
+						for kid in (o.blocking as Array).duplicate():
+							var bk := _knight_by_id(int(kid))
+							if not bk.is_empty():
+								bk.blocked_by = ""
+						o.blocking = []
+				continue
+			continue
 		if k.state == "walk":
+			var blocker := _blocking_orc(k)
+			if not blocker.is_empty():
+				k.blocked_by = blocker.id
+				(blocker.blocking as Array).append(k.id)
+				k.attack_timer = float(_c.knight_first_attack_after_seconds)
+				events.append({type = "blocked", unit = blocker.id, knight = k.id})
+				progress = true
+				continue
 			var before: float = k.remaining_dist
 			var move := float(k.speed) * dt
 			while move > 0.0 and k.wp < k.waypoints.size():
@@ -198,6 +281,43 @@ func step(dt: float) -> void:
 			bolts.append({id = _next_bolt_id, tower_id = t.id, target_id = target.id, pos = t.center, start = t.center, damage = t.damage, alive = true})
 			events.append({type = "fire", tower = t.id, bolt = _next_bolt_id, target = target.id})
 			_next_bolt_id += 1
+	# 3-2. 오크: 막고 있는 기사 중 앞 순서부터 때린다
+	for o in defenders:
+		if o.kind != "orc" or not o.alive:
+			continue
+		var targets: Array = o.blocking
+		if targets.is_empty():
+			o.attack_timer = minf(float(o.attack_timer), float(o.interval))
+			continue
+		o.attack_timer -= dt
+		if o.attack_timer <= 0.0:
+			o.attack_timer += float(o.interval)
+			var tk := _knight_by_id(int(targets[0]))
+			if not tk.is_empty() and tk.alive:
+				o.aim = (tk.pos - o.pos).normalized() if (tk.pos - o.pos).length() > 0.001 else o.aim
+				o.shots += 1
+				tk.hp -= int(o.damage)
+				tk.damage_taken = int(tk.get("damage_taken", 0)) + int(o.damage)
+				progress = true
+				events.append({type = "unit_strike", unit = o.id, knight = tk.id, damage = int(o.damage)})
+				if tk.hp <= 0:
+					_kill_knight(tk)
+	# 3-3. 해골 궁수: 방어탑처럼 사거리 안 가장 가까운 기사를 쏜다
+	for a in defenders:
+		if a.kind != "archer":
+			continue
+		a.cooldown_left = maxf(0.0, a.cooldown_left - dt)
+		var target := _pick_target(a)
+		a.target_id = -1 if target.is_empty() else int(target.id)
+		if target.is_empty():
+			continue
+		a.aim = (target.pos - a.center).normalized()
+		if a.cooldown_left <= 0.0:
+			a.cooldown_left = a.cooldown
+			a.shots += 1
+			bolts.append({id = _next_bolt_id, tower_id = a.id, target_id = target.id, pos = a.center, start = a.center, damage = a.damage, alive = true})
+			events.append({type = "fire", tower = a.id, bolt = _next_bolt_id, target = target.id})
+			_next_bolt_id += 1
 	# 4. 발사체
 	var bolt_speed := float(_c.bolt_speed_cells_per_second)
 	for bolt in bolts:
@@ -219,9 +339,7 @@ func step(dt: float) -> void:
 			progress = true
 			events.append({type = "hit", bolt = bolt.id, knight = tk.id, damage = bolt.damage})
 			if tk.hp <= 0 and tk.alive:
-				tk.alive = false
-				killed += 1
-				events.append({type = "kill", knight = tk.id})
+				_kill_knight(tk)
 		else:
 			bolt.pos += to / d * move
 	bolts = bolts.filter(func(b): return b.alive)
@@ -400,6 +518,16 @@ func _pick_target(t: Dictionary) -> Dictionary:
 			best = k
 			best_d = d
 	return best
+
+
+## 걷는 기사 앞을 막을 수 있는 오크(살아 있고, 자리가 남고, 가까운 것 중 id 순 첫째)
+func _blocking_orc(k: Dictionary) -> Dictionary:
+	for o in defenders:
+		if o.kind != "orc" or not o.alive or (o.blocking as Array).size() >= int(o.block_max):
+			continue
+		if (o.pos as Vector2).distance_to(k.pos) <= float(o.range):
+			return o
+	return {}
 
 
 func _knight_by_id(id: int) -> Dictionary:

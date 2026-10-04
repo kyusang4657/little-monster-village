@@ -161,6 +161,34 @@
       "movable": true,
       "deletable": false,
       "role": "decoration_only"
+    },
+    "barracks": {
+      "footprint": [
+        2,
+        2
+      ],
+      "build_cost": 100,
+      "build_seconds": 20,
+      "max_count": 1,
+      "max_level": 1,
+      "movable": true,
+      "deletable": false,
+      "role": "trains_skeleton_archers",
+      "trains": "archer"
+    },
+    "training_ground": {
+      "footprint": [
+        2,
+        2
+      ],
+      "build_cost": 120,
+      "build_seconds": 20,
+      "max_count": 1,
+      "max_level": 1,
+      "movable": true,
+      "deletable": false,
+      "role": "trains_orc_brutes",
+      "trains": "orc"
     }
   },
   "fences": {
@@ -446,7 +474,9 @@
         "defense_tower": 6,
         "outpost": 0,
         "flowerbed": 0,
-        "lantern": 0
+        "lantern": 0,
+        "barracks": 1,
+        "training_ground": 0
       },
       "expansions": [],
       "unlock_text": []
@@ -458,7 +488,8 @@
         "house": 6,
         "lumber_camp": 2,
         "flowerbed": 12,
-        "lantern": 12
+        "lantern": 12,
+        "training_ground": 1
       },
       "expansions": [
         "east",
@@ -468,7 +499,8 @@
         "땅 넓히기: 동쪽·서쪽",
         "벌목소 하나 더(목재 120)",
         "고블린 주택 최대 6채",
-        "꾸밈 소품: 꽃밭·버섯 등불"
+        "꾸밈 소품: 꽃밭·버섯 등불",
+        "오크 훈련장(꼬마 오크)"
       ]
     },
     "3": {
@@ -577,6 +609,32 @@
       "rocks": 14,
       "flowers": 160,
       "note": "넓어진 지도에서도 장식 메시는 각각 하나로 합쳐 그리기 호출을 늘리지 않는다"
+    }
+  },
+  "units": {
+    "note": "직접 만드는 마물 유닛. 전투에는 자동으로 나가고 집결 깃발 근처에 선다. 쓰러져도 전투가 끝나면 돌아온다(영구 손실 없음).",
+    "population_per_house": 1,
+    "queue_max": 5,
+    "default_rally": "castle_front",
+    "archer": {
+      "label": "해골 궁수",
+      "from": "barracks",
+      "train_cost": 25,
+      "train_seconds": 12,
+      "damage": 4,
+      "range_cells": 2.3,
+      "cooldown_seconds": 1.3
+    },
+    "orc": {
+      "label": "꼬마 오크",
+      "from": "training_ground",
+      "train_cost": 35,
+      "train_seconds": 15,
+      "hp": 110,
+      "damage": 6,
+      "attack_interval_seconds": 1.0,
+      "block_range_cells": 0.6,
+      "block_max": 2
     }
   }
 }

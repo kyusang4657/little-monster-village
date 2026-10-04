@@ -673,7 +673,7 @@ func _start_raid() -> void:
 	world.clear_battle()
 	sim = BattleSim.new()
 	sim.setup(state.buildings, state.all_edges(), int(r.stage), float(r.get("hp_multiplier", 1.0)),
-		{castle_hp = int(r.castle_hp), bounds = r.bounds})
+		{castle_hp = int(r.castle_hp), bounds = r.bounds, units = r.units, rally = r.rally})
 	tutorial.notify("battle_started")
 	Sound.play("raid_start")
 	Sound.play_music("battle")

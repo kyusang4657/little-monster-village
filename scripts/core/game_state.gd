@@ -5,6 +5,7 @@ extends RefCounted
 signal changed
 signal raid_became_ready
 signal construction_finished(id: String)
+signal unit_trained(kind: String)
 signal castle_leveled(level: int)
 
 const MODE_VILLAGE := "VILLAGE"
@@ -14,7 +15,7 @@ const MODE_BATTLE := "BATTLE"
 const MODE_PAUSED := "PAUSED"
 const MODE_RESULT := "RESULT"
 
-const SAVE_VERSION := 3
+const SAVE_VERSION := 4
 
 var buildings: Array = []
 var interior_fences: Dictionary = {}
@@ -37,6 +38,11 @@ var expansions: Array = []
 var story_seen: Dictionary = {}
 ## 3차: 아직 보여 주지 못한 장면 트리거(결과와 함께 저장 → 앱이 꺼져도 다음 실행에서 이어 보여 줌)
 var story_pending: Array = []
+## 4차: 직접 만든 유닛 수(전투에 자동 참여, 쓰러져도 전투 뒤 돌아옴)
+var units: Dictionary = {archer = 0, orc = 0}
+## 4차: 집결 깃발 칸. 정하지 않았으면 NO_RALLY(성 앞 칸을 쓴다)
+var rally := NO_RALLY
+const NO_RALLY := Vector2i(-999, -999)
 
 ## 실행 중 상태(저장하지 않음)
 ## 방금 끝난 공사가 수리였는지(construction_finished 알림용)
@@ -77,6 +83,8 @@ func new_game() -> void:
 	expansions = []
 	story_seen = {}
 	story_pending = []
+	units = {archer = 0, orc = 0}
+	rally = NO_RALLY
 	sync_castle_level()
 	mode = idle_mode()
 	changed.emit()
@@ -103,6 +111,7 @@ func tick(delta: float) -> void:
 				wood = mini(wood + whole, capacity())
 				changed.emit()
 	if mode in GameConfig.construction().progress_states:
+		_tick_training(delta)
 		for b in buildings:
 			if float(b.build_left) > 0.0:
 				b.build_left = maxf(0.0, float(b.build_left) - delta)
@@ -432,6 +441,101 @@ func commit_expand(dir: String) -> Dictionary:
 	return v
 
 
+# ---------------------------------------------------------------- 유닛 훈련(4차)
+
+## 인구 한도 = 완성된 주택 수 × population_per_house
+func population_cap() -> int:
+	var n := 0
+	for b in buildings:
+		if b.type == "house" and is_built(b):
+			n += 1
+	return n * int(GameConfig.units_config().get("population_per_house", 2))
+
+
+## 이미 있는 유닛 + 훈련 대기 중인 유닛
+func population() -> int:
+	var n := 0
+	for k in units:
+		n += int(units[k])
+	for b in buildings:
+		n += int(b.get("train_queue", 0))
+	return n
+
+
+func check_train(id: String) -> Dictionary:
+	var b := get_building(id)
+	if b.is_empty():
+		return {ok = false, reason = "건물이 없어요"}
+	var kind := GameConfig.trains_of(b.type)
+	if kind == "":
+		return {ok = false, reason = "이 건물은 유닛을 만들지 않아요"}
+	if not is_built(b):
+		return {ok = false, reason = "공사가 끝나면 훈련할 수 있어요"}
+	var u := GameConfig.unit_def(kind)
+	if int(b.get("train_queue", 0)) >= int(GameConfig.units_config().get("queue_max", 5)):
+		return {ok = false, reason = "훈련 대기열이 가득 찼어요"}
+	if population() >= population_cap():
+		return {ok = false, reason = "인구가 가득 찼어요. 고블린 주택을 더 지어 보세요"}
+	var cost := int(u.get("train_cost", 0))
+	if wood < cost:
+		return {ok = false, reason = "목재가 부족해요"}
+	return {ok = true, reason = "", cost = cost, kind = kind}
+
+
+## 훈련: 목재는 대기열에 넣을 때 한 번만 낸다. 맨 앞 유닛부터 시간이 흐른다.
+func commit_train(id: String) -> Dictionary:
+	var v := check_train(id)
+	if not v.ok:
+		return v
+	var b := get_building(id)
+	wood -= int(v.cost)
+	if int(b.get("train_queue", 0)) == 0:
+		b.train_left = float(GameConfig.unit_def(v.kind).get("train_seconds", 10))
+	b.train_queue = int(b.get("train_queue", 0)) + 1
+	changed.emit()
+	return v
+
+
+func _tick_training(delta: float) -> void:
+	for b in buildings:
+		var q := int(b.get("train_queue", 0))
+		if q <= 0:
+			continue
+		b.train_left = float(b.get("train_left", 0.0)) - delta
+		if b.train_left <= 0.0:
+			var kind := GameConfig.trains_of(b.type)
+			units[kind] = int(units.get(kind, 0)) + 1
+			b.train_queue = q - 1
+			b.train_left = float(GameConfig.unit_def(kind).get("train_seconds", 10)) if q - 1 > 0 else 0.0
+			unit_trained.emit(kind)
+			changed.emit()
+
+
+## 집결 깃발: 정하지 않았으면 성 앞(정문 쪽) 칸
+func rally_cell() -> Vector2i:
+	# 깃발 자리에 나중에 건물이 들어서면 성 앞으로 돌아간다
+	if rally != NO_RALLY and GridLogic.in_grid(rally, bounds()) and building_at(rally).is_empty():
+		return rally
+	var c := GridLogic.castle_of(buildings)
+	return Vector2i(int(c.get("x", 6)) + 1, int(c.get("z", 6)) - 1)
+
+
+func check_rally(cell: Vector2i) -> Dictionary:
+	if not GridLogic.in_grid(cell, bounds()):
+		return {ok = false, reason = "마을 안에만 깃발을 꽂을 수 있어요"}
+	if not building_at(cell).is_empty():
+		return {ok = false, reason = "건물 위에는 꽂을 수 없어요"}
+	return {ok = true, reason = ""}
+
+
+func commit_rally(cell: Vector2i) -> Dictionary:
+	var v := check_rally(cell)
+	if v.ok:
+		rally = cell
+		changed.emit()
+	return v
+
+
 # ---------------------------------------------------------------- 앞마당(3차)
 
 func outposts() -> Array:
@@ -492,7 +596,7 @@ func begin_battle() -> Dictionary:
 	mode = MODE_BATTLE
 	changed.emit()
 	return {ok = true, battle_id = current_battle_id, stage = ready_stage, hp_multiplier = assist_multiplier(),
-		castle_hp = castle_hp(), bounds = bounds()}
+		castle_hp = castle_hp(), bounds = bounds(), units = units.duplicate(), rally = rally_cell()}
 
 
 ## 도움 모드가 켜져 있고 같은 단계에서 연속으로 졌을 때만 1보다 작아진다.
@@ -571,6 +675,9 @@ func to_dict() -> Dictionary:
 			e.damaged = true
 		if bool(b.get("repairing", false)):
 			e.repairing = true
+		if int(b.get("train_queue", 0)) > 0:
+			e.train_queue = int(b.train_queue)
+			e.train_left = snappedf(float(b.get("train_left", 0.0)), 0.001)
 		bl.append(e)
 	var fences: Array = interior_fences.keys()
 	fences.sort()
@@ -593,6 +700,8 @@ func to_dict() -> Dictionary:
 		expansions = expansions.duplicate(),
 		story_seen = _sorted_keys(story_seen),
 		story_pending = story_pending.duplicate(),
+		units = {archer = int(units.get("archer", 0)), orc = int(units.get("orc", 0))},
+		rally = [] if rally == NO_RALLY else [rally.x, rally.y],
 	}
 
 
@@ -616,6 +725,7 @@ static func validate_dict(d) -> String:
 	var ids := {}
 	var counts := {}
 	var bl: Array = []
+	var train_total := 0
 	for b in d.buildings:
 		if typeof(b) != TYPE_DICTIONARY:
 			return "건물 형식 오류"
@@ -644,6 +754,10 @@ static func validate_dict(d) -> String:
 			return "앞마당 상태 오류"
 		if dmg and (rep or left > 0.0):
 			return "앞마당 상태 오류"
+		var tq := int(b.get("train_queue", 0))
+		if tq < 0 or tq > int(GameConfig.units_config().get("queue_max", 5)) or (tq > 0 and GameConfig.trains_of(String(b.type)) == ""):
+			return "훈련 대기열 오류"
+		train_total += tq
 		bl.append({id = String(b.id), type = String(b.type), x = int(b.x), z = int(b.z), rot = int(b.rot), level = int(b.level)})
 	if typeof(d.highest_cleared) != TYPE_FLOAT and typeof(d.highest_cleared) != TYPE_INT:
 		return "단계 범위 오류"
@@ -693,6 +807,22 @@ static func validate_dict(d) -> String:
 		placed.append(b)
 	if GridLogic.find_route(bl, GridLogic.all_edges(fences, bnds), bnds).is_empty():
 		return "경로 없음"
+	# 유닛: 종류·개수 형식, 인구 한도(주택 수 × 배수) 이하. 깃발은 경계 안
+	var du = d.get("units", {})
+	if typeof(du) != TYPE_DICTIONARY:
+		return "유닛 형식 오류"
+	var utotal := train_total
+	for k in du:
+		if not GameConfig.unit_kinds().has(String(k)) or (typeof(du[k]) != TYPE_INT and typeof(du[k]) != TYPE_FLOAT) or int(du[k]) < 0:
+			return "유닛 형식 오류"
+		utotal += int(du[k])
+	if utotal > int(counts.get("house", 0)) * int(GameConfig.units_config().get("population_per_house", 2)):
+		return "인구 한도 초과"
+	var dr = d.get("rally", [])
+	if typeof(dr) != TYPE_ARRAY or ((dr as Array).size() != 0 and (dr as Array).size() != 2):
+		return "깃발 형식 오류"
+	if (dr as Array).size() == 2 and not GridLogic.in_grid(Vector2i(int(dr[0]), int(dr[1])), bnds):
+		return "깃발 위치 오류"
 	var cap := int(GameConfig.economy().capacity)
 	if int(d.wood) < 0 or int(d.wood) > cap:
 		return "목재 범위 오류"
@@ -715,6 +845,9 @@ func from_dict(d: Dictionary) -> void:
 			nb.damaged = true
 		if bool(b.get("repairing", false)) and nb.build_left > 0.0:
 			nb.repairing = true
+		if int(b.get("train_queue", 0)) > 0:
+			nb.train_queue = int(b.train_queue)
+			nb.train_left = float(b.get("train_left", 0.0))
 		buildings.append(nb)
 	interior_fences = {}
 	for k in d.interior_fences:
@@ -745,6 +878,16 @@ func from_dict(d: Dictionary) -> void:
 	story_pending = []
 	for t in d.get("story_pending", []):
 		story_pending.append(String(t))
+	# 버전 3 이하: 유닛 없음, 깃발은 성 앞
+	units = {archer = 0, orc = 0}
+	var du = d.get("units", {})
+	if typeof(du) == TYPE_DICTIONARY:
+		for k in GameConfig.unit_kinds():
+			units[k] = maxi(0, int(du.get(k, 0)))
+	rally = NO_RALLY
+	var dr = d.get("rally", [])
+	if typeof(dr) == TYPE_ARRAY and (dr as Array).size() == 2:
+		rally = Vector2i(int(dr[0]), int(dr[1]))
 	if int(d.version) < 3:
 		_mark_past_story_seen()
 	sync_castle_level()

@@ -21,6 +21,7 @@ func _init() -> void:
 		"test_castle_levels", "test_boss_units", "test_expansion", "test_resource_sites_and_props",
 		"test_outpost_battle", "test_outpost_repair", "test_save_v3_migration", "test_story_data",
 		"test_review_fixes_core", "test_castle_models", "test_imp_design",
+		"test_units_training", "test_units_battle", "test_save_v4_units",
 	]
 	for t in tests:
 		var before := _fail
@@ -1256,3 +1257,137 @@ func test_imp_design() -> void:
 		prev_r = hr
 		check(r.weapon_tip_global_position().y > 0.75, "뿔이 Lv.%d 대기 자세 지팡이 보석이 머리 위 (%.2f)" % [lv, r.weapon_tip_global_position().y])
 		r.free()
+
+
+## 4차: 유닛 훈련(막사·훈련장), 인구 한도, 목재 한 번, 시간 진행, 성 레벨 잠금
+func test_units_training() -> void:
+	var s := at_level(0)
+	s.wood = 500
+	check(s.max_count("barracks") == 1 and s.max_count("training_ground") == 0, "Lv.1: 해골 막사만 열림")
+	check(s.commit_new_building("barracks", 10, 7, 0).ok, "해골 막사 건설")
+	var bid := ""
+	for b in s.buildings:
+		if b.type == "barracks":
+			bid = String(b.id)
+	check(not s.check_train(bid).ok, "공사 중에는 훈련 불가")
+	finish_construction(s)
+	check(s.population_cap() == 2 * int(GameConfig.units_config().population_per_house), "인구 한도 = 주택 × 2 (%d)" % s.population_cap())
+	s.wood = 500
+	var w0 := s.wood
+	var r := s.commit_train(bid)
+	check(r.ok and s.wood == w0 - int(GameConfig.unit_def("archer").train_cost) and s.population() == 1, "훈련 시작: 목재 한 번, 인구 1")
+	s.tick(float(GameConfig.unit_def("archer").train_seconds) * 0.5)
+	check(int(s.units.archer) == 0, "훈련 중에는 아직 없음")
+	s.tick(float(GameConfig.unit_def("archer").train_seconds) * 0.5 + 0.01)
+	check(int(s.units.archer) == 1 and int(s.get_building(bid).get("train_queue", 0)) == 0, "훈련 완료 → 궁수 1")
+	for i in 10:
+		s.wood = 500
+		s.commit_train(bid)
+	check(s.population() == s.population_cap(), "인구 한도에서 멈춤 (%d/%d)" % [s.population(), s.population_cap()])
+	check(s.check_train(bid).reason.begins_with("인구가 가득"), "인구 가득 안내")
+	s.mode = GameState.MODE_BATTLE
+	var q := int(s.get_building(bid).train_queue)
+	s.tick(100.0)
+	check(int(s.get_building(bid).train_queue) == q, "전투 중에는 훈련 멈춤")
+	var l2 := at_level(3)
+	check(l2.max_count("training_ground") == 1, "Lv.2: 오크 훈련장 열림")
+	check(not l2.check_train("house_01").ok, "주택은 훈련 안 함")
+
+
+## 4차: 전투 효과. 유닛이 없으면 기존 결과 그대로, 궁수·오크가 있으면 더 잘 막는다. 결정적
+func test_units_battle() -> void:
+	var s := fresh()
+	var base := BattleSim.new()
+	base.setup(s.buildings, s.all_edges(), 2, 1.0, {castle_hp = s.castle_hp(), bounds = s.bounds()})
+	var base_out := base.run_to_end(300)
+	check(base_out == "lose", "2단계 처음 배치는 여전히 패배(유닛 없음)")
+	var rally := s.rally_cell()
+	var withu := BattleSim.new()
+	withu.setup(s.buildings, s.all_edges(), 2, 1.0, {castle_hp = s.castle_hp(), bounds = s.bounds(), units = {archer = 2, orc = 2}, rally = rally})
+	check(withu.defenders.size() == 4, "유닛 4 배치")
+	var out := withu.run_to_end(300)
+	var orc_hits := 0
+	var archer_shots := 0
+	for d in withu.defenders:
+		if d.kind == "orc":
+			orc_hits += int(d.shots)
+		else:
+			archer_shots += int(d.shots)
+	print("  [유닛 2단계] 궁수 2·오크 2: %s, 성 HP %d/%d, 오크 타격 %d, 궁수 발사 %d" % [out, withu.castle_hp, withu.castle_max, orc_hits, archer_shots])
+	check(archer_shots > 0 and orc_hits > 0, "궁수가 쏘고 오크가 막아 싸움")
+	check(out == "win" or withu.castle_hp > base.castle_hp, "유닛이 있으면 더 잘 막음")
+	var again := BattleSim.new()
+	again.setup(s.buildings, s.all_edges(), 2, 1.0, {castle_hp = s.castle_hp(), bounds = s.bounds(), units = {archer = 2, orc = 2}, rally = rally})
+	check(again.run_to_end(300) == out and again.castle_hp == withu.castle_hp and again.time == withu.time, "유닛 전투도 결정적")
+	# 방어탑 중심 유지: 최대 인구(주택 10 → 유닛 10)를 처음 방어탑 2개와 써도 10단계는 진다
+	var maxu := int(GameConfig.building_def("house").max_count) * int(GameConfig.units_config().population_per_house)
+	var late := BattleSim.new()
+	late.setup(s.buildings, s.all_edges(), GameConfig.stage_count(), 1.0, {castle_hp = GameConfig.castle_hp(4), bounds = s.bounds(),
+		units = {archer = maxu / 2, orc = maxu - maxu / 2}, rally = rally})
+	check(late.run_to_end(400) == "lose", "유닛만으로는 10단계를 못 막음(방어탑 필요, 유닛 %d)" % maxu)
+	# 오크가 막으면 기사가 멈추고, 오크가 쓰러지면 다시 걷는다
+	var b := BattleSim.new()
+	b.setup(s.buildings, s.all_edges(), 1, 1.0, {castle_hp = 100000, bounds = s.bounds(), units = {orc = 1}, rally = GameConfig.entry_cell_for(s.bounds()) + Vector2i(0, 1)})
+	var blocked_seen := false
+	var down_seen := false
+	while b.outcome == "" and b.time < 200:
+		b.step(BattleSim.STEP)
+		for e in b.events:
+			if e.type == "blocked":
+				blocked_seen = true
+			if e.type == "unit_down":
+				down_seen = true
+		b.events.clear()
+		if down_seen:
+			break
+	check(blocked_seen, "오크가 기사를 막음")
+	var walking_again := false
+	if down_seen:
+		for i in 120:
+			b.step(BattleSim.STEP)
+		for k in b.knights:
+			if k.alive and k.state != "walk" or (k.alive and String(k.get("blocked_by", "")) == ""):
+				walking_again = true
+	check(not down_seen or walking_again, "오크가 쓰러지면 기사가 다시 감")
+
+
+## 저장 v4: 유닛·대기열·깃발 저장·복원, v3 자동 이전, 잘못된 값 거부
+func test_save_v4_units() -> void:
+	var s := at_level(0)
+	s.wood = 500
+	s.commit_new_building("barracks", 10, 7, 0)
+	finish_construction(s)
+	var bid := ""
+	for b in s.buildings:
+		if b.type == "barracks":
+			bid = String(b.id)
+	s.units.archer = 1
+	s.wood = 500
+	s.commit_train(bid)
+	s.commit_rally(Vector2i(6, 3))
+	var d := s.to_dict()
+	check(GameState.validate_dict(d) == "", "v4 저장본 통과")
+	var t := GameState.new()
+	t.from_dict(JSON.parse_string(JSON.stringify(d)))
+	check(int(t.units.archer) == 1 and int(t.get_building(bid).train_queue) == 1 and t.rally == Vector2i(6, 3), "유닛·대기열·깃발 복원")
+	var v3 := d.duplicate(true)
+	v3.version = 3
+	v3.erase("units")
+	v3.erase("rally")
+	for b in v3.buildings:
+		b.erase("train_queue")
+		b.erase("train_left")
+	check(GameState.validate_dict(v3) == "", "v3 저장본 허용")
+	var m := GameState.new()
+	m.from_dict(v3)
+	check(int(m.units.archer) == 0 and m.rally == GameState.NO_RALLY, "v3 → 유닛 없음, 깃발 기본")
+	var bad := d.duplicate(true)
+	bad.units = {archer = 99}
+	check(GameState.validate_dict(bad) == "인구 한도 초과", "인구 한도 초과 거부")
+	bad = d.duplicate(true)
+	bad.units = {dragon = 1}
+	check(GameState.validate_dict(bad) != "", "모르는 유닛 거부")
+	bad = d.duplicate(true)
+	bad.rally = [99, 99]
+	check(GameState.validate_dict(bad) != "", "경계 밖 깃발 거부")
+	check(not s.check_rally(Vector2i(6, 7)).ok, "건물 위 깃발 거부")
