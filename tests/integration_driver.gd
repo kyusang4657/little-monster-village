@@ -517,6 +517,18 @@ func _review_ui_checks(s: GameState) -> void:
 	main._on_menu_action("outlines")
 	await _wait(1)
 	check(body.material_overlay != null, "다시 켜기")
+	# 15) 뿔이: 성 레벨 모델, 누르면 한마디, 성이 자라면 결과·이야기 뒤 축하
+	main._sync_world()
+	await _wait(2)
+	check(main.world.imp.level == s.castle_level() and main.world.imp.rig != null, "뿔이 모델 = 성 레벨 %d" % s.castle_level())
+	await _advance_village(1.0)
+	var ip: Vector2 = main.world.camera.unproject_position(main.world.imp.global_position + Vector3(0, 0.45, 0))
+	main._tap(ip)
+	check(main.world.imp._bubble.visible and main.world.imp._bubble.text != "", "뿔이를 누르면 한마디")
+	main._celebrate_level = 4
+	main._on_result_closed("village")
+	await _wait(2)
+	check(not main.world._fx.is_empty() and main.world.imp._cheer_t > 0.0, "성 레벨업 뒤 빛기둥·뿔이 환호")
 	# 9) 지도가 넓어지면 축소 한계도 넓어진다
 	check(main.world.cam_max >= 20.0 * WorldView._map_grow(s.bounds()) - 0.01, "넓힌 지도 축소 한계 %.1f" % main.world.cam_max)
 	# 11) 안내가 떠 있을 때 10단계 방어 시작: 안내를 끝내고 보스 장면 → 전투

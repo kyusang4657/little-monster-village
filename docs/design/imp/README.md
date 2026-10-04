@@ -15,3 +15,12 @@
 그림: `1-levels-views.jpg`(레벨×정면·3/4·옆·뒤), `2-lineup.jpg`(고블린·뿔이 Lv.1~4·기사 키 비교), `3-motions.jpg`(대기·걷기·무서운 척·환호), `4-faces.jpg`(표정).
 
 다시 만들기: `xvfb-run -a godot --path . --rendering-driver opengl3 --resolution 420x480 --script res://tests/character_capture.gd -- --out=<폴더> --mode=imp`
+
+## 마을 상주(3단계)
+
+- 뿔이는 마을을 산책합니다(성 앞 → 주택 앞 → 벌목소 앞, 건물·울타리를 피해 걷기). 목적지 세 번에 한 번 "무서운 척 → 휘청"을 합니다.
+- 누르면 깡충 환호하며 한마디 합니다(`config/story.json`의 `imp_taps`, 누를 때마다 다음 대사).
+- 전투 중에는 성 뒤에서 걱정스러운 얼굴로 지켜봅니다.
+- 성이 자라면 결과·이야기 장면이 끝난 뒤 성에서 빛기둥과 반짝이가 솟고 "Lv.N!"이 뜨며, 뿔이가 그 레벨의 모델로 바뀌어 환호하고 축하 대사(`imp_levelup`)를 합니다.
+- 이야기 대화창 얼굴 그림도 새 디자인(짝짝이 뿔, 연두 눈, 말린 머리카락, 송곳니)으로 바꿨습니다.
+- 그림: `5-in-village.jpg`

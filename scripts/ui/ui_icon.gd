@@ -133,14 +133,21 @@ func _shapes() -> void:
 			draw_rect(Rect2(c + Vector2(-0.18, -0.4) * s, Vector2(0.36, 0.1) * s), _k(Color("7a4bc4")))
 			draw_rect(Rect2(c + Vector2(-0.11, -0.55) * s, Vector2(0.22, 0.17) * s), _k(Color("7a4bc4")))
 		"imp":
-			# 꼬마 마물: 보라 동그란 얼굴, 작은 뿔, 커다란 눈, 땀방울
+			# 뿔이: 라벤더 얼굴, 짝짝이 뿔(캐릭터의 오른쪽 = 화면 왼쪽이 큼), 연두 눈, 말린 머리카락, 송곳니 하나
 			_face_bg(c, s, _k(Color("fff3d8")))
-			for sx in [-1.0, 1.0]:
-				draw_colored_polygon(PackedVector2Array([c + Vector2(0.12 * sx, -0.26) * s, c + Vector2(0.26 * sx, -0.5) * s, c + Vector2(0.26 * sx, -0.22) * s]), _k(Color("f1e6cf")))
-			draw_circle(c + Vector2(0, 0.04) * s, s * 0.32, _k(Color("9b6fd6")))
-			_eyes(c + Vector2(0, 0.0) * s, s, 0.13)
-			draw_arc(c + Vector2(0, 0.17) * s, s * 0.06, PI * 0.1, PI * 0.9, 8, _k(Color("3a2443")), maxf(1.5, s * 0.03))
-			draw_circle(c + Vector2(0.3, -0.18) * s, s * 0.05, _k(Color("8fd3ff")))
+			draw_colored_polygon(PackedVector2Array([c + Vector2(-0.12, -0.24) * s, c + Vector2(-0.36, -0.52) * s, c + Vector2(-0.26, -0.18) * s]), _k(Color("f3e6c8")))
+			draw_colored_polygon(PackedVector2Array([c + Vector2(0.14, -0.24) * s, c + Vector2(0.27, -0.4) * s, c + Vector2(0.25, -0.18) * s]), _k(Color("f3e6c8")))
+			draw_circle(c + Vector2(0, 0.05) * s, s * 0.33, _k(Color("c9b3ea")))
+			draw_arc(c + Vector2(0, -0.33) * s, s * 0.06, PI * 0.2, PI * 1.9, 10, _k(Color("4a2d6a")), maxf(1.5, s * 0.035))
+			for ex in [-0.13, 0.13]:
+				draw_circle(c + Vector2(ex, 0.07) * s, s * 0.095, _k(Color("fbfbf7")))
+				draw_circle(c + Vector2(ex - 0.01, 0.08) * s, s * 0.07, _k(Color("2f9a3c")))
+				draw_circle(c + Vector2(ex - 0.01, 0.09) * s, s * 0.035, _k(Color("173d1c")))
+				draw_circle(c + Vector2(ex + 0.02, 0.05) * s, s * 0.022, _k(Color.WHITE))
+			draw_arc(c + Vector2(0, 0.2) * s, s * 0.07, PI * 0.15, PI * 0.85, 8, _k(Color("4a1f28")), maxf(1.5, s * 0.03))
+			draw_colored_polygon(PackedVector2Array([c + Vector2(0.03, 0.24) * s, c + Vector2(0.07, 0.24) * s, c + Vector2(0.05, 0.3) * s]), _k(Color.WHITE))
+			for ex in [-0.24, 0.24]:
+				draw_circle(c + Vector2(ex, 0.19) * s, s * 0.05, _k(Color(0.95, 0.63, 0.78, 0.8)))
 		"commander":
 			# 기사단장: 은색 투구, 붉은 깃, 팔자 콧수염
 			_face_bg(c, s, _k(Color("ffe9e4")))

@@ -11,6 +11,9 @@ var hud: Hud
 var tutorial: Tutorial
 var story_view: StoryView
 var _story_then: Callable
+var _imp_taps := 0
+## 성이 자란 전투 뒤, 결과·이야기가 끝나면 뿔이 축하 연출
+var _celebrate_level := 0
 var _story_current := ""
 ## 결과 화면을 닫은 뒤 이어서 보여 줄 장면(장 완료·앞마당 점령 등)
 var _tutorial_done := false
@@ -217,6 +220,7 @@ func _on_construction_finished(id: String) -> void:
 
 func _sync_world() -> void:
 	world.set_map(state.bounds())
+	world.imp.set_level(state.castle_level())
 	world.sync_buildings(state.buildings)
 	world.rebuild_fences(state.all_edges())
 
@@ -711,6 +715,7 @@ func _finish_battle() -> void:
 		var lv := int(res.castle_level)
 		var ld := GameConfig.castle_level_def(lv)
 		extra.append("성이 Lv.%d %s(으)로 커졌어요! 체력 %d" % [lv, String(ld.get("label", "")), int(ld.get("hp", 0))])
+		_celebrate_level = lv
 		var unlocks: Array = ld.get("unlock_text", [])
 		if not unlocks.is_empty():
 			extra.append("새로 열림: %s" % " · ".join(PackedStringArray(unlocks)))
@@ -761,6 +766,12 @@ func _on_result_closed(action: String) -> void:
 	var then := Callable()
 	if action == "retry" or action == "replay":
 		then = _start_raid
+	elif _celebrate_level > 0:
+		var lv := _celebrate_level
+		then = func():
+			world.levelup_fx(_castle_id, lv)
+			world.imp.celebrate(Story.imp_levelup_line(lv))
+	_celebrate_level = 0
 	_queue_story([], then)
 
 
@@ -1128,6 +1139,12 @@ func _tap(pos: Vector2) -> void:
 	if state.mode != GameState.MODE_VILLAGE and state.mode != GameState.MODE_RAID_READY:
 		return
 	hud.hide_build_menu()
+	# 뿔이를 누르면 한마디(건물보다 먼저)
+	if world.imp.hit(world.camera, pos):
+		world.imp.react(Story.imp_tap_line(_imp_taps))
+		_imp_taps += 1
+		Sound.play("click")
+		return
 	var b := state.building_at(_cell_at(pos))
 	if b.is_empty():
 		_deselect()

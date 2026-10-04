@@ -71,3 +71,14 @@ static func seen_scenes(seen: Dictionary) -> Array:
 		if seen.has(String(sc.get("id", ""))):
 			out.append(sc)
 	return out
+
+
+## 마을에서 뿔이를 눌렀을 때 한마디(누른 횟수로 돌려 가며)
+static func imp_tap_line(n: int) -> String:
+	var arr: Array = data().get("imp_taps", [])
+	return "" if arr.is_empty() else String(arr[posmod(n, arr.size())])
+
+
+## 성이 자랐을 때 뿔이 한마디
+static func imp_levelup_line(level: int) -> String:
+	return String(data().get("imp_levelup", {}).get(str(level), ""))

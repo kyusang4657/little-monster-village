@@ -1096,6 +1096,12 @@ func test_story_data() -> void:
 	check(steps.size() >= 5, "안내 단계 읽기 (%d)" % steps.size())
 	for m in steps:
 		check(Story.tutorial_text(m.get_string(1), "") != "", "안내 대사 데이터: %s" % m.get_string(1))
+	# 뿔이 한마디(마을에서 누를 때·성이 자랄 때)
+	check(Story.imp_tap_line(0) != "" and Story.imp_tap_line(0) != Story.imp_tap_line(1), "뿔이 누름 대사 돌려 쓰기")
+	for i in (d.get("imp_taps", []) as Array).size():
+		check(Story.imp_tap_line(i).length() <= 40, "뿔이 대사 40자 이하")
+	for lv in range(2, GameConfig.max_castle_level() + 1):
+		check(Story.imp_levelup_line(lv) != "", "성 Lv.%d 뿔이 축하 대사" % lv)
 	# 다시 보기: 본 장면만, 데이터 순서대로
 	var seen := {"ending": true, "prologue": true}
 	var list := Story.seen_scenes(seen)

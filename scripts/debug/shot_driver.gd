@@ -28,6 +28,8 @@ func run(p_main, p_out: String, scenario: String = "full") -> void:
 			_perf()
 		"perf_base":
 			_perf_base()
+		"imp":
+			_imp_scene()
 		_:
 			_sequence()
 
@@ -725,4 +727,32 @@ func _perf_base() -> void:
 	await _shot("97-perf-base-battle")
 	main.world.set_shadows(false)
 	await _pbm("9단계 전투(그림자 끔)", 10.0)
+	_finish_log()
+
+
+## 뿔이 마을 상주: 산책, 누르면 한마디, 성 레벨업 연출, 이야기 얼굴
+func _imp_scene() -> void:
+	await _wait(20)
+	var imp = main.world.imp
+	await _advance_village(3.0)
+	await _focus(imp.pos, 4.0)
+	await _shot("100-imp-village")
+	var tp: Vector2 = main.world.camera.unproject_position(imp.global_position + Vector3(0, 0.45, 0))
+	_log("뿔이 화면 위치 %s, 판정 %s" % [str(tp), str(imp.hit(main.world.camera, tp))])
+	main._tap(tp)
+	_log("말풍선 %s '%s'" % [str(imp._bubble.visible), imp._bubble.text])
+	await _focus(imp.pos, 3.2)
+	await _shot("101-imp-tap")
+	await _set_level(3)
+	await _focus(Vector2(6.5, 7.5), 9.0)
+	main.world.levelup_fx(main._castle_id, 3)
+	_log("연출 %d개" % main.world._fx.size())
+	imp.celebrate(Story.imp_levelup_line(3))
+	await _wait(3)
+	await _shot("102-levelup-fx")
+	main._args.erase("no-story")
+	main._replay_story("prologue")
+	main.story_view.advance()
+	await _wait(3)
+	await _shot("103-story-imp-portrait")
 	_finish_log()

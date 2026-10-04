@@ -26,6 +26,9 @@ var _selection: MeshInstance3D
 var _ghost: Node3D
 var _ghost_type := ""
 var crew: WorkerCrew
+var imp: ImpWalker
+var _in_battle := false
+var _fx: Array = []
 ## 3차: 현재 지도 경계(논리 칸). 바뀌면 지면·장식·격자·카메라 범위를 다시 만든다.
 var map_bounds := Rect2i()
 var _ground_node: MeshInstance3D
@@ -50,7 +53,7 @@ var _font: Font
 
 
 func _ready() -> void:
-	_font = load("res://assets/fonts/NanumGothic-Bold.ttf")
+	_font = load("res://assets/fonts/Jua-Regular.ttf")
 	_setup_environment()
 	map_bounds = GameConfig.initial_bounds()
 	_setup_camera()
@@ -91,6 +94,11 @@ func _ready() -> void:
 	add_child(crew)
 	var cc := GameConfig.construction()
 	crew.setup(int(cc.get("worker_count", 2)), float(cc.get("worker_walk_cells_per_second", 1.6)))
+	imp = ImpWalker.new()
+	imp.name = "ImpWalker"
+	add_child(imp)
+	imp.setup(_font)
+	imp.set_level(1)
 
 
 static func _unshaded(c: Color, billboard: bool = false) -> StandardMaterial3D:
@@ -623,6 +631,78 @@ func update_construction(buildings: Array, delta: float) -> void:
 func update_village(buildings: Array, edges: Dictionary, delta: float, active: bool) -> void:
 	update_construction(buildings, delta)
 	crew.update_crew(buildings, edges, delta, active, map_bounds)
+	imp.update_imp(buildings, edges, map_bounds, delta, _in_battle)
+	_update_fx(delta)
+
+
+## 성 레벨업 연출: 성에서 보라·금빛 빛기둥이 솟고 반짝이가 흩날린다(2.5초)
+func levelup_fx(castle_id: String, level: int = 0) -> void:
+	var cn: Node3D = _building_nodes.get(castle_id)
+	if cn == null:
+		return
+	var root := Node3D.new()
+	root.position = cn.position
+	add_child(root)
+	var beam := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = 1.2
+	cm.bottom_radius = 1.6
+	cm.height = 6.0
+	beam.mesh = cm
+	beam.position = Vector3(0, 3.0, 0)
+	var bm := _unshaded(Color(0.9, 0.7, 1.0, 0.6))
+	bm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	bm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	beam.material_override = bm
+	beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(beam)
+	var sparks: Array = []
+	for i in 18:
+		var sp := MeshInstance3D.new()
+		var sm := SphereMesh.new()
+		sm.radius = 0.2
+		sm.height = 0.4
+		sm.radial_segments = 6
+		sm.rings = 3
+		sp.mesh = sm
+		sp.material_override = _unshaded(Color("ffd76a") if i % 2 == 0 else Color("d9a6ff"))
+		sp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var a := TAU * float(i) / 18.0
+		sp.position = Vector3(cos(a) * 1.6, 0.3 + float(i % 4) * 0.4, sin(a) * 1.6)
+		root.add_child(sp)
+		sparks.append({node = sp, a = a, r = 1.6, y = sp.position.y})
+	var txt := Label3D.new()
+	txt.font = _font
+	txt.font_size = 96
+	txt.pixel_size = 0.012
+	txt.outline_size = 22
+	txt.text = "Lv.%d!" % level if level > 0 else "성이 자랐어요!"
+	txt.modulate = Color("ffd76a")
+	txt.outline_modulate = Color("2e1a0e")
+	txt.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	txt.no_depth_test = true
+	txt.position = Vector3(0, 4.0, 0)
+	root.add_child(txt)
+	_fx.append({root = root, beam = beam, sparks = sparks, text = txt, t = 0.0})
+	Sound.play("upgrade")
+
+
+func _update_fx(delta: float) -> void:
+	for f in _fx:
+		f.t += delta
+		var k := clampf(f.t / 2.5, 0.0, 1.0)
+		(f.beam as MeshInstance3D).scale = Vector3(1.0 - k * 0.6, 0.3 + k, 1.0 - k * 0.6)
+		((f.beam as MeshInstance3D).material_override as StandardMaterial3D).albedo_color.a = 0.35 * (1.0 - k)
+		for sp in f.sparks:
+			var a: float = sp.a + f.t * 2.2
+			var r: float = sp.r * (1.0 + k * 0.6)
+			(sp.node as Node3D).position = Vector3(cos(a) * r, sp.y + f.t * 1.8, sin(a) * r)
+			(sp.node as Node3D).scale = Vector3.ONE * (1.0 - k)
+		(f.text as Label3D).position.y = 4.0 + k * 1.2
+		(f.text as Label3D).modulate.a = 1.0 - maxf(0.0, k - 0.7) / 0.3
+		if f.t >= 2.5:
+			(f.root as Node3D).queue_free()
+	_fx = _fx.filter(func(f): return f.t < 2.5)
 
 
 # ------------------------------------------------------------------ 편집 표시
@@ -703,6 +783,7 @@ func show_selection(b: Dictionary) -> void:
 # ------------------------------------------------------------------ 전투 연출
 
 func clear_battle() -> void:
+	_in_battle = false
 	for c in _battle_root.get_children():
 		c.queue_free()
 	_knight_nodes.clear()
@@ -771,6 +852,7 @@ func _knight_offset(id: int) -> Vector3:
 
 
 func update_battle(sim: BattleSim, delta: float, castle_id: String) -> void:
+	_in_battle = true
 	for e in sim.events:
 		match e.type:
 			"spawn":
