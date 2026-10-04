@@ -7,11 +7,11 @@ extends RefCounted
 ## 리그 규약은 기존 뿔이와 같다(뼈 이름·기준점·정면 -Z·Cape 뼈), 그래서 CharacterRig 의 자세·표정·깜빡임·2차 움직임이 그대로 동작한다.
 ## gray = true 면 형태 확인용 회색(정점 명암 없음).
 
-const SKIN := Color("c6393c")
+const SKIN := Color("d6504f")
 const SKIN_DEEP := Color("9e2a2f")
 const TAIL := Color("7a2a2c")
 const FLAME := Color("d9484e")
-const BLUSH := Color("e87a5c")
+const BLUSH := Color("f58c6e")
 const NOSE := Color("2a1416")
 const HORN := Color("3a2824")
 const HORN_TIP := Color("5a4036")
@@ -19,15 +19,17 @@ const COAT := Color("2c2530")
 const COAT_DEEP := Color("1f1a22")
 const GOLD := Color("d8a648")
 const GOLD_DEEP := Color("a97a2c")
-const CAPE := Color("7c1f2e")
-const CAPE_IN := Color("46121a")
+const CAPE := Color("6e2332")
+const CAPE_IN := Color("421018")
+const SIGIL := Color("be464b")
+const EAR_IN := Color("ef8a7a")
 const BELT := Color("5a1c25")
 const BOOT := Color("27202a")
 const EYE := Color("f6c63a")
 const EYE_SHADE := Color("d79a24")
 const PUPIL := Color("1a1013")
 const LASH := Color("3a181c")
-const BROW := Color("6a1f24")
+const BROW := Color("ee7a6a")
 const LIP := Color("3a1216")
 const MOUTH_IN := Color("4a1018")
 const WING := Color("a52a35")
@@ -72,9 +74,9 @@ static func build(gray: bool = false) -> Dictionary:
 ## 색표(회색 모드면 모두 같은 회색: 형태만 보인다)
 static func _palette(gray: bool) -> Dictionary:
 	var names := ["skin", "skin_deep", "flame", "blush", "nose", "horn", "horn_tip", "coat", "coat_deep", "gold", "gold_deep", "cape", "cape_in",
-		"belt", "boot", "eye", "eye_shade", "pupil", "lash", "brow", "lip", "mouth_in", "wing", "wing_bone", "white", "tail"]
+		"belt", "boot", "eye", "eye_shade", "pupil", "lash", "brow", "lip", "mouth_in", "wing", "wing_bone", "white", "tail", "sigil", "ear_in", "horn_groove"]
 	var cols := [SKIN, SKIN_DEEP, FLAME, BLUSH, NOSE, HORN, HORN_TIP, COAT, COAT_DEEP, GOLD, GOLD_DEEP, CAPE, CAPE_IN,
-		BELT, BOOT, EYE, EYE_SHADE, PUPIL, LASH, BROW, LIP, MOUTH_IN, WING, WING_BONE, Color.WHITE, TAIL]
+		BELT, BOOT, EYE, EYE_SHADE, PUPIL, LASH, BROW, LIP, MOUTH_IN, WING, WING_BONE, Color.WHITE, TAIL, SIGIL, EAR_IN, Color("2a1b18")]
 	var out := {}
 	for i in names.size():
 		out[names[i]] = GRAY if gray else cols[i]
@@ -109,7 +111,7 @@ static func _body(g: DemonGeo, P: Dictionary, C: Dictionary) -> void:
 		{y = 0.17, rx = 0.11, rz = 0.095, bone = "Pelvis", col = skin},
 		{y = 0.15, rx = 0.06, rz = 0.05, bone = "Pelvis", col = skin},
 	]
-	g.lathe(prof, 16, false, true, 0.0, 0.0, func(i: int) -> float: return 0.0 if i < 3 else 1.0)
+	g.lathe(prof, 14, false, true, 0.0, 0.0, func(i: int) -> float: return 0.0 if i < 3 else 1.0)
 	# 코트: 높은 깃 → 둥근 어깨 → 허리 → 벌어지는 단. 깃은 머리 뒤까지 올라오고(목 둘레) 앞은 조금 낮다(단면 타원으로 근사)
 	var cprof: Array = [
 		{y = 0.555, rx = 0.118, rz = 0.112, bone = "Neck", col = coat},
@@ -126,7 +128,7 @@ static func _body(g: DemonGeo, P: Dictionary, C: Dictionary) -> void:
 		{y = 0.15, rx = 0.216, rz = 0.173, bone = "Pelvis", col = coat},
 		{y = 0.12, rx = 0.215, rz = 0.172, bone = "Pelvis", col = C.coat_deep},
 	]
-	g.lathe(cprof, 18, false, false)
+	g.lathe(cprof, 16, false, false)
 	# 코트 깃 안쪽(목 뒤 높은 깃이 보일 때 안감)
 	g.use("Neck")
 	g.tube(Vector3(0, 0.555, 0), Vector3(0, 0.5, 0), 0.113, 0.1, C.coat_deep, 16, false)
@@ -142,7 +144,7 @@ static func _coat_details(g: DemonGeo, C: Dictionary) -> void:
 	g.line = 0.4
 	# 깃 테(금)
 	g.use("Neck")
-	g.torus(Vector3(0, 0.555, 0), 0.116, 0.008, C.gold, 14, 4, Basis.IDENTITY.scaled(Vector3(1.0, 1.0, 0.95)))
+	g.torus(Vector3(0, 0.555, 0), 0.116, 0.008, C.gold, 12, 4, Basis.IDENTITY.scaled(Vector3(1.0, 1.0, 0.95)))
 	g.use("Spine")
 	# 버건디 가슴판(걸쇠 아래 ~ 허리띠 위)과 양옆 금 세로 테, 허리띠 아래로도 금 테가 단까지 이어진다
 	g.front_strip(-0.05, 0.05, 0.445, 0.33, rz_of, rx_of, 0.004, C.cape, 5)
@@ -175,7 +177,7 @@ static func _coat_details(g: DemonGeo, C: Dictionary) -> void:
 	for side: float in [-1.0, 1.0]:
 		var sc := Vector3(0.165 * side, 0.468, 0.0)
 		g.ellipsoid(sc, Vector3(0.095, 0.045, 0.085), C.coat, 10, 3, Basis.IDENTITY, PI * 0.5, PI * 0.5)
-		g.torus(sc + Vector3(0, 0.004, 0), 0.09, 0.006, C.gold, 12, 4, Basis.IDENTITY.scaled(Vector3(1.0, 1.0, 0.9)))
+		g.torus(sc + Vector3(0, 0.004, 0), 0.09, 0.006, C.gold, 10, 4, Basis.IDENTITY.scaled(Vector3(1.0, 1.0, 0.9)))
 	# 허리띠(짙은 붉은 띠) + 금 버클·붉은 보석
 	g.line = 0.7
 	g.tube(Vector3(0, 0.318, 0), Vector3(0, 0.282, 0), 0.19, 0.192, C.belt, 20, false, 1.0, 0.8)
@@ -185,17 +187,17 @@ static func _coat_details(g: DemonGeo, C: Dictionary) -> void:
 		Vector3(0, 0.3, -0.192 * 0.8 - 0.014), fb, 0.008, C.cape, C.cape_in)
 	# 단 테(금, 코트 아랫단)
 	g.use("Pelvis")
-	g.torus(Vector3(0, 0.123, 0), 0.215, 0.008, C.gold, 16, 4, Basis.IDENTITY.scaled(Vector3(1.0, 1.0, 0.8)))
+	g.torus(Vector3(0, 0.123, 0), 0.215, 0.008, C.gold, 14, 4, Basis.IDENTITY.scaled(Vector3(1.0, 1.0, 0.8)))
 	# 금 해골(가슴 걸쇠 바로 아래, 턱 밑): 둥근 두개골 + 턱 + 검은 눈구멍 둘·코 구멍
 	g.use("Spine")
 	g.line = 0.6
-	var sc2 := Vector3(0, 0.44, -_coat_rz(0.44) - 0.016)
-	g.ellipsoid(sc2, Vector3(0.05, 0.048, 0.024), C.gold, 10, 5)
-	g.ellipsoid(sc2 + Vector3(0, -0.04, 0.004), Vector3(0.032, 0.022, 0.018), C.gold, 8, 4)
+	var sc2 := Vector3(0, 0.44, -_coat_rz(0.44) - 0.006)
+	g.ellipsoid(sc2, Vector3(0.05, 0.048, 0.016), C.gold, 8, 4)
+	g.ellipsoid(sc2 + Vector3(0, -0.04, 0.002), Vector3(0.032, 0.022, 0.012), C.gold, 6, 3)
 	g.line = 0.0
 	for side: float in [-1.0, 1.0]:
-		g.ellipsoid(sc2 + Vector3(0.018 * side, 0.004, -0.022), Vector3(0.013, 0.015, 0.005), C.pupil, 6, 3)
-	g.ellipsoid(sc2 + Vector3(0, -0.018, -0.024), Vector3(0.006, 0.008, 0.004), C.pupil, 5, 3)
+		g.ellipsoid(sc2 + Vector3(0.018 * side, 0.004, -0.014), Vector3(0.013, 0.015, 0.005), C.pupil, 6, 3)
+	g.ellipsoid(sc2 + Vector3(0, -0.018, -0.016), Vector3(0.006, 0.008, 0.004), C.pupil, 5, 3)
 	g.line = 1.0
 
 
@@ -231,11 +233,11 @@ static func _arms(g: DemonGeo, P: Dictionary, C: Dictionary) -> void:
 			{p = Vector3(x * 1.14, 0.255, -0.012), r = 0.058, bone = "Hand" + sfx, col = C.skin},
 			{p = Vector3(x * 1.14, 0.225, -0.018), r = 0.054, bone = "Hand" + sfx, col = C.skin},
 		]
-		g.limb(nodes, 9, Vector3.FORWARD, false, true, 3)
+		g.limb(nodes, 8, Vector3.FORWARD, false, true, 3)
 		# 엄지(주먹 안쪽 앞): 작은 둥근 혹
 		g.use("Hand" + sfx)
 		g.line = 0.4
-		g.ellipsoid(Vector3(x * 1.14 - side * 0.03, 0.262, -0.052), Vector3(0.022, 0.028, 0.024), C.skin, 8, 4)
+		g.ellipsoid(Vector3(x * 1.14 - side * 0.022, 0.262, -0.044), Vector3(0.024, 0.03, 0.026), C.skin, 8, 4)
 		g.line = 1.0
 
 
@@ -253,7 +255,7 @@ static func _legs(g: DemonGeo, P: Dictionary, C: Dictionary) -> void:
 			{p = Vector3(x, 0.07, 0.0), r = 0.062, bone = "Foot" + sfx, col = C.boot},
 			{p = Vector3(x, 0.05, 0.0), r = 0.06, bone = "Foot" + sfx, col = C.boot},
 		]
-		g.limb(nodes, 9, Vector3.FORWARD, false, false)
+		g.limb(nodes, 8, Vector3.FORWARD, false, false)
 		# 장화 몸: 발 뼈. 발꿈치~앞코가 한 타원, 바닥은 지면(y 0)에 닿는다
 		g.use("Foot" + sfx)
 		g.rounded_box(Vector3(x, 0.055, -0.035), Vector3(0.068, 0.05, 0.1), C.boot, 0.55, 12, 6)
@@ -267,7 +269,7 @@ static func _cape_and_wings(g: DemonGeo, C: Dictionary) -> void:
 	g.add_bone("Cape", "Spine", top)
 	g.use("Cape")
 	g.measure = false
-	var P: Array = g.cape_grid(top, 0.42, 0.34, 0.54, C.cape, C.cape_in, 0.07, 0.1, 0.02, 8, 7, 0.006)
+	var P: Array = g.cape_grid(top, 0.42, 0.34, 0.54, C.cape, C.cape_in, 0.07, 0.1, 0.02, 7, 6, 0.006)
 	# 금 테: 양옆 가장자리와 아랫단
 	var rows := P.size() - 1
 	var cols := (P[0] as Array).size() - 1
@@ -284,17 +286,21 @@ static func _cape_and_wings(g: DemonGeo, C: Dictionary) -> void:
 	g.sweep(right, 0.007, C.gold, 4)
 	g.sweep(hem, 0.007, C.gold, 4)
 	# 등의 악마 문장(짙은 붉은 평판: 가운데 뿔 달린 왕관꼴)
-	var mid: Vector3 = P[3][cols / 2]
-	var sig := PackedVector2Array([Vector2(-0.07, 0.0), Vector2(-0.05, 0.05), Vector2(-0.025, 0.02), Vector2(0.0, 0.07), Vector2(0.025, 0.02),
-		Vector2(0.05, 0.05), Vector2(0.07, 0.0), Vector2(0.045, -0.035), Vector2(0.0, -0.05), Vector2(-0.045, -0.035)])
+	var mid: Vector3 = P[2][cols / 2]
+	# 악마 머리 문장: 위로 휘는 뿔 둘 + 턱이 뾰족한 머리(망토 폭의 약 35%)
+	var sig := PackedVector2Array()
+	for pt: Vector2 in [Vector2(-0.085, 0.07), Vector2(-0.06, 0.0), Vector2(-0.045, 0.045), Vector2(-0.035, -0.005), Vector2(0.0, 0.01),
+			Vector2(0.035, -0.005), Vector2(0.045, 0.045), Vector2(0.06, 0.0), Vector2(0.085, 0.07), Vector2(0.055, -0.02), Vector2(0.03, -0.055),
+			Vector2(0.0, -0.085), Vector2(-0.03, -0.055), Vector2(-0.055, -0.02)]:
+		sig.append(pt)
 	g.line = 0.0
-	g.polygon(sig, mid + Vector3(0, 0, 0.012), Basis(Vector3.RIGHT, Vector3.UP, Vector3.BACK), 0.0, C.cape_in)
+	g.polygon(sig, mid + Vector3(0, 0, 0.012), Basis(Vector3.RIGHT, Vector3.UP, Vector3.BACK), 0.0, C.sigil)
 	g.line = 1.0
 	# 날개: 어깨뼈(코트 밖 z 0.17)에서 귀 높이의 손목까지 팔뼈가 솟고, 손목에서 세 손가락이 옆·뒤로 펼쳐진 밝은 붉은 막. 손목에 금 발톱
 	for side: float in [-1.0, 1.0]:
 		var root := Vector3(0.1 * side, 0.47, 0.17)
 		var wrist := Vector3(0.24 * side, 0.66, 0.2)
-		var tips: Array = [Vector3(0.42 * side, 0.6, 0.23), Vector3(0.45 * side, 0.45, 0.25), Vector3(0.36 * side, 0.33, 0.25)]
+		var tips: Array = [Vector3(0.4 * side, 0.6, 0.32), Vector3(0.43 * side, 0.45, 0.36), Vector3(0.35 * side, 0.33, 0.35)]
 		g.tube(root, wrist, 0.016, 0.012, C.wing_bone, 6, true)
 		g.wing(wrist, tips, 0.011, C.wing_bone, C.wing, 0.3, 0.004, 4)
 		# 뿌리~손목~아래 손가락 사이 막(몸 쪽 막)
@@ -328,15 +334,15 @@ static func _cape_and_wings(g: DemonGeo, C: Dictionary) -> void:
 static func _tail(g: DemonGeo, C: Dictionary) -> void:
 	g.use("Pelvis")
 	g.measure = false
-	var pts: Array = [Vector3(0, 0.19, 0.1), Vector3(0, 0.14, 0.2), Vector3(0, 0.12, 0.3), Vector3(0, 0.15, 0.38), Vector3(0, 0.22, 0.43), Vector3(0, 0.3, 0.44)]
+	var pts: Array = [Vector3(0, 0.165, 0.1), Vector3(0, 0.1, 0.21), Vector3(0, 0.09, 0.31), Vector3(0, 0.13, 0.39), Vector3(0, 0.21, 0.44), Vector3(0, 0.3, 0.45)]
 	var radii: Array = [0.03, 0.026, 0.021, 0.016, 0.012, 0.009]
 	g.spline_tube(pts, radii, C.tail, 8, false, true, Vector3.RIGHT)
 	# 화살촉: 삼각 판 두 장을 90° 로 교차시켜 어느 쪽에서 봐도 읽힌다
 	var tipb := Basis(Vector3.RIGHT, Vector3.UP, Vector3.BACK)
 	var tipc := Basis(Vector3.BACK, Vector3.UP, Vector3.LEFT)
 	var head := PackedVector2Array([Vector2(-0.032, -0.012), Vector2(0.032, -0.012), Vector2(0.0, 0.055)])
-	g.polygon(head, Vector3(0, 0.305, 0.44), tipb, 0.008, C.tail, C.tail)
-	g.polygon(head, Vector3(0, 0.305, 0.44), tipc, 0.008, C.tail, C.tail)
+	g.polygon(head, Vector3(0, 0.305, 0.45), tipb, 0.008, C.tail, C.tail)
+	g.polygon(head, Vector3(0, 0.305, 0.45), tipc, 0.008, C.tail, C.tail)
 	g.measure = true
 
 
@@ -357,7 +363,7 @@ static func _head(g: DemonGeo, C: Dictionary) -> void:
 		# 눈두덩: 눈 방향으로 살짝 패인다
 		k -= 0.07 * (DemonGeo.bump(d, eye_l, 0.3) + DemonGeo.bump(d, eye_r, 0.3))
 		# 눈썹 능선(눈 위)
-		k += 0.02 * (DemonGeo.bump(d, Vector3(-0.42, 0.36, -0.84).normalized(), 0.3) + DemonGeo.bump(d, Vector3(0.42, 0.36, -0.84).normalized(), 0.3))
+		k += 0.008 * (DemonGeo.bump(d, Vector3(-0.42, 0.36, -0.84).normalized(), 0.45) + DemonGeo.bump(d, Vector3(0.42, 0.36, -0.84).normalized(), 0.45))
 		# 볼(아래 옆 앞)
 		k += 0.04 * (DemonGeo.bump(d, Vector3(-0.72, -0.3, -0.62).normalized(), 0.5) + DemonGeo.bump(d, Vector3(0.72, -0.3, -0.62).normalized(), 0.5))
 		# 짧은 주둥이와 코 끝(앞으로 조금만)
@@ -369,9 +375,9 @@ static func _head(g: DemonGeo, C: Dictionary) -> void:
 		return k
 	var col_of := func(d: Vector3, _p: Vector3) -> Color:
 		# 볼 홍조: 볼 방향으로 살짝 붉게(정점 색이 부드럽게 섞인다)
-		var b := maxf(DemonGeo.bump(d, Vector3(-0.78, -0.22, -0.58).normalized(), 0.26), DemonGeo.bump(d, Vector3(0.78, -0.22, -0.58).normalized(), 0.26))
-		return skin.lerp(blush, clampf(b * 0.9, 0.0, 1.0))
-	g.sculpt(hc, hr, skin, 24, 15, shape, col_of)
+		var b := maxf(DemonGeo.bump(d, Vector3(-0.7, -0.18, -0.7).normalized(), 0.2), DemonGeo.bump(d, Vector3(0.7, -0.18, -0.7).normalized(), 0.2))
+		return skin.lerp(blush, clampf(b * 0.6, 0.0, 1.0))
+	g.sculpt(hc, hr, skin, 22, 13, shape, col_of)
 	_face(g, C)
 	g.use("Head")
 	# 작은 코: 주둥이 끝의 짙은 역삼각 판
@@ -382,15 +388,26 @@ static func _head(g: DemonGeo, C: Dictionary) -> void:
 	g.line = 1.0
 	# 귀: 머리 속에서 옆으로(눈 높이) 뻗는 잎 모양 뾰족 귀(앞뒤로 납작, 뿌리가 머리 속이라 이음새가 없다)
 	for side: float in [-1.0, 1.0]:
-		var eb := hc + Vector3(0.13 * side, -0.01, 0.03)
-		var ed := Vector3(1.0 * side, 0.12, 0.15).normalized()
+		var eb := hc + Vector3(0.12 * side, 0.0, 0.03)
+		var ed := Vector3(1.0 * side, 0.36, 0.47).normalized()
 		var epts: Array = []
 		var erad: Array = []
 		for i in 6:
 			var t := float(i) / 5.0
-			epts.append(eb + ed * (0.22 * t) + Vector3(0, 0.03, 0.02) * (t * t))
-			erad.append(0.058 * pow(1.0 - t, 0.9) if i < 5 else 0.0)
-		g.spline_tube(epts, erad, skin, 8, false, true, Vector3.UP, 0.6, 1.0)
+			epts.append(eb + ed * (0.24 * t) + Vector3(0, 0.02, 0.01) * (t * t))
+			erad.append((0.072 * (1.0 - 0.25 * t) if t < 0.45 else 0.072 * 0.89 * pow((1.0 - t) / 0.55, 0.85)) if i < 5 else 0.0)
+		# 앞뒤로 납작한 잎(단면 fu = 앞뒤 0.45, fw = 위아래 1)
+		g.spline_tube(epts, erad, skin, 8, false, true, Vector3.BACK, 0.45, 1.0)
+		# 안쪽 귀(밝은 오목 판): 귀 앞면에 얇은 잎 판
+		g.line = 0.0
+		var e1: Vector3 = epts[1]
+		var e4: Vector3 = epts[4]
+		var fwd := Vector3(0, 0, -1)
+		var ex := (e4 - e1).normalized()
+		var eup := fwd.cross(ex).normalized()
+		g.polygon(PackedVector2Array([Vector2(0.0, -0.035), Vector2(0.06, -0.018), Vector2(0.11, 0.0), Vector2(0.06, 0.02), Vector2(0.0, 0.035)]),
+			e1 + fwd * 0.022, Basis(ex, eup, -fwd), 0.0, C.ear_in)
+		g.line = 1.0
 	# 정수리 불꽃 돌기: 가운데 큰 돌기 + 양옆 작은 곁가지(40%)
 	g.measure = false
 	var fb := hc + Vector3(0, 0.165, 0.0)
@@ -406,21 +423,24 @@ static func _head(g: DemonGeo, C: Dictionary) -> void:
 	g.measure_all = false
 	for side: float in [-1.0, 1.0]:
 		# 첫 마디는 머리 겉면 법선 방향으로 곧게 나와(뿌리가 표면을 스치지 않게) 둥근 깃이 되고, 그 다음 바깥·위로 휜다
-		var hn := Vector3(0.72 * side, 0.62, 0.05).normalized()
-		var p0 := hc + Vector3(hn.x * hr.x, hn.y * hr.y, hn.z * hr.z) * 0.6
-		var p1 := hc + Vector3(hn.x * hr.x, hn.y * hr.y, hn.z * hr.z) * 1.6
-		var p2 := hc + Vector3(0.37 * side, 0.36, 0.0)
-		var p3 := hc + Vector3(0.24 * side, 0.47, -0.03)
+		var hn := Vector3(0.72 * side, 0.62, 0.1).normalized()
+		var p0 := hc + Vector3(hn.x * hr.x, hn.y * hr.y, hn.z * hr.z) * 0.7
+		var p1 := hc + Vector3(hn.x * hr.x, hn.y * hr.y, hn.z * hr.z) * 1.45
+		var p2 := hc + Vector3(0.36 * side, 0.3, 0.13)
+		var p3 := hc + Vector3(0.25 * side, 0.4, 0.03)
 		var nodes: Array = []
-		var n := 12
+		var n := 14
 		for i in n + 1:
 			var t := float(i) / float(n)
-			var r := 0.066 * pow(1.0 - t, 0.72) * (1.0 + 0.13 * sin(t * PI * 5.0) * (1.0 - t))
-			if i == n:
-				r = 0.0
-			var col: Color = C.horn if t < 0.75 else (C.horn as Color).lerp(C.horn_tip, (t - 0.75) / 0.25)
-			nodes.append({p = DemonGeo.bez(p0, p1, p2, p3, t), r = r, bone = "Head", col = col, line = 0.0 if i == 0 else 1.0})
-		g.limb(nodes, 8, Vector3.BACK, false, true)
+			# 뿌리 0.066 → 가운데 ≥ 60% → 끝 25%(뭉툭), 홈 5개는 좁고 깊은 골(어두운 색)
+			var r := 0.066 * (1.0 - 0.75 * pow(t, 1.5))
+			var groove := pow(maxf(sin(t * PI * 5.0 - 0.3), 0.0), 3.0)
+			r *= 1.0 - 0.14 * groove * (1.0 - t * 0.5)
+			var col: Color = (C.horn as Color).lerp(C.horn_groove, groove * 0.8)
+			if t > 0.8:
+				col = col.lerp(C.horn_tip, (t - 0.8) / 0.2)
+			nodes.append({p = DemonGeo.bez(p0, p1, p2, p3, t), r = r, bone = "Head", col = col, line = 0.0 if i < 2 else 1.0})
+		g.limb(nodes, 8, Vector3.BACK, false, true, 2)
 	g.measure_all = true
 	g.measure = true
 
@@ -444,13 +464,13 @@ static func _face(g: DemonGeo, C: Dictionary) -> void:
 		var ebt := eb * tilt
 		g.add_bone("Eye" + sfx, "Head", ec)
 		g.use("Eye" + sfx)
-		g.ellipsoid(ec, Vector3(es * 1.14, es * 0.88, es * 0.9), C.eye, 10, 6, ebt)
+		g.ellipsoid(ec, Vector3(es * 1.14, es * 0.88, es * 0.9), C.eye, 16, 8, ebt)
 		# 동공: 눈알 앞면에 붙은 세로 타원(살짝 안쪽을 본다) + 작은 반사광
 		var pd := Vector3(-side * 0.1, -0.02, -1.0).normalized()
 		var pc := ec + ebt * (Vector3(pd.x * es * 1.14, pd.y * es * 0.88, pd.z * es * 0.9) * 0.985)
 		g.add_bone("Pupil" + sfx, "Eye" + sfx, pc)
 		g.use("Pupil" + sfx)
-		g.ellipsoid(pc, Vector3(es * 0.22, es * 0.62, es * 0.1), C.pupil, 8, 5, ebt)
+		g.ellipsoid(pc, Vector3(es * 0.22, es * 0.62, es * 0.1), C.pupil, 10, 5, ebt)
 		g.ellipsoid(pc + ebt * Vector3(side * es * 0.14, es * 0.3, -es * 0.06), Vector3(es * 0.07, es * 0.07, es * 0.03), C.white, 6, 3, ebt)
 		# 윗눈꺼풀: 눈알보다 조금 큰 반구 덮개(피부색), 뼈 피벗은 눈 위. 표정이 Y 크기를 키우면 내려와 덮는다
 		var lid_p := ec + ebt * Vector3(0, es * 0.95, 0)
@@ -459,18 +479,18 @@ static func _face(g: DemonGeo, C: Dictionary) -> void:
 		g.ellipsoid(lid_p, Vector3(es * 1.26, es * 2.3, es * 1.0), C.skin, 10, 4, ebt * Basis(Vector3.BACK, PI), PI * 0.5, PI * 0.5)
 		# 눈꺼풀 선: 눈알 윗부분을 덮는 짙은 띠(눈알보다 아주 조금 큰 윗 뚜껑). 눈 뼈에 붙어 깜빡임·표정과 같이 움직이고 떠다니지 않는다
 		g.use("Eye" + sfx)
-		g.ellipsoid(ec, Vector3(es * 1.16, es * 0.9, es * 0.92), C.lash, 10, 3, ebt, PI * 0.36, PI * 0.36, 0.0)
+		g.ellipsoid(ec, Vector3(es * 1.16, es * 0.9, es * 0.92), C.lash, 16, 3, ebt, PI * 0.36, PI * 0.36, 0.0)
 		# 눈썹: 짙은 붉은 갈색 능선 위의 띠, 안쪽 끝이 내려간다(기본 = 근엄). 양 끝은 가늘어져 표정(회전·내림)으로 움직여도 눈 속에 쐐기처럼 박히지 않는다
 		var bd := Vector3(EYE_DIR_X * side, 0.4, -0.84).normalized()
 		var bp := hc + Vector3(bd.x * hr.x, bd.y * hr.y, bd.z * hr.z) * 0.985
 		g.add_bone("Brow" + sfx, "Head", bp)
 		g.use("Brow" + sfx)
-		var bi := Vector3(0.18 * side, 0.24, -0.95).normalized()
-		var bo := Vector3(0.6 * side, 0.34, -0.7).normalized()
-		var pi_ := hc + Vector3(bi.x * hr.x, bi.y * hr.y, bi.z * hr.z) * 0.975
-		var po := hc + Vector3(bo.x * hr.x, bo.y * hr.y, bo.z * hr.z) * 0.975
+		var bi := Vector3(0.2 * side, 0.25, -0.95).normalized()
+		var bo := Vector3(0.56 * side, 0.36, -0.72).normalized()
+		var pi_ := hc + Vector3(bi.x * hr.x, bi.y * hr.y, bi.z * hr.z) * 0.96
+		var po := hc + Vector3(bo.x * hr.x, bo.y * hr.y, bo.z * hr.z) * 0.96
 		var bpts: Array = [pi_, pi_.lerp(bp, 0.5), bp, bp.lerp(po, 0.5), po]
-		g.spline_tube(bpts, [0.0, es * 0.22, es * 0.26, es * 0.2, 0.0], C.brow, 6, false, false)
+		g.spline_tube(bpts, [0.0, es * 0.2, es * 0.24, es * 0.18, 0.0], C.brow, 8, false, false)
 	# 입: 주둥이 아래 가는 선. 보통 = 살짝 다문 입(끝이 조금 내려감), 벌림 = 작은 붉은 입속 + 송곳니 둘, 아픔 = 물결선
 	var md := Vector3(0, -0.36, -1.0).normalized()
 	var mp := hc + Vector3(md.x * hr.x, md.y * hr.y, md.z * hr.z) * 1.03
