@@ -18,14 +18,15 @@ extends RefCounted
 const PLUME := ["f3ece4", "d0352a", "d0352a", "2f4fb0", "d0352a"]
 const PLUME_SIZE := [1.02, 1.0, 1.0, 1.0, 1.28]
 
-const SILVER := Color("b9c3cd")
-const SILVER_LIGHT := Color("d6dde4")
-const SILVER_DARK := Color("8a95a1")
-const HEAVY_PLATE := Color("9aa4ae")
-const HEAVY_PLATE_DARK := Color("6f7a86")
-const HEAVY_HELM := Color("b4bdc6")
-const STEEL := Color("5f6a76")
+const SILVER := Color("9aa3ad")           # 판금(강철, 흰기 없음)
+const SILVER_LIGHT := Color("a9b2bb")     # 투구·밝은 면
+const SILVER_DARK := Color("76808a")
+const HEAVY_PLATE := Color("7e8792")      # 중갑 기사: 한 단계 어두운 판금
+const HEAVY_PLATE_DARK := Color("4f5862")
+const HEAVY_HELM := Color("8b949e")
+const STEEL := Color("5b6670")            # 사슬·어깨 밑·치마 밑 그늘 띠
 const GOLD := Color("e1b23c")
+const EYE_GLOW := Color("e8b23c")         # 통투구의 빛나는 눈
 const GOLD_BAND := Color("c69a30")
 const GOLD_DARK := Color("b1862b")
 const RED := Color("c8343a")
@@ -37,29 +38,33 @@ const SKIN_SHADE := Color("2b2630")
 const SLIT := Color("1e1a24")
 const GLOW := Color("ffd86a")
 const GLOW_DIM := Color("7d5f1e")
-const LEATHER := Color("6b4423")
-const LEATHER_LIGHT := Color("8a5a30")
+const LEATHER := Color("6b4a2b")
+const LEATHER_LIGHT := Color("7d5a35")
 const BOOT := Color("4e3220")
 const BOOT_TOE := Color("7d8893")
 const WOOD := Color("7a4b26")
 const BLADE := Color("e6ecf2")
 const HAMMER_DARK := Color("5c636b")
-const IRIS := Color("3a2418")
+const IRIS := Color("3a2a1a")
 const LASH := Color("2a1a14")
 const BROW := Color("4a3222")
 const LIP := Color("7a3a34")
 const MOUTH_IN := Color("4a1f28")
 
-## 골격(5차와 같다: 3등신)
+## 골격(5차 3등신에서 머리를 8% 줄이고 그만큼 몸통을 올려 다리를 늘렸다. 키 1.15 는 그대로)
+const DY := 0.03      # 몸통·팔이 5차 자리에서 올라간 높이
+const LS := 1.075     # 다리 마디 높이 배율(발목 0.06 기준)
 const P := {
-	ankle = 0.08, knee = 0.23, hip = 0.4, hip_x = 0.104, pelvis = 0.42, spine = 0.49,
-	shoulder = 0.73, shoulder_x = 0.21, elbow = 0.585, wrist = 0.455, neck = 0.76, head = 0.8,
+	ankle = 0.08, knee = 0.243, hip = 0.425, hip_x = 0.104, pelvis = 0.45, spine = 0.52,
+	shoulder = 0.76, shoulder_x = 0.21, elbow = 0.615, wrist = 0.485, neck = 0.79, head = 0.83,
 	arm_r = 0.05, leg_r = 0.055, foot_len = 0.21,
 }
-const HC := Vector3(0, 0.945, -0.01)         # 얼굴(머리) 타원 중심
-const HR := Vector3(0.165, 0.155, 0.158)     # 얼굴 반지름
-const HELM_C := Vector3(0, 0.967, -0.004)    # 투구 타원(5차 투구와 같은 크기·위치)
-const HELM_R := Vector3(0.19, 0.185, 0.192)
+const HC := Vector3(0, 0.9618, -0.0095)      # 얼굴(머리) 타원 중심
+const HR := Vector3(0.1518, 0.1426, 0.1454)  # 얼굴 반지름(5차의 0.92배)
+const HELM_C := Vector3(0, 0.982, -0.004)    # 투구 타원(꼭대기 1.152 = 5차와 같은 키)
+const HELM_R := Vector3(0.1748, 0.1702, 0.1766)
+## 머리 가로(x·z) 배율. 중갑 기사만 1.1(큰 체격). build() 가 변형마다 정한다
+static var HW := 1.0
 
 # 영역 번호(머리 격자)
 const R_FACE := 0
@@ -89,6 +94,7 @@ static func build(v: int) -> Dictionary:
 	CharGeo.skeleton(g, P)
 	var heavy := v == 1
 	var elite := v == 4
+	HW = 1.1 if heavy else 1.0
 	var A := _armor(heavy)
 	_body(g, v, heavy, elite, A)
 	_pauldrons(g, heavy, A)
@@ -123,12 +129,13 @@ static func build(v: int) -> Dictionary:
 
 static func _armor(heavy: bool) -> Dictionary:
 	if heavy:
-		return {plate = HEAVY_PLATE, dark = HEAVY_PLATE_DARK, helm = HEAVY_HELM, light = Color("c3cbd3")}
+		return {plate = HEAVY_PLATE, dark = HEAVY_PLATE_DARK, helm = HEAVY_HELM, light = Color("98a1ab")}
 	return {plate = SILVER, dark = SILVER_DARK, helm = SILVER_LIGHT, light = SILVER_LIGHT}
 
 
+## 몸통 프로파일 고리(높이는 5차 값 그대로 적고 DY 만큼 올린다)
 static func _ring(y: float, rx: float, rz: float, bone: String, col: Color) -> Dictionary:
-	return {y = y, rx = rx, rz = rz, bone = bone, col = col}
+	return {y = y + DY, rx = rx, rz = rz, bone = bone, col = col}
 
 
 ## 회전체 프로파일에서 높이 y 의 반지름(key = "rx"/"rz")
@@ -151,8 +158,8 @@ static func _prof_r(prof: Array, y: float, key: String) -> float:
 static func _body(g: DemonGeo, v: int, heavy: bool, elite: bool, A: Dictionary) -> void:
 	var plate: Color = A.plate
 	var neck_col := SKIN if v == 0 else SKIN_SHADE
-	var sx := 1.2 if heavy else 1.0
-	var sz := 1.17 if heavy else 1.0
+	var sx := 1.3 if heavy else 1.0
+	var sz := 1.24 if heavy else 1.0
 	var prof: Array = [
 		_ring(0.83, 0.05, 0.05, "Neck", neck_col),
 		_ring(0.778, 0.062, 0.06, "Neck", STEEL),
@@ -219,11 +226,11 @@ static func _body(g: DemonGeo, v: int, heavy: bool, elite: bool, A: Dictionary) 
 	var rx_of := func(y: float) -> float: return _prof_r(prof, y, "rx")
 	g.use("Spine")
 	g.line = 0.35
-	g.front_strip(-0.009, 0.009, 0.722, 0.566, rz_of, rx_of, 0.003, GOLD, 6)
+	g.front_strip(-0.009, 0.009, 0.722 + DY, 0.566 + DY, rz_of, rx_of, 0.003, GOLD, 6)
 	# 벨트 금 버클
 	g.use("Pelvis")
 	var fb := Basis(Vector3.RIGHT, Vector3.UP, Vector3.BACK)
-	var by := 0.462 if not heavy else 0.455
+	var by := (0.462 if not heavy else 0.455) + DY
 	var bz := -_prof_r(prof, by, "rz")
 	g.line = 0.5
 	g.polygon(PackedVector2Array([Vector2(-0.034, 0.022), Vector2(0.034, 0.022), Vector2(0.034, -0.022), Vector2(-0.034, -0.022)]),
@@ -234,12 +241,12 @@ static func _body(g: DemonGeo, v: int, heavy: bool, elite: bool, A: Dictionary) 
 	# 허리 갑옷 앞 판 나눔(앞 가운데 판 양옆 짙은 줄 두 개: 겹친 판으로 읽힌다)
 	g.line = 0.0
 	for s: float in [-1.0, 1.0]:
-		g.front_strip(0.058 * s - 0.004, 0.058 * s + 0.004, 0.43, 0.37 if not heavy else 0.31, rz_of, rx_of, 0.002, A.dark, 4)
+		g.front_strip(0.058 * s - 0.004, 0.058 * s + 0.004, 0.43 + DY, (0.37 if not heavy else 0.31) + DY, rz_of, rx_of, 0.002, A.dark, 4)
 	if elite:
 		# 성기사: 가슴 금 별 문장
 		g.use("Spine")
 		g.line = 0.4
-		var sy := 0.645
+		var sy := 0.645 + DY
 		g.polygon(CharGeo.star(5, 0.046, 0.02), Vector3(0, sy, -_prof_r(prof, sy, "rz") - 0.004), fb, 0.008, GOLD, GOLD_DARK)
 	g.line = 1.0
 
@@ -254,17 +261,17 @@ static func _pauldrons(g: DemonGeo, heavy: bool, A: Dictionary) -> void:
 	for side: float in [-1.0, 1.0]:
 		var sfx := "L" if side < 0.0 else "R"
 		var bone := "Arm" + sfx
-		var pc := Vector3(float(P.shoulder_x) * side + (0.03 if heavy else 0.014) * side, float(P.shoulder) - (0.02 if heavy else 0.028), 0)
+		var pc := Vector3(float(P.shoulder_x) * side + (0.05 if heavy else 0.014) * side, float(P.shoulder) - (0.02 if heavy else 0.028), 0)
 		var tilt := Basis(Vector3.BACK, -0.28 * side)
 		var up := tilt * Vector3.UP
-		# (위도 각, 반지름 배수, 색): 꼭대기 → 단 → 안으로 말림
+		# (위도 각, 반지름 배수, 색): 꼭대기 → 단 → 안으로 말림(단 밑은 짙은 그늘 띠)
 		var shape: Array = [[0.15, 1.0, plate], [0.55, 1.0, plate], [0.98, 1.0, plate], [1.3, 1.0, plate],
-			[1.5, 1.0, plate], [1.53, 1.03, GOLD], [1.74, 1.04, GOLD], [1.88, 0.8, A.dark]]
+			[1.5, 1.0, plate], [1.53, 1.03, GOLD], [1.74, 1.04, GOLD], [1.88, 0.8, STEEL]]
 		if heavy:
 			# 두 번째 겹: 금 테 아래로 한 단 내려서며 더 벌어진다
 			shape = [[0.15, 1.0, plate], [0.55, 1.0, plate], [0.98, 1.0, plate], [1.32, 1.0, plate],
 				[1.36, 1.03, GOLD], [1.52, 1.03, GOLD], [1.56, 0.98, plate],
-				[1.85, 1.13, plate], [1.9, 1.15, GOLD], [2.1, 1.14, GOLD], [2.2, 0.86, A.dark]]
+				[1.85, 1.13, plate], [1.9, 1.15, GOLD], [2.1, 1.14, GOLD], [2.2, 0.86, STEEL]]
 		var nodes: Array = []
 		for S: Array in shape:
 			var a: float = S[0]
@@ -285,42 +292,49 @@ static func _pauldrons(g: DemonGeo, heavy: bool, A: Dictionary) -> void:
 
 # ------------------------------------------------------------------ 팔다리(이어진 관)
 
-## 팔: 어깨 속(외곽선 0)에서 사슬 위팔 → 팔꿈치 판(불룩) → 팔뚝 판 → 건틀릿 소매(벌어짐) → 금 띠 → 큰 주먹(둥근 끝)까지 한 관.
-static func _arms(g: DemonGeo, v: int, heavy: bool, elite: bool, A: Dictionary) -> void:
+## 팔: 어깨 속(외곽선 0)에서 사슬 위팔 → 팔꿈치 판(불룩) → 팔뚝 판 → 건틀릿 소매(벌어짐) → 금 소매 테까지 한 관,
+## 테 속에서 시작하는 모서리 둥근 상자 벙어리장갑(판금 색, 손 뼈) + 안쪽 엄지. 손 뼈 원점(손목)이 장갑 가운데라 무기 자루가 장갑 속을 지난다.
+static func _arms(g: DemonGeo, v: int, heavy: bool, _elite: bool, A: Dictionary) -> void:
 	var plate: Color = A.plate
-	var glove: Color = plate if (heavy or elite) else LEATHER_LIGHT
-	var cuff: Color = A.dark if (heavy or elite) else LEATHER
-	var trim: Color = GOLD if (heavy or elite) else A.dark
 	var ap := 1.16 if heavy else 1.0
 	var hs := 1.1 if v == 3 else (1.05 if heavy else 1.0)
+	var hy := float(P.wrist) - float(P.arm_r) * 0.8
 	for side: float in [-1.0, 1.0]:
 		var sfx := "L" if side < 0.0 else "R"
-		var x := float(P.shoulder_x) * side
+		var x := (float(P.shoulder_x) + (0.025 if heavy else 0.0)) * side
 		var nodes: Array = [
-			{p = Vector3(x * 0.68, 0.7, 0.0), r = 0.05, bone = "Arm" + sfx, col = STEEL, line = 0.0},
-			{p = Vector3(x * 0.98, 0.7, 0.0), r = 0.058 * ap, bone = "Arm" + sfx, col = STEEL, line = 0.0},
-			{p = Vector3(x, 0.665, 0.0), r = 0.056 * ap, bone = "Arm" + sfx, col = STEEL},
-			{p = Vector3(x, 0.625, 0.0), r = 0.053 * ap, bone = "Arm" + sfx, col = STEEL},
-			{p = Vector3(x, 0.598, 0.0), r = 0.058 * ap, bone = "Forearm" + sfx, col = plate},
-			{p = Vector3(x, 0.582, 0.004), r = 0.063 * ap, bone = "Forearm" + sfx, col = plate},
-			{p = Vector3(x, 0.52, 0.0), r = 0.055 * ap, bone = "Forearm" + sfx, col = plate},
-			{p = Vector3(x, 0.5, 0.0), r = 0.06 * ap, bone = "Hand" + sfx, col = cuff},
-			{p = Vector3(x, 0.474, 0.0), r = 0.068 * ap * hs, bone = "Hand" + sfx, col = trim},
-			{p = Vector3(x, 0.464, 0.0), r = 0.068 * ap * hs, bone = "Hand" + sfx, col = trim},
-			{p = Vector3(x, 0.456, -0.002), r = 0.066 * ap * hs, bone = "Hand" + sfx, col = glove},
-			{p = Vector3(x, 0.43, -0.005), r = 0.08 * hs, bone = "Hand" + sfx, col = glove},
-			{p = Vector3(x, 0.405, -0.006), r = 0.079 * hs, bone = "Hand" + sfx, col = glove},
+			{p = Vector3(x * 0.68, 0.7 + DY, 0.0), r = 0.05, bone = "Arm" + sfx, col = STEEL, line = 0.0},
+			{p = Vector3(x * 0.98, 0.7 + DY, 0.0), r = 0.058 * ap, bone = "Arm" + sfx, col = STEEL, line = 0.0},
+			{p = Vector3(x, 0.665 + DY, 0.0), r = 0.056 * ap, bone = "Arm" + sfx, col = STEEL},
+			{p = Vector3(x, 0.625 + DY, 0.0), r = 0.053 * ap, bone = "Arm" + sfx, col = STEEL},
+			{p = Vector3(x, 0.598 + DY, 0.0), r = 0.058 * ap, bone = "Forearm" + sfx, col = plate},
+			{p = Vector3(x, 0.582 + DY, 0.004), r = 0.063 * ap, bone = "Forearm" + sfx, col = plate},
+			{p = Vector3(x, 0.52 + DY, 0.0), r = 0.055 * ap, bone = "Forearm" + sfx, col = plate},
+			{p = Vector3(x, 0.5 + DY, 0.0), r = 0.058 * ap, bone = "Hand" + sfx, col = plate},
+			{p = Vector3(x, 0.482 + DY, 0.0), r = 0.062 * ap * hs, bone = "Hand" + sfx, col = GOLD},
+			{p = Vector3(x, 0.462 + DY, 0.0), r = 0.062 * ap * hs, bone = "Hand" + sfx, col = GOLD},
+			{p = Vector3(x, 0.454 + DY, 0.0), r = 0.056 * ap * hs, bone = "Hand" + sfx, col = plate, line = 0.0},
 		]
-		g.limb(nodes, 8, Vector3.FORWARD, false, true, 2)
-		# 엄지(주먹 안쪽 앞): 주먹에 반쯤 묻힌 작은 혹
+		g.limb(nodes, 8, Vector3.FORWARD, false, true)
+		# 벙어리장갑: 손목(손 뼈 원점)을 가운데로 둔 둥근 상자. 위쪽은 금 테 속에 묻힌다
 		g.use("Hand" + sfx)
+		g.line = 1.0
+		var mc := Vector3(x, hy - 0.004, -0.004)
+		var mr := Vector3(0.05 * ap, 0.046, 0.037) * hs
+		g.rounded_box(mc, mr, plate, 0.5, 10, 5)
+		# 엄지(안쪽 앞): 장갑에 반쯤 묻힌 작은 혹
 		g.line = 0.35
-		g.ellipsoid(Vector3(x - side * 0.05 * hs, 0.43, -0.05 * hs), Vector3(0.026, 0.034, 0.028) * hs, glove, 6, 2)
+		g.ellipsoid(mc + Vector3(-side * mr.x * 0.9, 0.008, -mr.z * 0.6), Vector3(0.018, 0.026, 0.02) * hs, plate, 6, 2)
 		g.line = 1.0
 
 
 ## 다리: 허리 갑옷 속(외곽선 0)에서 사슬 허벅지 → 무릎 판(불룩) → 정강이 판 → 금 띠 → 장화 목까지 한 관,
 ## 장화는 쇠 앞코가 같은 면의 색인 조각 구(발 뼈). 중갑은 정강이·장화가 크다.
+## 다리 마디 높이: 5차 값을 발목 기준으로 LS 배 늘린다
+static func _ly(y: float) -> float:
+	return 0.06 + (y - 0.06) * LS
+
+
 static func _legs(g: DemonGeo, heavy: bool, A: Dictionary) -> void:
 	var plate: Color = A.plate
 	var gs := 1.2 if heavy else 1.0
@@ -331,25 +345,25 @@ static func _legs(g: DemonGeo, heavy: bool, A: Dictionary) -> void:
 		var sfx := "L" if side < 0.0 else "R"
 		var x := float(P.hip_x) * side
 		var nodes: Array = [
-			{p = Vector3(x * 0.8, 0.46, 0.0), r = 0.066, bone = "Leg" + sfx, col = STEEL, line = 0.0},
-			{p = Vector3(x, 0.4, 0.0), r = 0.067 * (1.08 if heavy else 1.0), bone = "Leg" + sfx, col = STEEL},
-			{p = Vector3(x, 0.262, 0.0), r = 0.056 * gs, bone = "Leg" + sfx, col = STEEL},
-			{p = Vector3(x, 0.252, 0.0), r = 0.058 * gs, bone = "Shin" + sfx, col = plate},
-			{p = Vector3(x, 0.232, -0.006), r = 0.064 * gs, bone = "Shin" + sfx, col = plate},
-			{p = Vector3(x, 0.194, 0.0), r = 0.056 * gs, bone = "Shin" + sfx, col = plate},
-			{p = Vector3(x, 0.19, 0.0), r = 0.0585 * gs, bone = "Shin" + sfx, col = GOLD},
-			{p = Vector3(x, 0.168, 0.0), r = 0.058 * gs, bone = "Shin" + sfx, col = GOLD},
-			{p = Vector3(x, 0.163, 0.0), r = 0.055 * gs, bone = "Shin" + sfx, col = plate},
+			{p = Vector3(x * 0.8, _ly(0.46), 0.0), r = 0.066, bone = "Leg" + sfx, col = STEEL, line = 0.0},
+			{p = Vector3(x, _ly(0.4), 0.0), r = 0.067 * (1.08 if heavy else 1.0), bone = "Leg" + sfx, col = STEEL},
+			{p = Vector3(x, _ly(0.262), 0.0), r = 0.056 * gs, bone = "Leg" + sfx, col = STEEL},
+			{p = Vector3(x, _ly(0.252), 0.0), r = 0.058 * gs, bone = "Shin" + sfx, col = plate},
+			{p = Vector3(x, _ly(0.232), -0.006), r = 0.064 * gs, bone = "Shin" + sfx, col = plate},
+			{p = Vector3(x, _ly(0.194), 0.0), r = 0.056 * gs, bone = "Shin" + sfx, col = plate},
+			{p = Vector3(x, _ly(0.19), 0.0), r = 0.0585 * gs, bone = "Shin" + sfx, col = GOLD},
+			{p = Vector3(x, _ly(0.168), 0.0), r = 0.058 * gs, bone = "Shin" + sfx, col = GOLD},
+			{p = Vector3(x, _ly(0.163), 0.0), r = 0.055 * gs, bone = "Shin" + sfx, col = plate},
 		]
 		if heavy:
 			nodes.append_array([
-				{p = Vector3(x, 0.146, 0.0), r = 0.056 * gs, bone = "Shin" + sfx, col = GOLD},
-				{p = Vector3(x, 0.132, 0.0), r = 0.056 * gs, bone = "Shin" + sfx, col = GOLD},
+				{p = Vector3(x, _ly(0.146), 0.0), r = 0.056 * gs, bone = "Shin" + sfx, col = GOLD},
+				{p = Vector3(x, _ly(0.132), 0.0), r = 0.056 * gs, bone = "Shin" + sfx, col = GOLD},
 			])
 		nodes.append_array([
-			{p = Vector3(x, 0.118, 0.0), r = 0.054 * gs, bone = "Foot" + sfx, col = plate},
-			{p = Vector3(x, 0.112, 0.0), r = 0.062 * gs, bone = "Foot" + sfx, col = BOOT.darkened(0.15)},
-			{p = Vector3(x, 0.06, 0.0), r = 0.07 * gs, bone = "Foot" + sfx, col = BOOT, line = 0.0},
+			{p = Vector3(x, _ly(0.118), 0.0), r = 0.054 * gs, bone = "Foot" + sfx, col = plate},
+			{p = Vector3(x, _ly(0.112), 0.0), r = 0.062 * gs, bone = "Foot" + sfx, col = BOOT.darkened(0.15)},
+			{p = Vector3(x, _ly(0.06), 0.0), r = 0.07 * gs, bone = "Foot" + sfx, col = BOOT, line = 0.0},
 		])
 		g.limb(nodes, 8, Vector3.FORWARD, false, false)
 		# 장화: 발꿈치~앞코 조각 구. 바닥은 평평하게 눌리고 앞코 쪽은 쇠(색만 바뀐다), 바닥 둘레는 짙은 밑창
@@ -372,7 +386,7 @@ static func _legs(g: DemonGeo, heavy: bool, A: Dictionary) -> void:
 			if q.z < -br.z * 0.62:
 				return BOOT_TOE
 			return BOOT
-		g.sculpt(bc, br, BOOT, 10, 6, bshape, bcol)
+		g.sculpt(bc, br, BOOT, 8, 5, bshape, bcol)
 
 
 # ------------------------------------------------------------------ 머리(격자 조각 구 한 장)
@@ -421,15 +435,20 @@ static func _hdir(la: float, lo: float) -> Vector3:
 
 
 static func _hp(la: float, lo: float, k: float) -> Vector3:
-	var d := _hdir(la, lo)
-	return HC + Vector3(d.x * HR.x, d.y * HR.y, d.z * HR.z) * k
+	return _hpt(_hdir(la, lo), k)
 
 
-## 얼굴 타원 위 방향 d 의 반직선이 투구 타원(HELM_C, HELM_R)과 만나는 배수 k
+## 얼굴 타원 위 방향 d 의 배수 k 지점(머리 가로 배율 HW 적용)
+static func _hpt(d: Vector3, k: float) -> Vector3:
+	return HC + Vector3(d.x * HR.x * HW, d.y * HR.y, d.z * HR.z * HW) * k
+
+
+## 얼굴 타원 위 방향 d 의 반직선이 투구 타원(HELM_C, HELM_R, 가로 HW 배)과 만나는 배수 k
 static func _helm_k(d: Vector3) -> float:
-	var e := Vector3(d.x * HR.x, d.y * HR.y, d.z * HR.z)
-	var o := (HC - HELM_C) / HELM_R
-	var dd := e / HELM_R
+	var e := Vector3(d.x * HR.x * HW, d.y * HR.y, d.z * HR.z * HW)
+	var hr := Vector3(HELM_R.x * HW, HELM_R.y, HELM_R.z * HW)
+	var o := (HC - HELM_C) / hr
+	var dd := e / hr
 	var a := dd.dot(dd)
 	var b := 2.0 * o.dot(dd)
 	var c := o.dot(o) - 1.0
@@ -534,7 +553,7 @@ static func _head(g: DemonGeo, v: int, A: Dictionary) -> float:
 		return helm
 	g.line = 1.0
 	_grid_head(g, lats, lons, rf, kf, cf)
-	var es := 0.034 if full else 0.039
+	var es := 0.025 if full else 0.036
 	_face(g, full, es)
 	g.use("Head")
 	if full:
@@ -542,18 +561,18 @@ static func _head(g: DemonGeo, v: int, A: Dictionary) -> float:
 		g.line = 0.0
 		for k in 3:
 			var d := _hdir(2.18, (float(k) - 1.0) * 0.2)
-			var p := HC + Vector3(d.x * HR.x, d.y * HR.y, d.z * HR.z) * _helm_k(d)
+			var p := _hpt(d, _helm_k(d))
 			g.ellipsoid(p, Vector3(0.009, 0.013, 0.006), SLIT, 5, 2, Basis.looking_at(d, Vector3.UP))
 		g.line = 1.0
 	else:
 		# 코가리개: 이마 금 테 한가운데에서 코끝까지 내려오는 납작한 쇠 막대(뿌리는 테 속)
 		var top_d := _hdir(LT - RB * 0.5, 0.0)
-		var p0 := HC + Vector3(top_d.x * HR.x, top_d.y * HR.y, top_d.z * HR.z) * (_helm_k(top_d) * 0.99)
+		var p0 := _hpt(top_d, (_helm_k(top_d) * 0.99))
 		var pts: Array = [p0]
 		var rad: Array = [0.0135]
 		for la: float in [LT + 0.05, 1.32, 1.56, 1.72]:
 			var d := _hdir(la, 0.0)
-			pts.append(HC + Vector3(d.x * HR.x, d.y * HR.y, d.z * HR.z) * (_face_k(d) + 0.075))
+			pts.append(_hpt(d, (_face_k(d) + 0.075)))
 			rad.append(0.0125 if la < 1.6 else 0.0105)
 		g.line = 0.8
 		g.spline_tube(pts, rad, SILVER, 6, false, true, Vector3.RIGHT, 1.0, 0.55)
@@ -567,7 +586,7 @@ static func _head(g: DemonGeo, v: int, A: Dictionary) -> float:
 		var t := float(i) / float(nseg)
 		var la := lerpf(-a0 + 0.04, 1.55, t)
 		var d := _hdir(absf(la), 0.0 if la < 0.0 else PI)
-		comb.append(HC + Vector3(d.x * HR.x, d.y * HR.y, d.z * HR.z) * (_helm_k(d) * 1.012))
+		comb.append(_hpt(d, (_helm_k(d) * 1.012)))
 		comb_r.append(0.02 * (1.0 - 0.3 * absf(t * 2.0 - 1.0)))
 	g.measure = false
 	g.line = 0.12
@@ -593,37 +612,44 @@ static func _face(g: DemonGeo, full: bool, es: float) -> void:
 		var sfx := "L" if side < 0.0 else "R"
 		var d := _eye_dir(side, full)
 		var surf_k := 1.0 if full else _face_k(d)
-		var floor_p := HC + Vector3(d.x * HR.x, d.y * HR.y, d.z * HR.z) * surf_k
-		var ec := floor_p - d * (es * 0.5)
+		var floor_p := _hpt(d, surf_k)
 		var eb := Basis.looking_at(d, Vector3.UP)
-		var er := Vector3(es * 1.0, es * 1.12, es * 0.9) if not full else Vector3(es * 1.12, es * 1.05, es * 0.85)
+		# 납작한 타원 눈(20각): 앞면이 눈두덩(통투구는 눈 틈 바닥)과 거의 같은 높이라 투구 밖으로 튀어나오지 않는다
+		var er := Vector3(es * 1.0, es * 1.12, es * 0.3) if not full else Vector3(es * 1.1, es * 0.9, es * 0.22)
+		var ec := floor_p - d * (es * 0.26) if not full else floor_p + d * 0.004
 		if full:
-			# 감은 눈의 희미한 빛줄기(눈 틈 바닥, 뜬 눈알 뒤에 숨어 있다가 눈알이 눌리면 보인다)
+			# 감은 눈의 희미한 빛줄기(눈 틈 바닥, 뜬 눈알 렌즈 속에 숨어 있다가 눈알이 눌리면 보인다)
 			g.use("Head")
-			var lx := eb * Vector3(es * 0.9, 0, 0)
-			g.spline_tube([floor_p - lx + d * 0.002, floor_p + d * 0.004, floor_p + lx + d * 0.002], [es * 0.1, es * 0.14, es * 0.1], GLOW_DIM, 4, true, true)
+			var lx := eb * Vector3(es * 0.7, 0, 0)
+			g.spline_tube([floor_p - lx + d * 0.001, floor_p + d * 0.003, floor_p + lx + d * 0.001], [es * 0.1, es * 0.14, es * 0.1], GLOW_DIM, 4, true, true)
 		g.add_bone("Eye" + sfx, "Head", ec)
 		g.use("Eye" + sfx)
-		g.ellipsoid(ec, er, GLOW if full else Color("fbfbf7"), 9 if full else 12, 5, eb)
-		# 눈동자(눈알 앞면에 붙은 둥근 판) + 반사광
+		# 극축을 시선 방향으로 돌린 납작한 렌즈: 정면에서 20각 타원 윤곽
+		var fb := eb * Basis(Vector3.RIGHT, -PI * 0.5)
+		g.ellipsoid(ec, Vector3(er.x, er.z, er.y), EYE_GLOW if full else Color("f6f3ea"), 20, 2, fb)
+		# 눈동자: 일반 기사 = 눈알 앞면의 큰 짙은 갈색 홍채 판 + 반사광 하나. 통투구 = 빛나는 타원뿐(뼈만 둔다)
 		var pd := Vector3(-side * 0.08, -0.06, -1.0).normalized()
-		var pc := ec + eb * (Vector3(pd.x * er.x, pd.y * er.y, pd.z * er.z) * 0.96)
+		var pc := ec + eb * (Vector3(pd.x * er.x, pd.y * er.y, pd.z * er.z) * 0.75)
 		g.add_bone("Pupil" + sfx, "Eye" + sfx, pc)
 		g.use("Pupil" + sfx)
-		if full:
-			g.ellipsoid(pc, Vector3(es * 0.36, es * 0.6, es * 0.12), Color("3a2a12"), 6, 3, eb)
-		else:
-			g.ellipsoid(pc, Vector3(es * 0.62, es * 0.74, es * 0.16), IRIS, 9, 3, eb)
-			g.ellipsoid(pc + eb * Vector3(-side * es * 0.06, -es * 0.05, -es * 0.08), Vector3(es * 0.32, es * 0.4, es * 0.08), Color("120c0a"), 6, 2, eb)
-			g.ellipsoid(pc + eb * Vector3(-side * es * 0.22, es * 0.3, -es * 0.14), Vector3(es * 0.17, es * 0.17, es * 0.05), Color.WHITE, 5, 2, eb)
+		if not full:
+			g.ellipsoid(pc, Vector3(es * 0.6, es * 0.1, es * 0.74), IRIS, 20, 2, fb)
+			g.ellipsoid(pc + eb * Vector3(-side * es * 0.22, es * 0.3, -es * 0.1), Vector3(es * 0.16, es * 0.16, es * 0.05), Color.WHITE, 8, 2, eb)
 		# 윗눈꺼풀: 눈 위 피벗의 반구 덮개. 표정이 Y 크기를 키우면 내려와 덮는다
 		var lid_p := ec + eb * Vector3(0, er.y * 0.95, 0)
 		g.add_bone("Lid" + sfx, "Head", lid_p)
 		g.use("Lid" + sfx)
-		g.ellipsoid(lid_p, Vector3(er.x * 1.14, er.y * 2.2, er.z * 1.08), SLIT if full else SKIN.darkened(0.05), 6, 2, eb * Basis(Vector3.BACK, PI), PI * 0.5, PI * 0.5)
-		# 눈알 윗부분을 덮는 짙은 뚜껑(속눈썹 선): 눈 뼈에 붙어 깜빡임과 같이 움직인다
-		g.use("Eye" + sfx)
-		g.ellipsoid(ec, er * 1.03, Color("1a1410") if full else LASH, 9 if full else 12, 2, eb, PI * 0.3, PI * 0.3, 0.0)
+		g.ellipsoid(lid_p, Vector3(er.x * 1.14, er.y * 2.2, er.z * 1.6), SLIT if full else SKIN.darkened(0.05), 8, 2, eb * Basis(Vector3.BACK, PI), PI * 0.5, PI * 0.5)
+		if not full:
+			# 눈 위 가장자리를 따라가는 짙은 속눈썹 선(눈 뼈에 붙어 깜빡임과 같이 움직인다)
+			g.use("Eye" + sfx)
+			var arc: Array = []
+			var arc_r: Array = []
+			for k in 5:
+				var a := lerpf(PI * 0.15, PI * 0.85, float(k) / 4.0)
+				arc.append(ec + eb * Vector3(cos(a) * er.x * 1.02, sin(a) * er.y * 1.02, -er.z * 0.35))
+				arc_r.append(es * (0.05 if k == 0 or k == 4 else 0.09))
+			g.spline_tube(arc, arc_r, LASH, 4, true, true, Vector3.FORWARD)
 		# 눈썹
 		var bd: Vector3
 		var bi: Vector3
@@ -636,9 +662,9 @@ static func _face(g: DemonGeo, full: bool, es: float) -> void:
 			bd = Vector3(0.38 * side, 0.36, -0.85).normalized()
 			bi = Vector3(0.17 * side, 0.3, -0.94).normalized()
 			bo = Vector3(0.58 * side, 0.32, -0.75).normalized()
-		var bp := HC + Vector3(bd.x * HR.x, bd.y * HR.y, bd.z * HR.z) * ((1.0 if full else _face_k(bd)) + 0.004)
-		var pi_ := HC + Vector3(bi.x * HR.x, bi.y * HR.y, bi.z * HR.z) * ((1.0 if full else _face_k(bi)) - 0.01)
-		var po := HC + Vector3(bo.x * HR.x, bo.y * HR.y, bo.z * HR.z) * ((1.0 if full else _face_k(bo)) - 0.01)
+		var bp := _hpt(bd, ((1.0 if full else _face_k(bd)) + 0.004))
+		var pi_ := _hpt(bi, ((1.0 if full else _face_k(bi)) - 0.01))
+		var po := _hpt(bo, ((1.0 if full else _face_k(bo)) - 0.01))
 		g.add_bone("Brow" + sfx, "Head", bp)
 		g.use("Brow" + sfx)
 		var bt := es * (0.2 if full else 0.24)
@@ -646,7 +672,7 @@ static func _face(g: DemonGeo, full: bool, es: float) -> void:
 			Color("3b3542") if full else BROW, 6, false, false)
 	# 입
 	var md := Vector3(0, -0.6, -0.8).normalized()
-	var mp := HC + Vector3(md.x * HR.x, md.y * HR.y, md.z * HR.z) * (_face_k(md) + 0.004)
+	var mp := _hpt(md, (_face_k(md) + 0.004))
 	var mw := 0.07
 	g.add_bone("MouthN", "Head", mp)
 	g.use("MouthN")
@@ -709,7 +735,7 @@ static func _plume(g: DemonGeo, v: int) -> void:
 			a1 = -1.75 + 0.3 * t
 			ez = 1.25
 		var lat := float((k % 2) * 2 - 1) * 0.013 * ps
-		var p := hc2 + Vector3(lat, cos(phi) * hr2.y, sin(phi) * hr2.z) * 0.97
+		var p := hc2 + Vector3(lat, cos(phi) * hr2.y, sin(phi) * hr2.z * HW) * 0.97
 		var pts: Array = []
 		var radii: Array = []
 		var r0 := 0.034 * ps
@@ -725,15 +751,53 @@ static func _plume(g: DemonGeo, v: int) -> void:
 
 # ------------------------------------------------------------------ 망토(성기사)
 
-## 성기사의 파란 망토: 등 갑옷 바깥 어깨 높이에서 늘어지고 양옆·아랫단에 금 테. Cape 뼈로 흔들린다.
+## 성기사의 파란 망토: 어깨 높이에서 양쪽 어깨 갑옷 끝까지 걸쳐 늘어지는 두 겹 천(앞·뒤 면이 두께만큼 떨어짐), 세로 주름 둘(u = ±¼ 골),
+## 양옆·아랫단에 굵은 금 테(두께가 보인다). 아래로 넓어져 뒤에서 보면 방패를 가린다. Cape 뼈로 흔들린다.
 static func _cape(g: DemonGeo) -> void:
-	var top := Vector3(0, float(P.shoulder) + 0.012, 0.165)
+	var top := Vector3(0, float(P.shoulder) + 0.012, 0.148)
 	g.add_bone("Cape", "Spine", top)
 	g.use("Cape")
 	g.measure = false
-	var grid: Array = g.cape_grid(top, 0.44, 0.3, 0.46, BLUE, BLUE_DARK, 0.055, 0.05, 0.02, 5, 4, 0.006)
-	var rows := grid.size() - 1
-	var cols := (grid[0] as Array).size() - 1
+	var length := 0.47
+	var w_top := 0.66
+	var w_bot := 0.9
+	var rows := 5
+	var cols := 6
+	var th := 0.009
+	var grid: Array = []
+	for i in rows + 1:
+		var t := float(i) / float(rows)
+		var w := lerpf(w_top, w_bot, t)
+		var row: Array = []
+		for j in cols + 1:
+			var u := float(j) / float(cols) - 0.5
+			var y := top.y - length * t - 0.02 * t * t * (0.5 + 0.5 * cos(u * TAU * 1.5))
+			# 뒤로 늘어짐 + 양옆이 몸을 감쌈 + 세로 주름(가운데·양끝 능선, ±¼ 골)
+			var z := top.z + 0.06 * t * t - 0.05 * (u * u * 4.0) * (0.3 + 0.7 * t) + 0.02 * (0.15 + 0.85 * t) * cos(u * TAU * 2.0)
+			row.append(Vector3(top.x + u * w, y, z))
+		grid.append(row)
+	var keep := g.line
+	g.line = 0.8
+	for sgn: float in [1.0, -1.0]:
+		var col := BLUE if sgn > 0.0 else BLUE_DARK
+		var b0 := g.v.size()
+		for i in rows + 1:
+			for j in cols + 1:
+				var pt: Vector3 = grid[i][j]
+				var du: Vector3 = (grid[i][mini(j + 1, cols)] as Vector3) - (grid[i][maxi(j - 1, 0)] as Vector3)
+				var dt: Vector3 = (grid[mini(i + 1, rows)][j] as Vector3) - (grid[maxi(i - 1, 0)][j] as Vector3)
+				var nn := du.cross(dt).normalized()
+				if nn.z < 0.0:
+					nn = -nn
+				nn *= sgn
+				g._vert(pt + nn * th, nn, col)
+		for i in rows:
+			for j in cols:
+				var q := b0 + i * (cols + 1) + j
+				var dq := q + cols + 1
+				g.tri(q, q + 1, dq)
+				g.tri(q + 1, dq + 1, dq)
+	g.line = keep
 	var left: Array = []
 	var right: Array = []
 	var hem: Array = []
@@ -746,11 +810,11 @@ static func _cape(g: DemonGeo) -> void:
 	for edge: Array in [left, right, hem]:
 		var er: Array = []
 		for _q: Vector3 in edge:
-			er.append(0.007)
-		g.spline_tube(edge, er, GOLD, 3, true, true)
-	# 망토를 거는 금 막대(어깨 뒤)
+			er.append(th * 1.4)
+		g.spline_tube(edge, er, GOLD, 4, true, true)
+	# 망토를 거는 금 막대(어깨 뒤, 양쪽 어깨 갑옷 사이)
 	g.line = 0.45
-	g.tube(Vector3(-0.15, top.y, top.z - 0.006), Vector3(0.15, top.y, top.z - 0.006), 0.012, 0.012, GOLD, 6, true)
+	g.tube(Vector3(-w_top * 0.5, top.y, top.z - 0.004), Vector3(w_top * 0.5, top.y, top.z - 0.004), 0.013, 0.013, GOLD, 6, true)
 	g.line = 1.0
 	g.measure = true
 
@@ -769,7 +833,7 @@ static func _sword(g: DemonGeo, hand: Vector3, elite: bool) -> Vector3:
 	var side := Vector3.RIGHT.cross(d)
 	var sw := 0.042
 	var sl := 0.46
-	var fist := 0.088
+	var fist := 0.045
 	g.tube(hand - d * (fist + 0.025), hand + d * (fist + 0.01), 0.017, 0.017, LEATHER, 6, false)
 	g.sphere(hand - d * (fist + 0.03), 0.027, GOLD, 8, 4)
 	g.line = 0.6
@@ -919,11 +983,12 @@ static func _bent_plate(g: DemonGeo, center: Vector3, b: Basis, w_of: Callable, 
 static func _shield(g: DemonGeo, v: int, hand: Vector3) -> void:
 	g.use("HandL")
 	var small := v == 2 or v == 3
-	var sc := 0.9 if small else 1.0
+	var sc := 0.9 if small else (0.86 if v == 4 else 1.0)
 	var face_col := BLUE if v == 4 else RED
 	var mark := GOLD if v == 4 else WHITE
-	var nrm := Vector3(-0.5, -0.45, -0.74).normalized()
-	var center := hand + nrm * 0.06 + Vector3(-0.02, 0.03, 0)
+	# 성기사 방패는 조금 작고 더 옆을 향하며 안쪽에 둬 뒤에서 보면 망토에 가려진다
+	var nrm := (Vector3(-0.6, -0.42, -0.68) if v == 4 else Vector3(-0.5, -0.45, -0.74)).normalized()
+	var center := hand + nrm * 0.06 + Vector3(0.0 if v == 4 else -0.02, 0.03, 0)
 	var t1 := nrm.cross(Vector3.UP).normalized()
 	var t2 := t1.cross(nrm).normalized()
 	if t2.y < 0.0:
