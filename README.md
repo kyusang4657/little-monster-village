@@ -1,18 +1,19 @@
-# 마물의 작은 마을 (v0.4.0)
+# 마물의 작은 마을 (v0.5.0)
 
 마물 진영의 작은 마을을 짓고 꾸미면서, 성을 노리는 인간 기사의 습격을 방어탑으로 막는 가로 화면 건설·방어 게임입니다. 습격을 막을수록 성이 자라고 땅이 넓어져, 작은 마을이 마왕성이 됩니다. 오프라인 싱글플레이이며 서버·로그인·광고·결제·런타임 생성형 AI가 없습니다.
 
-> **현재 상태: 4차(만화풍 화풍·주인공 뿔이·유닛 직접 생산) 구현과 디버그 APK·웹 빌드는 끝났고, 실제 휴대전화 검증은 하지 못했습니다.**
+> **현재 상태: 5차(캐릭터를 컨셉 시트에 맞춰 전면 리디자인) 구현과 디버그 APK·웹 빌드는 끝났고, 실제 휴대전화 검증은 하지 못했습니다.**
 > 자동 검사·데스크톱(가상 디스플레이)·헤드리스 브라우저로 확인한 범위와 미검증 항목은 [`docs/TEST-REPORT.md`](docs/TEST-REPORT.md)에 구분해 두었습니다.
 
 | 항목 | 내용 |
 | --- | --- |
-| 설치 파일 | [`release/monster-village-0.4.0-debug.apk`](release/monster-village-0.4.0-debug.apk) (**디버그용 APK**, arm64-v8a + armeabi-v7a, 약 58MB) |
+| 설치 파일 | [`release/monster-village-0.5.0-debug.apk`](release/monster-village-0.5.0-debug.apk) (**디버그용 APK**, arm64-v8a + armeabi-v7a, 약 58MB) |
 | 웹(itch.io용) | `godot --headless --path . --export-release "Web" build/web/index.html` → `build/web` 압축(약 12.7MB). 안내: [`docs/release/ITCH-IO.md`](docs/release/ITCH-IO.md) |
-| 패키지 ID / 버전 | `io.github.kyusang4657.monstervillage` / 0.4.0 (versionCode 4). 이전 버전과 같은 디버그 서명이라 덮어 설치하면 저장이 이어집니다 |
+| 패키지 ID / 버전 | `io.github.kyusang4657.monstervillage` / 0.5.0 (versionCode 5). 이전 버전과 같은 디버그 서명이라 덮어 설치하면 저장이 이어집니다 |
 | 엔진 | Godot **4.4.1-stable** · GDScript · **Compatibility** 렌더러 · 실시간 3D |
 | 권한 | 추가 권한 없음(인터넷·위치·카메라·연락처 사용 안 함) |
 | 출처·라이선스 | [`CREDITS.md`](CREDITS.md) (폰트 OFL, 모델·소리는 직접 제작, 소리는 CC0) |
+| 5차 설계 결정 | [`docs/DESIGN-v0.5.md`](docs/DESIGN-v0.5.md) (컨셉 시트 기준 캐릭터 리디자인, 심사 점수, 남은 차이) |
 | 4차 설계 결정 | [`docs/DESIGN-v0.4.md`](docs/DESIGN-v0.4.md) (화풍 규칙, 뿔이, 유닛·인구·집결 깃발과 균형) |
 | 3차 설계 결정 | [`docs/DESIGN-v0.3.md`](docs/DESIGN-v0.3.md) (장·성 레벨·넓히기·앞마당·이야기·자유도 결정과 이유) |
 | 출시 준비 | [`docs/release/`](docs/release) (itch.io, Google Play, 개인정보처리방침), [`docs/store/`](docs/store) (아이콘·대표 이미지·스크린샷·설명) |
@@ -23,7 +24,7 @@
 
 1. 휴대전화에서 APK를 내려받습니다(GitHub 파일 화면 → *Download raw file*).
 2. "출처를 알 수 없는 앱" 설치를 허용하고 설치합니다. 인터넷 연결은 필요 없습니다.
-3. PC에서는 `adb install -r release/monster-village-0.4.0-debug.apk`로 설치합니다.
+3. PC에서는 `adb install -r release/monster-village-0.5.0-debug.apk`로 설치합니다.
 
 이전 버전 저장 데이터(형식 v1~v3)는 처음 실행할 때 v4로 자동 이전됩니다(유닛 0, 집결 깃발은 성 앞). 성 레벨은 이미 깬 단계에 맞춰지고, 이미 지나온 장의 이야기는 본 것으로 표시됩니다.
 
@@ -47,12 +48,24 @@
 
 처음 실행하면 짧은 프롤로그 뒤에 고블린 촌장 꼬블의 안내 말풍선 9단계(건설 → 배치 → 공사 → 강화 → 방어 시작)가 나옵니다. 이야기와 안내 모두 **건너뛰기**를 누를 수 있고, 메뉴에서 다시 볼 수 있습니다.
 
-## 3. 4차에서 바뀐 것: 만화풍 화풍, 주인공 뿔이, 유닛 직접 생산
+## 3. 5차에서 바뀐 것: 캐릭터를 컨셉 시트에 맞추기
+
+사용자가 준 캐릭터 컨셉 시트 2장([`docs/design/concept/`](docs/design/concept))에 게임 캐릭터를 맞춰 전부 다시 만들었습니다. 설계와 심사 결과는 [`docs/DESIGN-v0.5.md`](docs/DESIGN-v0.5.md), 캐릭터별 캡처는 [`docs/design/v5/`](docs/design/v5), 게임 화면은 [`docs/screenshots/v0.5/`](docs/screenshots/v0.5)에 있습니다.
+
+![출연진](docs/screenshots/v0.5/cast.jpg)
+
+- **뿔이:** 흑자색 용 몸, 큰 회색 뿔, 금 왕관과 붉은 보석, 노란 눈에 세로 동공, 박쥐 날개, 가시 꼬리, Lv.3부터 붉은 털 망토. 지팡이는 없어졌습니다.
+- **고블린 3종:** 이마 고글·보라 조끼·돌망치, 방어탑 조작수는 뿔 투구. **꼬마 오크:** 붉은 모히칸·엄니·징 몽둥이. **해골 궁수:** 둥근 두건 로브·붉은 눈·큰 활.
+- **기사 5종:** 일반(열린 투구·흰 깃)·중갑(통투구·큰 어깨)·창기사·망치 기사·성기사(금 테·파란 망토). **보스:** 기사단장 번쩍경(닫힌 면갑·대검·붉은 망토), 용사 루루(금발·베레모·흰·파랑 드레스).
+- 코드는 `char_geo.gd`(도형)와 `scripts/world/chars/*_builder.gd`(캐릭터별)로 나뉘었고, 삼각형 예산은 캐릭터 4,000 / 보스·뿔이 6,000입니다(config). 캐릭터는 부드러운 전용 재질(림 라이트)을 씁니다.
+- 대화 얼굴 아이콘(뿔이·기사단장·루루)도 새 모델에 맞췄고, "웃음" 표정은 눈을 감습니다.
+
+## 3-0. 4차에서 바뀐 것: 만화풍 화풍, 주인공 뿔이, 유닛 직접 생산
 
 자세한 규칙과 이유는 [`docs/DESIGN-v0.4.md`](docs/DESIGN-v0.4.md), 화풍 규칙은 [`docs/design/style/`](docs/design/style), 뿔이 시안은 [`docs/design/imp/`](docs/design/imp)에 있습니다.
 
 - **화풍:** 캐릭터·건물·울타리에 짙은 외곽선, 칠한 듯한 명암, 큰 주먹·장화·방패의 두툼한 비율. 젤리 버튼·양피지 창·자원 막대·외곽선 글자(주아체·검은고딕). 느린 기기는 메뉴에서 외곽선을 끌 수 있습니다.
-- **뿔이(어린 마왕):** 짝짝이 뿔·물려받은 큰 망토·사탕 지팡이. 성 레벨에 따라 자라고, 마을을 산책하며 누르면 한마디, 성이 자라면 빛기둥과 함께 축하합니다.
+- **뿔이(어린 마왕):** (4차 디자인은 5차에서 컨셉 시트 디자인으로 바뀜) 성 레벨에 따라 자라고, 마을을 산책하며 누르면 한마디, 성이 자라면 빛기둥과 함께 축하합니다.
 - **유닛:** 해골 궁수(깃발 뒤에서 활), 꼬마 오크(깃발 줄에서 기사를 2명까지 막음). 쓰러져도 전투가 끝나면 돌아옵니다. 초반에 큰 도움이 되지만 후반은 방어탑이 꼭 필요하도록 맞췄습니다.
 
 ## 3-1. 3차 개발에서 바뀐 것: 마왕성으로 성장하기
@@ -145,15 +158,18 @@ config/story.json                이야기 장면·인물·기사단장 핑계·
 config/decorations.json          꾸미기 부품 목록
 config/initial-layout.json       초기 배치
 scripts/core/                    규칙(화면과 분리): game_state, grid_logic(BFS), battle_sim, battle_advisor, decor, save_manager, game_config, story
-scripts/world/                   3D: world_view, models(부품 조립), character_rig(관절 캐릭터), mesh_batch, workers(일꾼)
+scripts/world/                   3D: world_view, models(부품 조립), character_rig(관절·자세·표정), char_geo(캐릭터 도형·공통 부품), chars/(캐릭터별 빌더), mesh_batch, workers(일꾼), imp_walker(뿔이)
 scripts/ui/                      hud(패널·꾸미기 패널·넓히기·이야기 목록), tutorial(안내 말풍선), story_view(대화 장면), ui_icon
 scripts/audio/sound.gd           자동 로드 Sound(버스·효과음·배경음)
 scripts/main.gd                  흐름·입력·저장 시점·앱 상태
 scripts/debug/shot_driver.gd     실행 화면 자동 캡처(내보내기 제외)
-tests/run_tests.gd               규칙·밸런스 자동 검사 589개(헤드리스)
-tests/character_checks.gd        캐릭터 관절·비율·동작·예산 검사 447개(헤드리스)
+tests/run_tests.gd               규칙·밸런스 자동 검사 605개(헤드리스)
+tests/character_checks.gd        캐릭터 관절·비율·동작·예산 검사 520개(헤드리스)
+tests/character_capture.gd       캐릭터 캡처(solo·cast·geo·imp·units 모드), tests/icon_capture.gd 아이콘 캡처
 tests/integration_driver.gd      실제 장면 통합 검사 100개(디스플레이 필요)
 tools/make_sounds.py             효과음·배경음 합성기(CC0)
+tools/montage.py                 캡처 여러 장을 한 장으로
+docs/design/concept              캐릭터 컨셉 시트(5차 기준 그림)
 docs/store, docs/release         스토어 자료, 출시 안내
 ```
 
@@ -169,7 +185,9 @@ xvfb-run -a godot --path . --rendering-driver opengl3 --resolution 1920x1080 -- 
     --shots=/tmp/shots --scenario=construction --no-tutorial --no-story --save-dir=user://shots/ --fresh --no-focus-pause
     # scenario: full, construction, decor, tutorial(안내 켠 채), closeup, art(아이콘·대표 이미지 원본),
     #           chapter(성 레벨·땅 넓히기·앞마당·이야기·보스, --no-story 없이 실행),
-    #           perf(최대 지도·10단계 성능), perf_base(이전 버전과 같은 조건 비교)
+    #           perf(최대 지도·10단계 성능), perf_base(이전 버전과 같은 조건 비교), showcase(새 캐릭터 게임 화면)
+xvfb-run -a godot --path . --rendering-driver opengl3 --resolution 420x480 --script res://tests/character_capture.gd -- \
+    --out=/tmp/cap --mode=solo --who=imp:4,knight:1           # 캐릭터 한 명씩 정면·옆·동작·표정·게임 크기
 godot --headless --path . --export-debug "Android" build/android/monster-village-debug.apk
 godot --headless --path . --export-release "Web" build/web/index.html
 python3 tools/make_sounds.py                                         # 소리 다시 만들기(numpy, oggenc)
@@ -197,6 +215,7 @@ Android 내보내기 도구 구성(Godot 4.4.1 공식 템플릿, Gradle 미사�
 - Google Play 업로드 전 대상 API 36 대응(Gradle 빌드 또는 Godot 업그레이드)이 필요합니다.
 - 일꾼 2명은 외형 전용입니다. 현장이 하나면 둘 다 그곳으로 가고, 현장이 3곳 이상이면 세 번째 현장에는 일꾼이 가지 않습니다(공사는 시간 기준이라 진행은 됩니다).
 - 모델은 직접 만든 기본 도형 로우폴리입니다. 외부 CC0 에셋으로 바꾸려면 CREDITS의 안내를 따르세요.
-- **3차 성능:** 최대 지도(24×18)·10단계에서 그리기 호출 272, 삼각형 약 37.6만(그림자 켬)입니다. 데스크톱 소프트웨어 렌더러에서는 v0.2와 같은 조건일 때 느려지지 않았지만, 휴대전화 30FPS는 확인하지 못했습니다. 느리면 메뉴에서 그림자를 꺼 주세요(게임이 한 번 안내합니다).
+- **5차 성능:** 최대 지도(24×18)·10단계 16명에서 외곽선 켬 삼각형 약 73.5만(그리기 호출 493), 외곽선·그림자 끔 24.2만(261)입니다. 캐릭터가 세밀해져 4차보다 늘었고 회귀 상한(60만)을 외곽선 켬에서 넘습니다. 느리면 메뉴에서 외곽선·그림자를 꺼 주세요.
+- **3차 성능(참고):** 최대 지도(24×18)·10단계에서 그리기 호출 272, 삼각형 약 37.6만(그림자 켬)이었습니다. 데스크톱 소프트웨어 렌더러에서는 v0.2와 같은 조건일 때 느려지지 않았지만, 휴대전화 30FPS는 확인하지 못했습니다. 느리면 메뉴에서 그림자를 꺼 주세요(게임이 한 번 안내합니다).
 - 캐릭터는 스킨 메시(뼈대)라 정점 변형을 GPU가 하지 않는 환경에서는 비용이 큽니다. 소프트웨어 렌더러에서 캐릭터만 잰 FPS는 약 9% 낮았습니다(그리기 호출은 6분의 1).
 - 앞마당은 처음 울타리 밖의 넓힌 땅에 있는 숲 자원 지점에만 지을 수 있습니다. 넓힌 뒤에는 새 바깥 울타리 안쪽이 됩니다(기사 입구를 하나로 유지하기 위한 결정, `docs/DESIGN-v0.3.md`).
