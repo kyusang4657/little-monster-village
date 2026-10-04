@@ -54,6 +54,10 @@ static func build(type: String, deco: Dictionary = {}, level: int = 1, flags: Di
 			return flowerbed(d)
 		"lantern":
 			return lantern(d)
+		"barracks":
+			return barracks()
+		"training_ground":
+			return training_ground()
 	return Node3D.new()
 
 
@@ -301,6 +305,74 @@ static func outpost(damaged: bool = false) -> Node3D:
 		b.box(Vector3(0.06, 0.24, 0.03), Vector3(0.93, 1.7, -0.565), RED)
 	else:
 		_emblem(b, "skull", Vector3(0.93, 1.7, -0.57), -1.0, 0.8)
+	r.add_child(b.instance("Body"))
+	return r
+
+
+# ------------------------------------------------------------------ 4차: 유닛 훈련 건물 (2×2)
+
+## 해골 막사: 어두운 돌 오두막, 뼈 장식 지붕, 보라 해골 깃발, 앞에 과녁
+static func barracks() -> Node3D:
+	var r := _root("Barracks")
+	var b := MeshBatch.new()
+	var stone := Color("6f6878")
+	b.box(Vector3(1.8, 0.12, 1.7), Vector3(0, 0.06, 0.05), STONE_DARK)
+	b.box(Vector3(1.4, 0.8, 1.2), Vector3(0, 0.52, 0.15), stone)
+	for sx in [-1.0, 1.0]:
+		b.box(Vector3(0.18, 0.95, 0.18), Vector3(0.68 * sx, 0.55, -0.42), stone.darkened(0.2))
+	b.prism(Vector3(1.6, 0.55, 1.4), Vector3(0, 1.2, 0.15), PURPLE_DARK)
+	# 지붕 꼭대기 뼈(엑스자)와 해골
+	b.cyl(0.04, 0.04, 0.7, Vector3(0, 1.55, -0.45), IVORY, Vector3(0, 0, 40), 6)
+	b.cyl(0.04, 0.04, 0.7, Vector3(0, 1.55, -0.45), IVORY, Vector3(0, 0, -40), 6)
+	_emblem(b, "skull", Vector3(0, 1.05, -0.47), -1.0, 1.4)
+	# 문(아치)
+	b.box(Vector3(0.42, 0.55, 0.06), Vector3(0, 0.4, -0.47), GLASS_DARK)
+	b.cyl(0.21, 0.21, 0.06, Vector3(0, 0.67, -0.47), GLASS_DARK, Vector3(90, 0, 0), 12)
+	# 앞마당 과녁(빨강·하양 동심원)
+	b.cyl(0.04, 0.04, 0.6, Vector3(0.62, 0.3, -0.72), WOOD_DARK, Vector3.ZERO, 6)
+	b.cyl(0.24, 0.24, 0.05, Vector3(0.62, 0.62, -0.72), WHITE, Vector3(90, 0, 0), 14)
+	b.cyl(0.16, 0.16, 0.06, Vector3(0.62, 0.62, -0.72), RED, Vector3(90, 0, 0), 14)
+	b.cyl(0.07, 0.07, 0.07, Vector3(0.62, 0.62, -0.72), WHITE, Vector3(90, 0, 0), 12)
+	# 깃대
+	b.cyl(0.03, 0.03, 1.6, Vector3(-0.72, 0.8, -0.72), WOOD_DARK, Vector3.ZERO, 6)
+	b.box(Vector3(0.4, 0.28, 0.02), Vector3(-0.52, 1.45, -0.72), PURPLE)
+	r.add_child(b.instance("Body"))
+	return r
+
+
+## 오크 훈련장: 말뚝 울타리 링, 가운데 허수아비(기사 모양), 통나무 의자, 북
+static func training_ground() -> Node3D:
+	var r := _root("TrainingGround")
+	var b := MeshBatch.new()
+	b.cyl(0.88, 0.9, 0.06, Vector3(0, 0.03, 0), Color("b9925c"), Vector3.ZERO, 16)
+	for i in 14:
+		var a := TAU * float(i) / 14.0
+		if i == 10 or i == 11:
+			continue    # 입구
+		b.cyl(0.05, 0.06, 0.55, Vector3(sin(a) * 0.86, 0.27, -cos(a) * 0.86), WOOD, Vector3.ZERO, 6)
+		b.cyl(0.0, 0.06, 0.12, Vector3(sin(a) * 0.86, 0.6, -cos(a) * 0.86), WOOD_LIGHT, Vector3.ZERO, 6)
+	# 허수아비 기사(짚 몸, 은색 양동이 투구, 빨간 띠)
+	b.cyl(0.04, 0.04, 0.9, Vector3(0, 0.45, 0.05), WOOD_DARK, Vector3.ZERO, 6)
+	b.cyl(0.03, 0.03, 0.7, Vector3(0, 0.75, 0.05), WOOD_DARK, Vector3(0, 0, 90), 6)
+	b.sphere(0.2, Vector3(0, 0.62, 0.05), Color("e2c56b"), Vector3(1, 1.25, 0.9))
+	b.box(Vector3(0.42, 0.08, 0.36), Vector3(0, 0.6, 0.05), RED)
+	b.cyl(0.13, 0.15, 0.2, Vector3(0, 0.98, 0.05), SILVER, Vector3.ZERO, 10)
+	# 통나무 의자와 북
+	b.cyl(0.1, 0.1, 0.5, Vector3(-0.45, 0.1, 0.4), WOOD_DARK, Vector3(0, 30, 90), 8)
+	b.cyl(0.16, 0.16, 0.22, Vector3(0.45, 0.11, 0.38), RED.darkened(0.2), Vector3.ZERO, 10)
+	b.cyl(0.165, 0.165, 0.03, Vector3(0.45, 0.23, 0.38), IVORY, Vector3.ZERO, 10)
+	r.add_child(b.instance("Body"))
+	return r
+
+
+## 집결 깃발: 짧은 깃대에 보라 삼각 깃발과 금 테
+static func rally_flag() -> Node3D:
+	var r := _root("RallyFlag")
+	var b := MeshBatch.new()
+	b.cyl(0.12, 0.14, 0.06, Vector3(0, 0.03, 0), STONE_DARK, Vector3.ZERO, 10)
+	b.cyl(0.025, 0.025, 1.1, Vector3(0, 0.55, 0), WOOD_DARK, Vector3.ZERO, 6)
+	b.sphere(0.05, Vector3(0, 1.12, 0), GOLD)
+	b.prism(Vector3(0.02, 0.32, 0.45), Vector3(0, 0.9, -0.22), PURPLE, Vector3(0, 90, -90))
 	r.add_child(b.instance("Body"))
 	return r
 

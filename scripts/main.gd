@@ -74,6 +74,11 @@ func _ready() -> void:
 	_castle_id = String(GridLogic.castle_of(state.buildings).get("id", "castle_01"))
 	state.changed.connect(_on_state_changed)
 	state.construction_finished.connect(_on_construction_finished)
+	state.unit_trained.connect(func(kind: String):
+		hud.toast("%s 훈련 완료! (인구 %d/%d)" % [String(GameConfig.unit_def(kind).get("label", kind)), state.population(), state.population_cap()])
+		Sound.play("build_done")
+		world.sync_units(state.units, state.buildings, state.rally_cell())
+		saver.save(state))
 	world.outpost_fell.connect(func(_id: String): hud.toast("앞마당이 점령당했어요! 생산만 멈추고, 전투 뒤 수리할 수 있어요", 3.0))
 	_load_settings()
 	_sync_world()
@@ -119,6 +124,7 @@ func _connect_hud() -> void:
 	hud.decor_option.connect(_on_decor_option)
 	hud.decor_done.connect(_confirm_edit)
 	hud.decor_cancel.connect(_cancel_edit)
+	hud.rally_pressed.connect(_begin_rally)
 	hud.expand_pressed.connect(_open_expand_menu)
 	hud.expand_selected.connect(_begin_expand)
 	hud.story_replay.connect(_replay_story)
@@ -221,6 +227,7 @@ func _on_construction_finished(id: String) -> void:
 func _sync_world() -> void:
 	world.set_map(state.bounds())
 	world.imp.set_level(state.castle_level())
+	world.sync_units(state.units, state.buildings, state.rally_cell())
 	world.sync_buildings(state.buildings)
 	world.rebuild_fences(state.all_edges())
 
@@ -489,8 +496,20 @@ func _reset_pointer_state() -> void:
 	_alt_pan = false
 
 
+## 집결 깃발 옮기기: 땅을 누르면 그 칸으로, 배치를 누르면 확정(무료)
+func _begin_rally() -> void:
+	if not _can_edit():
+		return
+	hud.hide_build_menu()
+	_deselect()
+	var c := state.rally_cell()
+	edit = {kind = "rally", x = c.x, z = c.y, rot = 0, was_ready = state.raid_ready}
+	state.mode = GameState.MODE_BUILD
+	_update_edit()
+
+
 func _rotate_edit() -> void:
-	if edit.is_empty() or edit.kind == "fence":
+	if edit.is_empty() or edit.kind in ["fence", "rally"]:
 		return
 	edit.rot = (int(edit.rot) + 1) % 4
 	_update_edit()
@@ -500,7 +519,7 @@ func _update_edit() -> void:
 	if edit.is_empty():
 		return
 	world.set_grid_visible(true)
-	var icon := {house = "house", defense_tower = "tower", lumber_camp = "lumber", castle = "castle", outpost = "outpost", flowerbed = "flower", lantern = "lantern"}
+	var icon := {house = "house", defense_tower = "tower", lumber_camp = "lumber", castle = "castle", outpost = "outpost", flowerbed = "flower", lantern = "lantern", barracks = "skull", training_ground = "orc"}
 	match edit.kind:
 		"move":
 			var v := state.check_move(edit.id, edit.x, edit.z, edit.rot)
@@ -534,6 +553,12 @@ func _update_edit() -> void:
 			world.show_fence_plan(add, edit.remove, ok or (add.is_empty() and edit.remove.is_empty()))
 			hud.show_edit("fence", "울타리 편집 (한 변 목재 %d)" % int(GameConfig.defaults().fences.edge_build_cost), ok, status,
 				"배치 · 목재 %d" % cost, false, "땅을 끌어 선을 긋고, 울타리를 누르면 제거 표시돼요 · 두 손가락으로 화면 이동")
+		"rally":
+			var v := state.check_rally(Vector2i(edit.x, edit.z))
+			world.show_footprint("flowerbed", edit.x, edit.z, v.ok)
+			world.preview_rally(Vector2i(edit.x, edit.z))
+			hud.show_edit("rally", "집결 깃발 (유닛이 모이는 곳 · 무료)", v.ok, "여기에 모여요" if v.ok else String(v.reason), "배치", false,
+				"땅을 눌러 깃발 자리를 고르세요. 오크는 깃발 줄에서 기사를 막고, 궁수는 그 뒤에서 쏴요")
 		"expand":
 			var e := GameConfig.expansion_def(edit.dir)
 			var v := state.check_expand(edit.dir)
@@ -571,6 +596,10 @@ func _confirm_edit() -> void:
 			r = state.commit_decor(edit.id, edit.deco)
 			if r.ok:
 				hud.toast("새 모습으로 꾸몄어요")
+		"rally":
+			r = state.commit_rally(Vector2i(edit.x, edit.z))
+			if r.ok:
+				hud.toast("집결 깃발을 옮겼어요")
 		"expand":
 			var first := state.expansions.is_empty()
 			r = state.commit_expand(edit.dir)
@@ -620,6 +649,16 @@ func _upgrade_selected() -> void:
 	if selected_id == "" or not _can_edit():
 		return
 	var sel := state.get_building(selected_id)
+	if GameConfig.trains_of(String(sel.get("type", ""))) != "":
+		var tr := state.commit_train(selected_id)
+		if tr.ok:
+			saver.save(state)
+			hud.toast("%s 훈련 시작! 목재 -%d" % [String(GameConfig.unit_def(tr.kind).get("label", tr.kind)), int(tr.cost)])
+			Sound.play("place")
+			hud.show_info(state.get_building(selected_id), state)
+		else:
+			hud.toast(String(tr.reason))
+		return
 	if sel.get("type", "") == "outpost":
 		var rp := state.commit_repair(selected_id)
 		if rp.ok:
@@ -1050,7 +1089,7 @@ func _pointer_down(pos: Vector2) -> void:
 	_press_pos = pos
 	_last_pos = pos
 	_drag_kind = "pan"
-	if edit.is_empty() or edit.kind in ["deco", "expand"]:
+	if edit.is_empty() or edit.kind in ["deco", "expand", "rally"]:
 		return
 	if edit.kind == "fence":
 		_drag_kind = "fence"
@@ -1127,6 +1166,12 @@ func _pointer_up(pos: Vector2) -> void:
 
 
 func _tap(pos: Vector2) -> void:
+	if not edit.is_empty() and edit.kind == "rally":
+		var cell := _cell_at(pos)
+		edit.x = cell.x
+		edit.z = cell.y
+		_update_edit()
+		return
 	if not edit.is_empty() and edit.kind in ["deco", "expand"]:
 		return
 	if not edit.is_empty():

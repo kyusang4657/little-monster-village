@@ -27,6 +27,10 @@ var _ghost: Node3D
 var _ghost_type := ""
 var crew: WorkerCrew
 var imp: ImpWalker
+var _unit_root: Node3D
+var _unit_key := ""
+var _rally_node: Node3D
+var _defender_nodes: Dictionary = {}
 var _in_battle := false
 var _fx: Array = []
 ## 3차: 현재 지도 경계(논리 칸). 바뀌면 지면·장식·격자·카메라 범위를 다시 만든다.
@@ -94,6 +98,11 @@ func _ready() -> void:
 	add_child(crew)
 	var cc := GameConfig.construction()
 	crew.setup(int(cc.get("worker_count", 2)), float(cc.get("worker_walk_cells_per_second", 1.6)))
+	_unit_root = Node3D.new()
+	_unit_root.name = "Units"
+	add_child(_unit_root)
+	_rally_node = Models.rally_flag()
+	add_child(_rally_node)
 	imp = ImpWalker.new()
 	imp.name = "ImpWalker"
 	add_child(imp)
@@ -632,7 +641,53 @@ func update_village(buildings: Array, edges: Dictionary, delta: float, active: b
 	update_construction(buildings, delta)
 	crew.update_crew(buildings, edges, delta, active, map_bounds)
 	imp.update_imp(buildings, edges, map_bounds, delta, _in_battle)
+	_update_village_units(delta)
 	_update_fx(delta)
+
+
+## 마을에 있는 유닛: 궁수는 해골 막사 앞, 오크는 훈련장 앞에 줄지어 선다(전투 중에는 숨김). 집결 깃발 표시
+func sync_units(units: Dictionary, buildings: Array, rally: Vector2i) -> void:
+	_rally_node.position = W(rally.x + 0.5, 0, rally.y + 0.5)
+	var homes := {}
+	for b in buildings:
+		if b.type in ["barracks", "training_ground"]:
+			homes[b.type] = b
+	var key := "%s|%s|%s" % [str(units), str(homes.get("barracks", {}).get("x", -1)) + "," + str(homes.get("barracks", {}).get("z", -1)),
+		str(homes.get("training_ground", {}).get("x", -1)) + "," + str(homes.get("training_ground", {}).get("z", -1))]
+	if key == _unit_key:
+		return
+	_unit_key = key
+	for c in _unit_root.get_children():
+		c.queue_free()
+	for kind in ["archer", "orc"]:
+		var home: Dictionary = homes.get("barracks" if kind == "archer" else "training_ground", {})
+		var n := int(units.get(kind, 0))
+		for i in n:
+			var rig := CharacterRig.skeleton_archer() if kind == "archer" else CharacterRig.orc()
+			rig.seed_id = 31 + i * 7 + (0 if kind == "archer" else 3)
+			var base := Vector2(rally.x + 0.5, rally.y + 0.5) if home.is_empty() else Vector2(int(home.x) + 1.0, int(home.z) - 0.45)
+			var p := base + Vector2(float(i % 5) * 0.42 - 0.84, -float(i / 5) * 0.45)
+			rig.position = W(p.x, 0, p.y)
+			rig.rotation.y = yaw_for_dir(Vector2(0, -1))
+			rig.set_meta("t0", float(i) * 0.7)
+			_unit_root.add_child(rig)
+
+
+## 깃발 옮기기 미리보기(확정 전). 편집이 끝나면 sync_units 가 저장된 자리로 되돌린다
+func preview_rally(cell: Vector2i) -> void:
+	_rally_node.position = W(cell.x + 0.5, 0, cell.y + 0.5)
+
+
+func _update_village_units(delta: float) -> void:
+	_unit_root.visible = not _in_battle
+	_rally_node.visible = true
+	if _in_battle:
+		return
+	for rig in _unit_root.get_children():
+		if rig is CharacterRig:
+			var t := float(rig.get_meta("t0", 0.0)) + float(Time.get_ticks_msec()) * 0.001
+			(rig as CharacterRig).pose_idle(t)
+			(rig as CharacterRig).update_blink(t)
 
 
 ## 성 레벨업 연출: 성에서 보라·금빛 빛기둥이 솟고 반짝이가 흩날린다(2.5초)
@@ -787,6 +842,7 @@ func clear_battle() -> void:
 	for c in _battle_root.get_children():
 		c.queue_free()
 	_knight_nodes.clear()
+	_defender_nodes.clear()
 	_bolt_nodes.clear()
 	_dying.clear()
 	_floaters.clear()
@@ -847,6 +903,44 @@ func _show_outpost_captured(id: String) -> void:
 	_building_nodes[id] = n
 
 
+## 전투 속 유닛: 궁수는 조준 자세로 표적을 보고, 오크는 막은 기사와 몽둥이로 싸우다 쓰러지면 눕는다
+func _update_defenders(sim: BattleSim, delta: float) -> void:
+	for d in sim.defenders:
+		var n: CharacterRig = _defender_nodes.get(d.id)
+		if n == null:
+			n = CharacterRig.skeleton_archer() if d.kind == "archer" else CharacterRig.orc()
+			n.name = String(d.id)
+			n.seed_id = 50 + _defender_nodes.size() * 5
+			_battle_root.add_child(n)
+			_defender_nodes[d.id] = n
+			n.set_meta("down_t", -1.0)
+		n.position = W(d.pos.x, 0, d.pos.y)
+		var aim: Vector2 = d.aim
+		n.rotation.y = lerp_angle(n.rotation.y, yaw_for_dir(aim), minf(1.0, delta * 10.0))
+		if not bool(d.alive):
+			var dt0 := float(n.get_meta("down_t"))
+			if dt0 < 0.0:
+				dt0 = 0.0
+				Sound.play("knight_down", -6.0, 0.8)
+			dt0 += delta
+			n.set_meta("down_t", dt0)
+			n.pose_die(minf(dt0 / KNIGHT_DIE_TIME, 1.0))
+			continue
+		if d.kind == "archer":
+			n.pose_crossbow(sim.time)
+			n.set_expression("angry" if int(d.target_id) >= 0 else "normal")
+		else:
+			if (d.blocking as Array).is_empty():
+				n.pose_idle(sim.time)
+				n.set_expression("fierce")
+			else:
+				var p := 1.0 - float(d.attack_timer) / maxf(float(d.interval), 0.01)
+				n.pose_attack(fposmod(p, 1.0))
+				n.set_expression("angry")
+		n.update_secondary(delta, 0.0)
+		n.update_blink(sim.time)
+
+
 func _knight_offset(id: int) -> Vector3:
 	return Vector3(float((id * 37) % 7 - 3) * 0.06, 0, float((id * 53) % 5 - 2) * 0.05)
 
@@ -882,6 +976,13 @@ func update_battle(sim: BattleSim, delta: float, castle_id: String) -> void:
 					(kn.node as CharacterRig).set_expression("hurt")
 					_dying.append({node = kn.node, t = 0.0})
 					_knight_nodes.erase(e.knight)
+			"unit_strike":
+				Sound.play("hit", -4.0, 0.8)
+				_floater("-%d" % int(e.damage), _knight_pos(sim, e.knight) + Vector3(-0.2, 1.5, 0), Color("c8f08a"))
+				if _knight_nodes.has(e.knight):
+					_knight_nodes[e.knight].hurt = KNIGHT_HIT_TIME
+			"unit_hit":
+				Sound.play("hit", -8.0, 1.2)
 			"outpost_hit":
 				Sound.play("castle_hit", -8.0, 1.15)
 				if _knight_nodes.has(e.knight):
@@ -903,6 +1004,7 @@ func update_battle(sim: BattleSim, delta: float, castle_id: String) -> void:
 					_floater("-%d" % int(e.damage), cn.position + Vector3(randf_range(-0.6, 0.6), 2.0, 0.6), Color("ff7a6e"))
 	sim.events.clear()
 	var t_now := sim.time
+	_update_defenders(sim, delta)
 	# 기사
 	for id in _knight_nodes:
 		var kn: Dictionary = _knight_nodes[id]
@@ -914,7 +1016,7 @@ func update_battle(sim: BattleSim, delta: float, castle_id: String) -> void:
 		var speed := 0.0
 		# 걷는 기사는 잔뜩 벼른 얼굴(만화풍), 공격 중에는 화남
 		var expr := "fierce"
-		if k.state == "walk":
+		if k.state == "walk" and String(k.get("blocked_by", "")) == "":
 			n.pose_walk(t_now * CharacterRig.WALK_RATE + float(id) * 0.37)
 			speed = 1.0
 		else:

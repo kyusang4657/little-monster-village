@@ -11,6 +11,7 @@ signal move_pressed
 signal upgrade_pressed
 signal decor_pressed
 signal expand_pressed
+signal rally_pressed
 signal expand_selected(dir: String)
 signal decor_option(part_id: String, option_id: String)
 signal decor_done
@@ -421,7 +422,8 @@ func _build_bottom() -> void:
 	grid.add_theme_constant_override("v_separation", 10)
 	mhb.add_child(grid)
 	for item in [["house", "고블린 주택", "house"], ["defense_tower", "방어탑", "tower"], ["fence", "울타리", "fence"], ["expand", "땅 넓히기", "expand"],
-			["lumber_camp", "벌목소", "lumber"], ["outpost", "앞마당", "outpost"], ["flowerbed", "꽃밭", "flower"], ["lantern", "버섯 등불", "lantern"]]:
+			["lumber_camp", "벌목소", "lumber"], ["outpost", "앞마당", "outpost"], ["flowerbed", "꽃밭", "flower"], ["lantern", "버섯 등불", "lantern"],
+			["barracks", "해골 막사", "skull"], ["training_ground", "오크 훈련장", "orc"], ["rally", "집결 깃발", "rally"]]:
 		var card := Button.new()
 		card.focus_mode = Control.FOCUS_NONE
 		card.pressed.connect(func(): Sound.play("click"))
@@ -449,6 +451,8 @@ func _build_bottom() -> void:
 			card.pressed.connect(func(): fence_pressed.emit())
 		elif type == "expand":
 			card.pressed.connect(func(): expand_pressed.emit())
+		elif type == "rally":
+			card.pressed.connect(func(): rally_pressed.emit())
 		else:
 			card.pressed.connect(func(): buy_pressed.emit(type))
 		buy_cards[type] = {button = card, cost = cost_l}
@@ -923,6 +927,9 @@ func show_build_menu(state: GameState) -> void:
 		if type == "fence":
 			card.cost.text = "한 변 목재 %d" % int(GameConfig.defaults().fences.edge_build_cost)
 			b.disabled = false
+		elif type == "rally":
+			card.cost.text = "유닛 %d · 무료" % (int(state.units.get("archer", 0)) + int(state.units.get("orc", 0)))
+			b.disabled = false
 		elif type == "expand":
 			var open := state.unlocked_expansions()
 			var left := 0
@@ -966,7 +973,8 @@ func hide_build_menu() -> void:
 
 func show_info(b: Dictionary, state: GameState) -> void:
 	var def := GameConfig.building_def(b.type)
-	info_icon.set_kind({castle = "castle", house = "house", lumber_camp = "lumber", defense_tower = "tower", outpost = "outpost", flowerbed = "flower", lantern = "lantern"}.get(b.type, "house"))
+	info_icon.set_kind({castle = "castle", house = "house", lumber_camp = "lumber", defense_tower = "tower", outpost = "outpost", flowerbed = "flower", lantern = "lantern",
+		barracks = "skull", training_ground = "orc"}.get(b.type, "house"))
 	var fp := GameConfig.footprint(b.type)
 	info_title.text = "%s · Lv.%d" % [GameConfig.type_label(b.type), int(b.level)]
 	if b.type == "castle":
@@ -991,11 +999,24 @@ func show_info(b: Dictionary, state: GameState) -> void:
 		"defense_tower":
 			var lv := GameConfig.tower_level(int(b.level))
 			desc += " · 공격력 %d · 사거리 %.1f칸" % [int(lv.damage), float(lv.range_cells)]
+		"barracks", "training_ground":
+			var kind := GameConfig.trains_of(b.type)
+			var ud := GameConfig.unit_def(kind)
+			desc += " · %s %d명 · 인구 %d/%d" % [String(ud.get("label", kind)), int(state.units.get(kind, 0)), state.population(), state.population_cap()]
+			var q := int(b.get("train_queue", 0))
+			if q > 0:
+				desc += " · 훈련 중 %d초(대기 %d)" % [int(ceil(float(b.get("train_left", 0.0)))), q - 1]
 	if not state.is_built(b):
 		desc += " · %s %d초 남음" % ["수리 중" if bool(b.get("repairing", false)) else "공사 중", int(ceil(float(b.build_left)))]
 	info_desc.text = desc
 	info_move.visible = bool(def.get("movable", false))
-	info_upgrade.visible = b.type == "defense_tower" or (b.type == "outpost" and bool(b.get("damaged", false)))
+	var trains := GameConfig.trains_of(b.type)
+	info_upgrade.visible = b.type == "defense_tower" or (b.type == "outpost" and bool(b.get("damaged", false))) or trains != ""
+	if trains != "":
+		var tv := state.check_train(b.id)
+		var ud := GameConfig.unit_def(trains)
+		set_button_text(info_upgrade, "%s 훈련 · 목재 %d" % [String(ud.get("label", trains)), int(ud.get("train_cost", 0))])
+		set_button_enabled(info_upgrade, tv.ok)
 	info_decor.visible = Decor.has_parts(b.type)
 	if b.type == "outpost" and bool(b.get("damaged", false)):
 		var rp := state.check_repair(b.id)

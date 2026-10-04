@@ -40,6 +40,8 @@ func _run() -> void:
 			await _faces()
 		"imp":
 			await _imp()
+		"units":
+			await _units()
 	quit(0)
 
 
@@ -148,6 +150,9 @@ func _lineup() -> void:
 	if _rig:
 		nodes.append(_rig.call("boss", "hero"))
 		nodes.append(_rig.call("boss", "commander"))
+		if _rig.has_method("orc"):
+			nodes.append(_rig.call("skeleton_archer"))
+			nodes.append(_rig.call("orc"))
 	# 정면(-Z)에서 보면 +X 가 화면 왼쪽이므로 첫 캐릭터를 +X 끝에 둔다
 	var x := float(nodes.size() - 1) * 0.5 * 0.78
 	for n in nodes:
@@ -274,3 +279,26 @@ func _imp() -> void:
 		fn.call("update_blink", 2.0)
 		_aim(Vector3(0, 0.62, 0), 0.0, 6.0, 0.55)
 		await _shot("imp-face-%s" % e)
+
+
+## 4차 유닛: 해골 궁수·꼬마 오크(고블린 일꾼과 키 비교), 3/4 시점과 동작
+func _units() -> void:
+	_clear()
+	var nodes: Array = [_rig.call("goblin", 0, true), _rig.call("skeleton_archer"), _rig.call("orc")]
+	var x := 0.75
+	for n in nodes:
+		_add(n, Vector3(x, 0, 0))
+		n.call("pose_idle", 0.0)
+		n.call("update_blink", 2.0)
+		x -= 0.75
+	_aim(Vector3(0, 0.55, 0), 20.0, 10.0, 1.5)
+	await _shot("units-lineup")
+	_clear()
+	var sk: Node3D = _add(_rig.call("skeleton_archer"), Vector3(0.45, 0, 0))
+	sk.call("pose_crossbow", 0.0)
+	sk.call("set_expression", "angry")
+	var oc: Node3D = _add(_rig.call("orc"), Vector3(-0.45, 0, 0))
+	oc.call("pose_attack", 0.9)
+	oc.call("set_expression", "angry")
+	_aim(Vector3(0, 0.55, 0), -35.0, 10.0, 1.5)
+	await _shot("units-action")

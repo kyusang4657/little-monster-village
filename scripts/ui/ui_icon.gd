@@ -132,6 +132,28 @@ func _shapes() -> void:
 			draw_colored_polygon(PackedVector2Array([c + Vector2(-0.2, 0.15) * s, c + Vector2(0, 0.1) * s, c + Vector2(0.2, 0.15) * s, c + Vector2(0.12, 0.24) * s, c + Vector2(0, 0.18) * s, c + Vector2(-0.12, 0.24) * s]), _k(Color("f4f1ea")))
 			draw_rect(Rect2(c + Vector2(-0.18, -0.4) * s, Vector2(0.36, 0.1) * s), _k(Color("7a4bc4")))
 			draw_rect(Rect2(c + Vector2(-0.11, -0.55) * s, Vector2(0.22, 0.17) * s), _k(Color("7a4bc4")))
+		"skull":
+			# 해골 막사: 하얀 해골과 엇갈린 뼈
+			draw_line(c + Vector2(-0.36, 0.3) * s, c + Vector2(0.36, -0.1) * s, _k(Color("ece6d6")), w * 1.1, true)
+			draw_line(c + Vector2(0.36, 0.3) * s, c + Vector2(-0.36, -0.1) * s, _k(Color("ece6d6")), w * 1.1, true)
+			draw_circle(c + Vector2(0, -0.08) * s, s * 0.26, _k(Color("ece6d6")))
+			draw_rect(Rect2(c + Vector2(-0.14, 0.08) * s, Vector2(0.28, 0.16) * s), _k(Color("ece6d6")))
+			draw_circle(c + Vector2(-0.1, -0.08) * s, s * 0.07, _k(Color("3a2443")))
+			draw_circle(c + Vector2(0.1, -0.08) * s, s * 0.07, _k(Color("3a2443")))
+		"orc":
+			# 꼬마 오크: 올리브 얼굴, 위로 솟은 엄니
+			draw_circle(c + Vector2(0, 0.04) * s, s * 0.38, _k(Color("7f9a3a")))
+			draw_colored_polygon(PackedVector2Array([c + Vector2(-0.34, -0.08) * s, c + Vector2(-0.5, -0.22) * s, c + Vector2(-0.3, 0.06) * s]), _k(Color("7f9a3a")))
+			draw_colored_polygon(PackedVector2Array([c + Vector2(0.34, -0.08) * s, c + Vector2(0.5, -0.22) * s, c + Vector2(0.3, 0.06) * s]), _k(Color("7f9a3a")))
+			draw_circle(c + Vector2(-0.13, -0.04) * s, s * 0.07, _k(Color("2b2233")))
+			draw_circle(c + Vector2(0.13, -0.04) * s, s * 0.07, _k(Color("2b2233")))
+			for fx in [-0.12, 0.12]:
+				draw_colored_polygon(PackedVector2Array([c + Vector2(fx - 0.04, 0.24) * s, c + Vector2(fx + 0.04, 0.24) * s, c + Vector2(fx, 0.08) * s]), _k(Color("f3ead2")))
+		"rally":
+			# 집결 깃발: 깃대와 보라 삼각 깃발
+			draw_line(c + Vector2(-0.2, 0.42) * s, c + Vector2(-0.2, -0.42) * s, _k(Color("8f5a2b")), w, true)
+			draw_colored_polygon(PackedVector2Array([c + Vector2(-0.2, -0.4) * s, c + Vector2(0.38, -0.22) * s, c + Vector2(-0.2, -0.04) * s]), _k(Color("7a4bc4")))
+			draw_circle(c + Vector2(-0.2, -0.44) * s, s * 0.06, _k(Color("e1b23c")))
 		"imp":
 			# 뿔이: 라벤더 얼굴, 짝짝이 뿔(캐릭터의 오른쪽 = 화면 왼쪽이 큼), 연두 눈, 말린 머리카락, 송곳니 하나
 			_face_bg(c, s, _k(Color("fff3d8")))

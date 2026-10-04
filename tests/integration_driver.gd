@@ -529,6 +529,37 @@ func _review_ui_checks(s: GameState) -> void:
 	main._on_result_closed("village")
 	await _wait(2)
 	check(not main.world._fx.is_empty() and main.world.imp._cheer_t > 0.0, "성 레벨업 뒤 빛기둥·뿔이 환호")
+	# 16) 유닛: 해골 막사 건설 → 훈련 버튼 → 시간 뒤 궁수, 집결 깃발 옮기기, 전투에 유닛 등장
+	s.wood = s.capacity()
+	main._begin_new("barracks")
+	await _wait(1)
+	main._confirm_edit()
+	await _wait(1)
+	var bk := ""
+	for b in s.buildings:
+		if b.type == "barracks":
+			bk = String(b.id)
+	check(bk != "", "해골 막사 건설")
+	await _advance_village(float(GameConfig.building_def("barracks").build_seconds) + 1.0)
+	main._select(bk)
+	await _wait(1)
+	check(main.hud.info_upgrade.visible and String((main.hud.info_upgrade.get_meta("label") as Label).text).contains("훈련"), "정보 창에 훈련 버튼")
+	var a0 := int(s.units.archer)
+	s.wood = s.capacity()
+	main._upgrade_selected()
+	await _advance_village(float(GameConfig.unit_def("archer").train_seconds) + 0.5)
+	await _wait(2)
+	check(int(s.units.archer) == a0 + 1, "훈련 버튼 → 궁수 1명 (%d → %d)" % [a0, int(s.units.archer)])
+	check(main.world._unit_root.get_child_count() >= 1, "마을에 궁수가 보임")
+	main._deselect()
+	main._begin_rally()
+	await _wait(1)
+	var target := GameConfig.entry_cell_for(s.bounds()) + Vector2i(0, 2)
+	main._tap(_scr(target))
+	await _wait(1)
+	main._confirm_edit()
+	await _wait(2)
+	check(s.rally == target and s.rally_cell() == target, "집결 깃발 옮기기 %s" % str(s.rally))
 	# 9) 지도가 넓어지면 축소 한계도 넓어진다
 	check(main.world.cam_max >= 20.0 * WorldView._map_grow(s.bounds()) - 0.01, "넓힌 지도 축소 한계 %.1f" % main.world.cam_max)
 	# 11) 안내가 떠 있을 때 10단계 방어 시작: 안내를 끝내고 보스 장면 → 전투

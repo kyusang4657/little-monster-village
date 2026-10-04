@@ -108,6 +108,20 @@ static func boss(k: String) -> CharacterRig:
 	return _instance(_defs[key], kk, 0, 1.0)
 
 
+## 꼬마 오크(4차 유닛): 고블린 골격을 키우고 올리브색 피부·엄니·몽둥이
+static func orc() -> CharacterRig:
+	if not _defs.has("orc"):
+		_defs["orc"] = _build_goblin(2, true, true)
+	return _instance(_defs["orc"], "orc", 0, 1.3)
+
+
+## 해골 궁수(4차 유닛): 뼈 색 몸, 검은 철모, 붉게 빛나는 눈, 활
+static func skeleton_archer() -> CharacterRig:
+	if not _defs.has("skeleton"):
+		_defs["skeleton"] = _build_human(_skeleton_spec())
+	return _instance(_defs["skeleton"], "skeleton", 0, 0.95)
+
+
 ## 뿔이(어린 마왕, 주인공): level = 성 레벨 1~4. 뿔·망토·장식이 성과 함께 자란다.
 static func imp(level: int = 1) -> CharacterRig:
 	var lv := clampi(level, 1, 4)
@@ -119,7 +133,8 @@ static func imp(level: int = 1) -> CharacterRig:
 
 static func _instance(def: Dictionary, p_kind: String, v: int, scl: float) -> CharacterRig:
 	var r := CharacterRig.new()
-	r.name = {"goblin": "Goblin", "knight": "Knight", "hero": "Hero", "commander": "Commander", "imp": "Imp"}.get(p_kind, "Character")
+	r.name = {"goblin": "Goblin", "knight": "Knight", "hero": "Hero", "commander": "Commander", "imp": "Imp",
+		"orc": "Orc", "skeleton": "Skeleton"}.get(p_kind, "Character")
 	r.kind = p_kind
 	r.variant = v
 	r.seed_id = v * 7 + 3
@@ -940,7 +955,7 @@ static func _limbs(g: Geo, P: Dictionary, C: Dictionary) -> void:
 
 # ================================================================== 고블린
 
-static func _build_goblin(v: int, with_hammer: bool) -> Dictionary:
+static func _build_goblin(v: int, with_hammer: bool, orc: bool = false) -> Dictionary:
 	var P := {
 		ankle = 0.075, knee = 0.18, hip = 0.3, hip_x = 0.075, pelvis = 0.31, spine = 0.36,
 		shoulder = 0.54, shoulder_x = 0.15, elbow = 0.41, wrist = 0.285, neck = 0.57, head = 0.62,
@@ -948,6 +963,9 @@ static func _build_goblin(v: int, with_hammer: bool) -> Dictionary:
 	}
 	var tunic: Color = [Models.TUNIC, Color("2f8f8a"), Color("c0602f")][v]
 	var skin := Models.GOBLIN_SKIN
+	if orc:
+		tunic = Color("7a4a26")
+		skin = Color("7f9a3a")
 	var g := Geo.new()
 	_skeleton(g, P)
 	# 몸통: 넓은 가슴, 잘록한 허리, 반바지
@@ -962,7 +980,7 @@ static func _build_goblin(v: int, with_hammer: bool) -> Dictionary:
 	g.tube(Vector3(0, 0.54, 0), Vector3(0, 0.66, 0), 0.045, 0.045, skin, 7, false)
 	_limbs(g, P, {shoulder = tunic, upper = skin, elbow = skin, fore = skin, hand = skin,
 		thigh = skin, knee = skin, shin = skin, boot = Models.BOOT, cuff_leg = Color("5e3a1e"), toe = Models.BOOT,
-		hand_s = 1.35, boot_s = 1.2})
+		hand_s = 1.55 if orc else 1.35, boot_s = 1.3 if orc else 1.2})
 	for side: float in [-1.0, 1.0]:
 		g.use("LegL" if side < 0.0 else "LegR")
 		g.tube(Vector3(0.075 * side, 0.32, 0), Vector3(0.075 * side, 0.235, 0), 0.062, 0.058, Models.SHORTS, 8, true)
@@ -979,7 +997,11 @@ static func _build_goblin(v: int, with_hammer: bool) -> Dictionary:
 	for side: float in [-1.0, 1.0]:
 		var fx := 0.04 * side
 		var fz := _surf_z(hc, hr, fx, 0.69) - 0.004
-		g.tube(Vector3(fx, 0.682, fz), Vector3(fx, 0.718, fz - 0.004), 0.012, 0.0, Color.WHITE, 5, true)
+		if orc:
+			# 오크: 위로 솟은 큰 엄니
+			g.tube(Vector3(fx * 1.3, 0.672, fz - 0.005), Vector3(fx * 1.6, 0.745, fz - 0.03), 0.02, 0.0, Color("f3ead2"), 6, true)
+		else:
+			g.tube(Vector3(fx, 0.682, fz), Vector3(fx, 0.718, fz - 0.004), 0.012, 0.0, Color.WHITE, 5, true)
 	# 과장된 큰 뾰족 귀(2차 움직임용 뼈)
 	g.measure = false
 	for side: float in [-1.0, 1.0]:
@@ -1005,9 +1027,9 @@ static func _build_goblin(v: int, with_hammer: bool) -> Dictionary:
 		_:
 			g.sphere(Vector3(0, 0.985, 0.03), 0.055, Color("3b2a1a"), 8, 5)
 			g.tube(Vector3(0, 1.02, 0.04), Vector3(0, 1.07, 0.07), 0.025, 0.0, Color("3b2a1a"), 5, true)
-	# 고글: 0, 2 번 변형
+	# 고글: 0, 2 번 변형(오크는 없음)
 	g.measure = true
-	if v != 1:
+	if v != 1 and not orc:
 		g.ellipsoid(hc, hr * 1.04, Models.WOOD_DARK, 14, 1, Basis.IDENTITY, 0.98, 1.12, 0.84)
 		for side: float in [-1.0, 1.0]:
 			var gx := 0.075 * side
@@ -1262,6 +1284,18 @@ static func _boss_spec(k: String) -> Dictionary:
 	return s
 
 
+static func _skeleton_spec() -> Dictionary:
+	var s := _knight_spec(0)
+	s.merge({
+		skin = Color("ece6d6"), chest = Color("5b5662"), waist = Color("ece6d6"), trouser = Color("4a4552"),
+		skirt = Color("3f3a48"), armor = Color("ece6d6"), armor_dark = Color("cfc6b2"), trim = Color("8a6a9e"),
+		glove = Color("ece6d6"), boot = Color("4a4552"), pauldron = Vector3(0.09, 0.07, 0.09),
+		cape = Color("3f3a48"), cape_len = 0.22, helmet = "round", plumes = [], mustache = false,
+		weapon = "bow", pupil = Color("e04848"), no_blush = true, ribs = true, hand_s = 1.0, boot_s = 1.0,
+	}, true)
+	return s
+
+
 static func _build_human(S: Dictionary) -> Dictionary:
 	var P: Dictionary = S.P
 	var g := Geo.new()
@@ -1332,8 +1366,8 @@ static func _build_human(S: Dictionary) -> Dictionary:
 	var es: float = S.es
 	var ey: float = S.eye_y
 	_face(g, {hc = hcen, hr = hr, es = es, eye_y = ey, eye_dx = S.eye_dx, mouth_y = S.mouth_y, mouth_w = S.mouth_w,
-		skin = skin, pupil = Color("2b2233"), brow = Color("5a3a22") if S.get("hair", null) == null else Color(S.hair).darkened(0.35),
-		blush = Color("f19a8f")})
+		skin = skin, pupil = S.get("pupil", Color("2b2233")), brow = Color("5a3a22") if S.get("hair", null) == null else Color(S.hair).darkened(0.35),
+		blush = Color("f19a8f") if not S.get("no_blush", false) else skin})
 	g.use("Head")
 	var ny := ey - es * 1.55
 	g.sphere(Vector3(0, ny, _surf_z(hcen, hr, 0, ny) - 0.008), 0.022, skin.darkened(0.1), 6, 4)
@@ -1419,8 +1453,39 @@ static func _build_human(S: Dictionary) -> Dictionary:
 				var rr: float = float(rad[i]) * ps
 				g.ellipsoid(p, Vector3(rr * 0.8, rr * 1.15, rr * 1.2), pc if i % 2 == 0 else pc.darkened(0.12), 6, 4, Basis(Vector3.RIGHT, -0.4 - 0.25 * i))
 		g.measure = true
-	# 검(오른손 +X): 손 아래로 30° 앞으로 기울어 쥔다. 날은 앞뒤에서 넓게 보이도록 X 로 넓다.
+	if S.get("ribs", false):
+		# 해골: 가슴의 갈비뼈 띠
+		g.use("Spine")
+		for i in 3:
+			var ry := cc.y + cr.y * (0.35 - 0.3 * float(i))
+			g.box(Vector3(0, ry, cc.z - cr.z * 0.92), Vector3(cr.x * 1.3, 0.022, 0.02), Color("ece6d6"))
 	var hand_r := Vector3(float(P.shoulder_x), float(P.wrist) - float(P.arm_r) * 0.75, -float(P.arm_r) * 0.1)
+	if String(S.get("weapon", "sword")) == "bow":
+		# 활(왼손 -X): 세로로 휜 활대와 시위, 등에 화살통
+		g.use("HandL")
+		g.measure = false
+		g.measure_all = false
+		var hl := Vector3(-float(P.shoulder_x), hand_r.y, hand_r.z - 0.02)
+		var arc: Array = []
+		for i in 7:
+			var u := float(i) / 6.0 * 2.0 - 1.0
+			arc.append(hl + Vector3(0, u * 0.32, -0.09 * (1.0 - u * u)))
+		g.sweep(arc, 0.016, Models.WOOD_DARK, 5)
+		g.sweep([hl + Vector3(0, 0.32, 0.0), hl + Vector3(0, -0.32, 0.0)], 0.005, Color("f4efe4"), 4)
+		g.measure_all = true
+		g.use("Spine")
+		g.tube(Vector3(0.06, cc.y - 0.05, cr.z + 0.02), Vector3(0.1, cc.y + 0.2, cr.z + 0.06), 0.04, 0.045, Color("6b3f1f"), 7, true)
+		for i in 3:
+			g.tube(Vector3(0.09 + i * 0.012 - 0.012, cc.y + 0.18, cr.z + 0.05), Vector3(0.09 + i * 0.012 - 0.012, cc.y + 0.27, cr.z + 0.08), 0.008, 0.008, Color("f4efe4"), 4, true)
+		g.measure = true
+		var bdef := g.build(MeshBatch.shared_material())
+		bdef.tip = hl
+		bdef.H = float(S.H)
+		bdef.es = es
+		bdef.thigh = float(P.hip) - float(P.knee)
+		bdef.shin = float(P.knee) - float(P.ankle)
+		return bdef
+	# 검(오른손 +X): 손 아래로 30° 앞으로 기울어 쥔다. 날은 앞뒤에서 넓게 보이도록 X 로 넓다.
 	g.use("HandR")
 	g.measure = false
 	g.measure_all = false

@@ -30,6 +30,8 @@ func run(p_main, p_out: String, scenario: String = "full") -> void:
 			_perf_base()
 		"imp":
 			_imp_scene()
+		"units":
+			_units_scene()
 		_:
 			_sequence()
 
@@ -755,4 +757,58 @@ func _imp_scene() -> void:
 	main.story_view.advance()
 	await _wait(3)
 	await _shot("103-story-imp-portrait")
+	_finish_log()
+
+
+## 4차 유닛: 막사·훈련장·유닛 줄·건설 메뉴·훈련 창·전투
+func _units_scene() -> void:
+	await _wait(20)
+	var s: GameState = main.state
+	await _set_level(3)
+	for t in ["barracks", "training_ground", "house", "house"]:
+		s.wood = s.capacity()
+		main.world.cam_target = WorldView.W(10.0, 0, 6.0)
+		var c: Vector2i = main._find_spot(t)
+		s.commit_new_building(t, c.x, c.y, 0)
+	for b in s.buildings:
+		b.build_left = 0.0
+	s.units = {archer = 3, orc = 3}
+	s.commit_rally(GameConfig.entry_cell_for(s.bounds()) + Vector2i(0, 3))
+	main._sync_world()
+	await _wait(5)
+	main.world.reset_camera()
+	await _wait(3)
+	await _shot("110-units-village")
+	main._open_build_menu()
+	await _wait(3)
+	await _shot("111-build-menu-units")
+	main.hud.hide_build_menu()
+	var bk := ""
+	for b in s.buildings:
+		if b.type == "barracks":
+			bk = String(b.id)
+	main._select(bk)
+	await _wait(3)
+	await _focus(Vector2(float(s.get_building(bk).x) + 1.0, float(s.get_building(bk).z)), 5.0)
+	await _shot("112-barracks-train")
+	main._deselect()
+	await _ready_raid(4)
+	main._start_raid()
+	await _wait(2)
+	if main.sim != null:
+		main.sim.castle_hp = 100000
+		main.sim.castle_max = 100000
+		var guard := 0
+		var fighting := false
+		while guard < 2000 and main.sim.outcome == "" and not fighting:
+			main.sim.advance(0.1)
+			guard += 1
+			for d in main.sim.defenders:
+				if d.kind == "orc" and not (d.blocking as Array).is_empty():
+					fighting = true
+		await _wait(4)
+		var r := s.rally_cell()
+		await _focus(Vector2(r.x + 0.5, r.y + 0.8), 4.2)
+		await _wait(3)
+		await _shot("113-units-battle")
 	_finish_log()
