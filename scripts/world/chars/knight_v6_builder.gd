@@ -26,7 +26,8 @@ const HEAVY_PLATE_DARK := Color("4f5862")
 const HEAVY_HELM := Color("8b949e")
 const STEEL := Color("5b6670")            # 사슬·어깨 밑·치마 밑 그늘 띠
 const GOLD := Color("e1b23c")
-const EYE_GLOW := Color("e8b23c")         # 통투구의 빛나는 눈
+const EYE_GLOW := Color("ffd45a")         # 통투구의 빛나는 눈(핵)
+const EYE_CORE := Color("fff2b0")         # 빛나는 눈 안쪽의 더 밝은 심
 const GOLD_BAND := Color("c69a30")
 const GOLD_DARK := Color("b1862b")
 const RED := Color("c8343a")
@@ -35,9 +36,10 @@ const BLUE_DARK := Color("22407f")
 const WHITE := Color("f4efe4")
 const SKIN := Color("d9a67a")
 const SKIN_SHADE := Color("2b2630")
-const SLIT := Color("1e1a24")
+const SLIT := Color("15131a")             # 눈 틈 바닥(거의 검정)
+const SLIT_SHEEN := Color("26232e")       # 눈 틈 윗부분의 옅은 광택
 const GLOW := Color("ffd86a")
-const GLOW_DIM := Color("7d5f1e")
+const GLOW_DIM := Color("9c7a2c")         # 감은 눈의 희미한 빛줄기
 const LEATHER := Color("6b4a2b")
 const LEATHER_LIGHT := Color("7d5a35")
 const BOOT := Color("4e3220")
@@ -80,12 +82,13 @@ const LT := 1.08
 const FW := 0.74
 const RB := 0.17
 const RBS := 0.1    # 얼굴 창 옆 금 테 폭(경도)
-# 통투구: 눈 틈 위·아래 위도, 반폭 경도, 금 이마 띠 위쪽 위도
-const S1 := 1.2
-const S2 := 1.85
+# 통투구: 눈 틈 위·아래 위도(틈 높이 ≈ 투구 높이의 30%), 반폭 경도, 금 이마 띠 위쪽 위도
+const S1 := 1.16
+const S2 := 1.9
 const SW := 1.18
 const B1 := 1.0
 const EPS := 0.004
+const TINY := 0.0001
 
 
 static func build(v: int) -> Dictionary:
@@ -394,8 +397,8 @@ static func _legs(g: DemonGeo, heavy: bool, A: Dictionary) -> void:
 ## 격자 조각 구: lats(0 = 정수리 → PI = 아래), lons(-PI → PI, 0 = 정면 -Z) 격자선을 받아 정점마다 영역 rf(lat, lon) 을 정하고,
 ## 영역별 반지름 배수 kf(reg, lat, lon) 와 색 cf(reg, lat, lon) 로 겉면을 만든다. 영역 경계에 격자선을 두 줄 가깝게 두면
 ## 색·높이가 그 사이에서 또렷하게 바뀐다(투구 테 턱·눈 틈 홈). 법선은 정점 자기 영역의 매끈한 면에서 계산한다.
-## 정점 위치 = HC + (방향 ∘ HR) × k.
-static func _grid_head(g: DemonGeo, lats: Array, lons: Array, rf: Callable, kf: Callable, cf: Callable) -> void:
+## 정점 위치 = HC + (방향 ∘ HR) × k (+ of(reg, lat, lon) 이 있으면 그 이동).
+static func _grid_head(g: DemonGeo, lats: Array, lons: Array, rf: Callable, kf: Callable, cf: Callable, of: Callable = Callable()) -> void:
 	var nl := lats.size()
 	var nm := lons.size()
 	var base := g.v.size()
@@ -417,6 +420,8 @@ static func _grid_head(g: DemonGeo, lats: Array, lons: Array, rf: Callable, kf: 
 				nn = pb.cross(pa).normalized()
 				if nn.dot(p - HC) < 0.0:
 					nn = -nn
+			if of.is_valid():
+				p += of.call(reg, la, lo)
 			g._vert(p, nn, cf.call(reg, la, lo))
 	for i in nl - 1:
 		for j in nm - 1:
@@ -455,10 +460,15 @@ static func _helm_k(d: Vector3) -> float:
 	return (-b + sqrt(maxf(b * b - 4.0 * a * c, 0.0))) / (2.0 * a)
 
 
+## 눈 틈 바닥 색: 거의 검정, 윗부분(띠 바로 아래)은 옅은 광택
+static func _slit_col(la: float) -> Color:
+	return SLIT.lerp(SLIT_SHEEN, clampf((S1 + 0.22 - la) / 0.22, 0.0, 1.0))
+
+
 ## 눈 방향(얼굴 타원 위 단위 방향)
 static func _eye_dir(side: float, full_helm: bool) -> Vector3:
 	if full_helm:
-		return _hdir(1.5, 0.42 * side)
+		return _hdir(1.54, 0.42 * side)
 	return Vector3(0.39 * side, -0.02, -0.92).normalized()
 
 
@@ -517,14 +527,18 @@ static func _head(g: DemonGeo, v: int, A: Dictionary) -> float:
 				return R_RIM
 			return R_HELM
 	else:
-		lats = [0.0, 0.5, B1 - EPS, B1, S1 - EPS, S1 - EPS * 0.5, S1, 1.42, 1.64, S2, S2 + EPS * 0.5, S2 + EPS, 2.06, 2.34, 2.72, PI]
+		# 눈 틈 윗벽: 띠 아랫줄(S1 - EPS, 금)과 거의 같은 위도에 틈 색 줄(S1 - EPS + TINY, 띠 높이)을 겹쳐 두어 색이 높이 0 의 칸에서 바뀌고,
+		# 거기서 바닥(S1)까지의 수직 벽은 한 색이다(한 칸 안에서 색이 바뀌면 삼각형 분할 때문에 띠 아랫선이 톱니로 보인다)
+		lats = [0.0, 0.5, B1 - EPS, B1, S1 - EPS, S1 - EPS + TINY, S1, 1.42, 1.64, S2, S2 + EPS * 0.5, S2 + EPS, 2.06, 2.34, 2.72, PI]
 		lons = _lon_list(SW, 10, [SW + EPS * 0.5, SW + EPS], SW + EPS + 0.35, 3)
 		rf = func(la: float, lo: float) -> int:
 			var a := absf(lo)
 			if la >= S1 - 0.0005 and la <= S2 + 0.0005 and a <= SW + 0.0005:
 				return R_SLIT
-			if la >= S1 - EPS * 0.5 - 0.0005 and la <= S2 + EPS * 0.5 + 0.0005 and a <= SW + EPS * 0.5 + 0.0005:
-				return R_SLIT_WALL_TOP if la < S1 else R_SLIT_WALL
+			if la > S1 - EPS + TINY * 0.5 and la < S1 - 0.0005 and a <= SW + EPS * 0.5 + 0.0005:
+				return R_SLIT_WALL_TOP
+			if la > S2 + 0.0005 and la <= S2 + EPS * 0.5 + 0.0005 and a <= SW + EPS * 0.5 + 0.0005:
+				return R_SLIT_WALL
 			if la >= B1 - 0.0005 and la < S1 - 0.0005:
 				return R_RIM
 			return R_HELM
@@ -533,27 +547,34 @@ static func _head(g: DemonGeo, v: int, A: Dictionary) -> float:
 		match reg:
 			R_FACE, R_WALL:
 				return _face_k(d)
-			R_SLIT, R_SLIT_WALL_TOP, R_SLIT_WALL:
+			R_SLIT, R_SLIT_WALL:
 				return 1.0 + 0.004 * absf(d.x)
-			R_RIM:
+			R_RIM, R_SLIT_WALL_TOP:
 				return _helm_k(d) * 1.018
 		return _helm_k(d)
-	var cf := func(reg: int, _la: float, _lo: float) -> Color:
+	var cf := func(reg: int, la: float, _lo: float) -> Color:
 		match reg:
 			R_FACE:
 				return SKIN
 			R_WALL:
 				return Color("3a3138")
-			R_RIM, R_SLIT_WALL_TOP:
+			R_RIM:
 				return GOLD_BAND
+			R_SLIT_WALL_TOP:
+				# 띠 밑 천장: 바닥 윗줄과 같은 색(천장 한 칸이 한 색)
+				return _slit_col(S1)
 			R_SLIT:
-				return SLIT
+				return _slit_col(la)
 			R_SLIT_WALL:
 				return (helm as Color).darkened(0.35)
 		return helm
+	# 통투구 눈 틈의 천장: 바닥 윗줄(S1)을 띠 아랫줄보다 8mm 올려 천장이 뒤로 갈수록 올라가게 한다(위에서 보는 카메라에 천장이 뒷면이 되어
+	# 그려지지 않는다. 천장이 수평이면 띠 그늘의 그림자 경계가 톱니로 비친다)
+	var of := func(reg: int, la: float, _lo: float) -> Vector3:
+		return Vector3(0, 0.008, 0) if reg == R_SLIT and la < S1 + 0.0005 else Vector3.ZERO
 	g.line = 1.0
-	_grid_head(g, lats, lons, rf, kf, cf)
-	var es := 0.025 if full else 0.036
+	_grid_head(g, lats, lons, rf, kf, cf, of if full else Callable())
+	var es := 0.03 if full else 0.036
 	_face(g, full, es)
 	g.use("Head")
 	if full:
@@ -603,92 +624,64 @@ static func _head(g: DemonGeo, v: int, A: Dictionary) -> float:
 
 
 ## 눈·눈썹·입. 일반 기사: 눈두덩 속 흰 눈알 + 큰 갈색 눈동자 + 반사광, 눈알 윗부분을 덮는 짙은 뚜껑(속눈썹 선), 끝이 가는 눈썹, 입 세 가지.
-## 통투구: 눈 틈 홈 속의 빛나는 노란 눈(짙은 뚜껑이 위를 덮는다), 틈 위쪽 가장자리 아래의 짙은 쇠 능선 눈썹, 입은 얼굴 판 뒤에 숨는다.
-## 뼈 이름·피벗은 CharacterRig 표정 규약 그대로(눈꺼풀 = Y 크기로 내려 덮음, 눈썹 = 회전·내림, 입 = 크기 0/1).
+## 통투구는 _visor_face(눈 틈 속 크고 납작한 빛나는 눈). 뼈 이름·피벗은 CharacterRig 표정 규약 그대로(눈꺼풀 = Y 크기로 내려 덮음, 눈썹 = 회전·내림, 입 = 크기 0/1).
 static func _face(g: DemonGeo, full: bool, es: float) -> void:
+	if full:
+		_visor_face(g, es)
+		return
 	var keep := g.line
 	g.line = 0.0
 	for side: float in [-1.0, 1.0]:
 		var sfx := "L" if side < 0.0 else "R"
-		var d := _eye_dir(side, full)
-		var surf_k := 1.0 if full else _face_k(d)
-		var floor_p := _hpt(d, surf_k)
+		var d := _eye_dir(side, false)
+		var floor_p := _hpt(d, _face_k(d))
 		var eb := Basis.looking_at(d, Vector3.UP)
-		# 납작한 타원 눈(20각): 앞면이 눈두덩(통투구는 눈 틈 바닥)과 거의 같은 높이라 투구 밖으로 튀어나오지 않는다
-		var er := Vector3(es * 1.0, es * 1.12, es * 0.3) if not full else Vector3(es * 1.1, es * 0.9, es * 0.22)
-		var ec := floor_p - d * (es * 0.26) if not full else floor_p + d * 0.004
-		if full:
-			# 감은 눈의 희미한 빛줄기(눈 틈 바닥, 뜬 눈알 렌즈 속에 숨어 있다가 눈알이 눌리면 보인다)
-			g.use("Head")
-			var lx := eb * Vector3(es * 0.7, 0, 0)
-			g.spline_tube([floor_p - lx + d * 0.001, floor_p + d * 0.003, floor_p + lx + d * 0.001], [es * 0.1, es * 0.14, es * 0.1], GLOW_DIM, 4, true, true)
+		# 납작한 타원 눈(20각): 앞면이 눈두덩과 거의 같은 높이라 투구 밖으로 튀어나오지 않는다
+		var er := Vector3(es * 1.0, es * 1.12, es * 0.3)
+		var ec := floor_p - d * (es * 0.26)
 		g.add_bone("Eye" + sfx, "Head", ec)
 		g.use("Eye" + sfx)
 		# 극축을 시선 방향으로 돌린 납작한 렌즈: 정면에서 20각 타원 윤곽
 		var fb := eb * Basis(Vector3.RIGHT, -PI * 0.5)
-		g.ellipsoid(ec, Vector3(er.x, er.z, er.y), EYE_GLOW if full else Color("f6f3ea"), 20, 2, fb)
-		# 눈동자: 일반 기사 = 눈알 앞면의 큰 짙은 갈색 홍채 판 + 반사광 하나. 통투구 = 빛나는 타원뿐(뼈만 둔다)
+		g.ellipsoid(ec, Vector3(er.x, er.z, er.y), Color("f6f3ea"), 20, 2, fb)
+		# 눈동자: 눈알 앞면의 큰 짙은 갈색 홍채 판 + 반사광 하나
 		var pd := Vector3(-side * 0.08, -0.06, -1.0).normalized()
 		var pc := ec + eb * (Vector3(pd.x * er.x, pd.y * er.y, pd.z * er.z) * 0.75)
 		g.add_bone("Pupil" + sfx, "Eye" + sfx, pc)
 		g.use("Pupil" + sfx)
-		if not full:
-			g.ellipsoid(pc, Vector3(es * 0.6, es * 0.1, es * 0.74), IRIS, 20, 2, fb)
-			g.ellipsoid(pc + eb * Vector3(-side * es * 0.22, es * 0.3, -es * 0.1), Vector3(es * 0.16, es * 0.16, es * 0.05), Color.WHITE, 8, 2, eb)
+		g.ellipsoid(pc, Vector3(es * 0.6, es * 0.1, es * 0.74), IRIS, 20, 2, fb)
+		g.ellipsoid(pc + eb * Vector3(-side * es * 0.22, es * 0.3, -es * 0.1), Vector3(es * 0.16, es * 0.16, es * 0.05), Color.WHITE, 8, 2, eb)
 		# 윗눈꺼풀: 눈 위 피벗의 반구 덮개. 표정이 Y 크기를 키우면 내려와 덮는다
 		var lid_p := ec + eb * Vector3(0, er.y * 0.95, 0)
 		g.add_bone("Lid" + sfx, "Head", lid_p)
 		g.use("Lid" + sfx)
-		g.ellipsoid(lid_p, Vector3(er.x * 1.14, er.y * 2.2, er.z * 1.6), SLIT if full else SKIN.darkened(0.05), 8, 2, eb * Basis(Vector3.BACK, PI), PI * 0.5, PI * 0.5)
-		if not full:
-			# 눈 위 가장자리를 따라가는 짙은 속눈썹 선(눈 뼈에 붙어 깜빡임과 같이 움직인다)
-			g.use("Eye" + sfx)
-			var arc: Array = []
-			var arc_r: Array = []
-			for k in 5:
-				var a := lerpf(PI * 0.15, PI * 0.85, float(k) / 4.0)
-				arc.append(ec + eb * Vector3(cos(a) * er.x * 1.02, sin(a) * er.y * 1.02, -er.z * 0.35))
-				arc_r.append(es * (0.05 if k == 0 or k == 4 else 0.09))
-			g.spline_tube(arc, arc_r, LASH, 4, true, true, Vector3.FORWARD)
+		g.ellipsoid(lid_p, Vector3(er.x * 1.14, er.y * 2.2, er.z * 1.6), SKIN.darkened(0.05), 8, 2, eb * Basis(Vector3.BACK, PI), PI * 0.5, PI * 0.5)
+		# 눈 위 가장자리를 따라가는 짙은 속눈썹 선(눈 뼈에 붙어 깜빡임과 같이 움직인다)
+		g.use("Eye" + sfx)
+		var arc: Array = []
+		var arc_r: Array = []
+		for k in 5:
+			var a := lerpf(PI * 0.15, PI * 0.85, float(k) / 4.0)
+			arc.append(ec + eb * Vector3(cos(a) * er.x * 1.02, sin(a) * er.y * 1.02, -er.z * 0.35))
+			arc_r.append(es * (0.05 if k == 0 or k == 4 else 0.09))
+		g.spline_tube(arc, arc_r, LASH, 4, true, true, Vector3.FORWARD)
 		# 눈썹
-		var bd: Vector3
-		var bi: Vector3
-		var bo: Vector3
-		if full:
-			bd = _hdir(S1 + 0.07, 0.42 * side)
-			bi = _hdir(S1 + 0.1, 0.2 * side)
-			bo = _hdir(S1 + 0.07, 0.62 * side)
-		else:
-			bd = Vector3(0.38 * side, 0.36, -0.85).normalized()
-			bi = Vector3(0.17 * side, 0.3, -0.94).normalized()
-			bo = Vector3(0.58 * side, 0.32, -0.75).normalized()
-		var bp := _hpt(bd, ((1.0 if full else _face_k(bd)) + 0.004))
-		var pi_ := _hpt(bi, ((1.0 if full else _face_k(bi)) - 0.01))
-		var po := _hpt(bo, ((1.0 if full else _face_k(bo)) - 0.01))
+		var bd := Vector3(0.38 * side, 0.36, -0.85).normalized()
+		var bi := Vector3(0.17 * side, 0.3, -0.94).normalized()
+		var bo := Vector3(0.58 * side, 0.32, -0.75).normalized()
+		var bp := _hpt(bd, (_face_k(bd) + 0.004))
+		var pi_ := _hpt(bi, (_face_k(bi) - 0.01))
+		var po := _hpt(bo, (_face_k(bo) - 0.01))
 		g.add_bone("Brow" + sfx, "Head", bp)
 		g.use("Brow" + sfx)
-		var bt := es * (0.2 if full else 0.24)
-		g.spline_tube([pi_, pi_.lerp(bp, 0.5), bp, bp.lerp(po, 0.5), po], [0.0, bt * 0.85, bt, bt * 0.75, 0.0],
-			Color("3b3542") if full else BROW, 6, false, false)
+		var bt := es * 0.24
+		g.spline_tube([pi_, pi_.lerp(bp, 0.5), bp, bp.lerp(po, 0.5), po], [0.0, bt * 0.85, bt, bt * 0.75, 0.0], BROW, 6, false, false)
 	# 입
 	var md := Vector3(0, -0.6, -0.8).normalized()
 	var mp := _hpt(md, (_face_k(md) + 0.004))
 	var mw := 0.07
 	g.add_bone("MouthN", "Head", mp)
 	g.use("MouthN")
-	if full:
-		# 통투구: 입은 얼굴 판 뒤에 숨는다(뼈 규약만 지킨다)
-		var hid := mp + Vector3(0, 0, 0.05)
-		g.ellipsoid(hid, Vector3(0.006, 0.006, 0.006), MOUTH_IN, 4, 2)
-		g.add_bone("MouthA", "Head", mp)
-		g.use("MouthA")
-		g.ellipsoid(hid, Vector3(0.006, 0.006, 0.006), MOUTH_IN, 4, 2)
-		g.add_bone("MouthH", "Head", mp)
-		g.use("MouthH")
-		g.ellipsoid(hid, Vector3(0.006, 0.006, 0.006), MOUTH_IN, 4, 2)
-		g.use("Head")
-		g.line = keep
-		return
 	var pts: Array = []
 	for i in 5:
 		var u := float(i) / 2.0 - 1.0
@@ -705,6 +698,69 @@ static func _face(g: DemonGeo, full: bool, es: float) -> void:
 		var u := float(i) / 3.0 - 1.0
 		wav.append(mp + Vector3(u * mw * 0.45, sin(u * PI * 1.5) * mw * 0.06, absf(u) * 0.008))
 	g.sweep(wav, mw * 0.06, MOUTH_IN, 4)
+	g.use("Head")
+	g.line = keep
+
+
+## 통투구의 눈(컨셉 「기사(5종)」의 어두운 틈 속 큰 두 눈): 눈 틈 바닥에 앉은 크고 납작한 가로 타원 둘(머리 폭의 0.2 × 머리 높이의 0.1,
+## 핵 ffd45a + 안쪽 위의 더 밝은 심 fff2b0, 외곽선 없음), 바깥 끝이 9° 내려가 노려보는 인상. 눈알은 Eye 뼈(깜빡임 = Y 크기),
+## 심은 Pupil 뼈. 눈꺼풀 = 틈 색 반구 덮개(Lid 뼈, 화나면 비스듬히 내려와 쐐기 눈이 된다), 눈썹 = 바닥 속에 묻힌 능선(Brow 뼈 규약만).
+## 감은 눈(행복·깜빡임) = 눈알이 눌리면 뒤의 희미한 빛 호(◡)가 드러난다. 입은 얼굴 판 뒤에 숨긴다(뼈 규약만).
+static func _visor_face(g: DemonGeo, es: float) -> void:
+	var keep := g.line
+	g.line = 0.0
+	var er := Vector3(es * 1.0, es * 0.48, es * 0.2)
+	for side: float in [-1.0, 1.0]:
+		var sfx := "L" if side < 0.0 else "R"
+		var d := _eye_dir(side, true)
+		var floor_p := _hpt(d, 1.0)
+		# 눈 좌표계(x 오른쪽, y 위, -z 시선): 바깥 끝이 내려가게 9° 돌린다
+		var eb := Basis.looking_at(d, Vector3.UP) * Basis(Vector3.BACK, -deg_to_rad(9.0) * side)
+		var fb := eb * Basis(Vector3.RIGHT, -PI * 0.5)
+		var ec := floor_p + d * 0.004
+		# 감은 눈의 희미한 빛 호(◡): 반은 바닥 속, 앞쪽은 뜬 눈알 렌즈 속에 숨어 있다
+		g.use("Head")
+		var arc: Array = []
+		var arc_r: Array = []
+		for k in 5:
+			var u := float(k) / 2.0 - 1.0
+			arc.append(ec - d * 0.0035 + eb * Vector3(u * er.x * 0.8, -(1.0 - u * u) * er.y * 0.5, 0.0))
+			arc_r.append(es * (0.07 if k == 0 or k == 4 else 0.11))
+		g.spline_tube(arc, arc_r, GLOW_DIM, 4, false, false, Vector3.BACK)
+		# 눈알: 극축을 시선 방향으로 돌린 납작한 렌즈(정면에서 20각 가로 타원)
+		g.add_bone("Eye" + sfx, "Head", ec)
+		g.use("Eye" + sfx)
+		g.ellipsoid(ec, Vector3(er.x, er.z, er.y), EYE_GLOW, 20, 2, fb)
+		# 밝은 심: 안쪽 위에 치우친 작은 타원, 렌즈 앞면에서 살짝 솟는다
+		var pc := ec + eb * Vector3(-side * er.x * 0.2, er.y * 0.1, -er.z * 0.6)
+		g.add_bone("Pupil" + sfx, "Eye" + sfx, pc)
+		g.use("Pupil" + sfx)
+		g.ellipsoid(pc, Vector3(er.x * 0.52, er.z * 0.5, er.y * 0.52), EYE_CORE, 8, 2, fb)
+		# 윗눈꺼풀: 틈 색 반구 덮개(피벗 = 눈 위). 표정이 Y 크기를 키우면 내려와 덮는다
+		var lid_p := ec + eb * Vector3(0, er.y * 0.95, 0)
+		g.add_bone("Lid" + sfx, "Head", lid_p)
+		g.use("Lid" + sfx)
+		g.ellipsoid(lid_p, Vector3(er.x * 1.2, er.y * 2.4, er.z * 1.9), SLIT, 8, 2, eb * Basis(Vector3.BACK, PI), PI * 0.5, PI * 0.5)
+		# 눈썹: 틈 바닥 속에 묻힌 틈 색 능선(앞면이 바닥보다 1mm 안쪽이라 보이지 않는다. 뼈 규약만 지킨다)
+		var bla := S1 + 0.16
+		var bd := _hdir(bla, 0.42 * side)
+		var bp := _hpt(bd, 0.95)
+		g.add_bone("Brow" + sfx, "Head", bp)
+		g.use("Brow" + sfx)
+		var bpts: Array = []
+		for k in 5:
+			var t := float(k) / 4.0
+			var b2 := _hdir(bla + 0.025 * pow(absf(t * 2.0 - 1.0), 2.0), (0.42 + lerpf(-0.25, 0.25, t)) * side)
+			bpts.append(_hpt(b2, 0.95))
+		g.spline_tube(bpts, [es * 0.18, es * 0.3, es * 0.34, es * 0.3, es * 0.18], SLIT, 5, true, true, Vector3.BACK, 0.6, 1.0)
+	# 입: 얼굴 판 뒤에 숨긴다(뼈 규약만 지킨다)
+	var md := Vector3(0, -0.6, -0.8).normalized()
+	var mp := _hpt(md, (_face_k(md) + 0.004))
+	var hid := mp + Vector3(0, 0, 0.05)
+	for m in ["MouthN", "MouthA", "MouthH"]:
+		g.add_bone(m, "Head", mp)
+		g.use(m)
+		g.ellipsoid(hid, Vector3(0.006, 0.006, 0.006), MOUTH_IN, 4, 2)
 	g.use("Head")
 	g.line = keep
 
