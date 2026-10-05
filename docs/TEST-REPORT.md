@@ -579,3 +579,11 @@ tests/demon_lv1_checks.gd                 RESULT: 221 passed, 0 failed   (옛 �
 - 뿔이 삼각형: Lv.1 4,862 / Lv.2 4,898 / Lv.3 5,471 / Lv.4 5,747 (예산 6,000). 왕관은 Lv.3 부터(시험 규칙을 v6 에 맞춰 분리: Lv.1~2 왕관 없음, Lv.4 가 Lv.3 보다 높음).
 - 게임 화면(xvfb·llvmpipe): `docs/screenshots/v0.6/` — 마을·병영·스토리 장면과 뿔이 Lv.1/3/4 최대 줌, 누르기 환호. 기기 확인은 하지 않았습니다.
 - 통합 검사(실제 게임 장면, Xvfb·llvmpipe 1280×720, `--integration --no-tutorial --no-story`): `RESULT: 100 passed, 0 failed`. 참고: `--no-story` 없이 돌리면 1단계 전 프롤로그 장면이 방어 시작을 기다려 검사가 중단되는데, 이는 5차(v0.5.0)에서도 같아 새 모델과 무관합니다.
+
+### 6차 빌드(0.6.0, 2026-10-05)
+
+| 항목 | 결과 |
+|---|---|
+| APK | `release/monster-village-0.6.0-debug.apk`(57,661,588바이트, arm64-v8a + armeabi-v7a) **생성됨**. arm64 전용판 `deliver/v0.6/monster-village-0.6.0-debug-arm64.apk`(30,324,725바이트). 둘 다 `apksigner verify` v1·v2·v3 통과, 인증서 SHA-256 f6ef3b…d396(이전 버전과 같음, 덮어 설치 가능). versionName 0.6.0(매니페스트 확인), versionCode 6(내보내기 설정) |
+| 웹 | `godot --export-release "Web"` → `deliver/v0.6/monster-village-0.6.0-web.zip`(12,638,981바이트). 헤드리스 Chromium(SwiftShader WebGL2)에서 25초 실행: 캔버스 표시, 6차 캐릭터·한국어 안내 말풍선 표시, 콘솔 오류 0 |
+| 미검증 | 실제 Android 기기·실제 브라우저 성능. 저장 형식(v4)은 바뀌지 않아 0.5.0 저장이 그대로 이어집니다(규칙 검사에 저장 왕복 포함) |
