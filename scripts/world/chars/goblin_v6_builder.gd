@@ -385,7 +385,6 @@ static func _head(g: DemonGeo, v: int) -> void:
 	_sculpt_dense(g, HC, HR, 22, 14, shape, col_of)
 	_nose(g)
 	_face(g)
-	_fangs(g)
 	_ears(g)
 	match v:
 		0:
@@ -412,17 +411,65 @@ static func _nose(g: DemonGeo) -> void:
 	g.limb(nodes, 10, Vector3.UP, false, true, 3)
 
 
-## 아랫입술에서 위로 솟은 뼈색 아랫니 송곳니 둘(뿌리는 입술 속, 끝은 입선 위로 코 높이의 1/3 만큼 올라온다)
-static func _fangs(g: DemonGeo) -> void:
-	g.use("Head")
+## 얼굴 겉면을 따라가는 띠(입속·이빨 줄): u0..u1 을 n 등분해 위 가장자리 w_top(u)·아래 가장자리 w_bot(u) 를
+## 겉면에서 lift 만큼 띄워 잇는다(앞면만). 납작한 다각형과 달리 둥근 주둥이를 따라 휘므로 입꼬리가 머리 속으로 파묻히지 않는다.
+static func _face_band(g: DemonGeo, u0: float, u1: float, n: int, w_top: Callable, w_bot: Callable, lift: float, col: Color) -> void:
+	var base := g.v.size()
+	for i in n + 1:
+		var u := lerpf(u0, u1, float(i) / float(n))
+		var wt: float = w_top.call(u)
+		var wb: float = w_bot.call(u)
+		for w: float in [wt, wb]:
+			var d := _fd(u, w)
+			var nn := Vector3(d.x / HR.x, d.y / HR.y, d.z / HR.z).normalized()
+			g._vert(_hp(d) + nn * lift, nn, col)
+	for i in n:
+		var a := base + i * 2
+		g.tri(a, a + 1, a + 2)
+		g.tri(a + 1, a + 3, a + 2)
+
+
+## 입선: 얼굴 겉면을 따라 휘는 굵은 짙은 관(가운데 굵고 입꼬리로 갈수록 가늘다). w_of(u) = 입선 높이
+static func _mouth_line(g: DemonGeo, uw: float, cnt: int, w_of: Callable, r: float) -> void:
+	var pts: Array = []
+	var radii: Array = []
+	for i in cnt:
+		var u := uw * (float(i) / float(cnt - 1) * 2.0 - 1.0)
+		var w: float = w_of.call(u)
+		var d := _fd(u, w)
+		var nn := Vector3(d.x / HR.x, d.y / HR.y, d.z / HR.z).normalized()
+		pts.append(_hp(d) + nn * 0.002)
+		var t := absf(u) / uw
+		radii.append(r * (0.55 if t > 0.99 else (0.92 if t > 0.6 else 1.0)))
+	g.spline_tube(pts, radii, MOUTH_IN, 4, true, true, Vector3.UP)
+
+
+## 윗니 줄: 입선 바로 아래에 매달린 뼈색 띠, 아래 가장자리가 톱니(이빨 n/2 개). w_line(u) = 입선 높이
+static func _upper_teeth(g: DemonGeo, uw: float, n: int, w_line: Callable, lift: float) -> void:
+	var top := func(u: float) -> float: return float(w_line.call(u)) - 0.02
+	var bot := func(u: float) -> float:
+		var i := roundf((u / uw + 1.0) * 0.5 * float(n))
+		return float(w_line.call(u)) - 0.02 - (0.058 if int(i) % 2 == 1 else 0.026)
+	_face_band(g, -uw, uw, n, top, bot, lift, FANG)
+
+
+## 아랫니 송곳니 둘(이가 매달린 입 뼈에 붙어 표정과 함께 바뀐다): 아랫입술 속에 뿌리를 두고 위·바깥으로 기울어 솟는 납작한 삼각 기둥.
+## u = 입꼬리 쪽 가로 위치, w = 뿌리 높이, h = 높이(보통 입에서는 코 높이의 1/3 쯤), 끝이 입선 위로 올라온다
+static func _fangs(g: DemonGeo, u: float, w: float, h: float) -> void:
+	var keep_line := g.line
 	g.line = 0.4
 	for side: float in [-1.0, 1.0]:
-		var d := _fd(0.3 * side, -0.68)
+		var d := _fd(u * side, w)
 		var nn := Vector3(d.x / HR.x, d.y / HR.y, d.z / HR.z).normalized()
-		var b := _hp(d) + nn * 0.004
-		var pts: Array = [b, b + Vector3(0.002 * side, 0.016, 0) + nn * 0.012, b + Vector3(0.004 * side, 0.036, 0) + nn * 0.02]
-		g.spline_tube(pts, [0.014, 0.011, 0.0], FANG, 6, false, true, Vector3.RIGHT, 1.0, 0.8)
-	g.line = 1.0
+		var root := _hp(d) + nn * 0.006
+		# 위로 서되 겉면 앞쪽(nn.z)으로만 조금 기울고 바깥으로는 살짝만 기운다(입꼬리의 겉면 법선은 옆을 보므로 그대로 쓰면 누워 버린다)
+		var ey := (Vector3.UP + Vector3(0, 0, nn.z) * 0.12 + Vector3.RIGHT * side * 0.08).normalized()
+		var ez := Vector3.RIGHT.cross(ey).normalized()
+		var ex := ey.cross(ez).normalized()
+		var hw := h * 0.42
+		g.polygon(PackedVector2Array([Vector2(-hw, -h * 0.2), Vector2(hw, -h * 0.2), Vector2(hw * 0.15 * side, h)]),
+			root, Basis(ex, ey, ez), h * 0.4, FANG, FANG.darkened(0.12))
+	g.line = keep_line
 
 
 ## 커다란 나뭇잎꼴 뾰족 귀: 머리 속(외곽선 0)에서 바깥·위로 뻗고 끝이 살짝 들린다. 앞뒤로 납작, 앞면 안쪽은 분홍. EarL/EarR 뼈(2차 움직임)
@@ -687,31 +734,36 @@ static func _face(g: DemonGeo) -> void:
 			var dq := _fd(q.x * side, q.y)
 			bpts.append(_hp(dq) + Vector3(dq.x / HR.x, dq.y / HR.y, dq.z / HR.z).normalized() * 0.004)
 		g.spline_tube(bpts, [0.0, es * 0.36, es * 0.42, es * 0.32, 0.0], BROW, 6, false, false, Vector3.FORWARD, 0.5, 1.0)
-	# 입: 보통 = 입꼬리가 내려간 찡그린 선, 벌림 = 짙은 입속 + 아랫니, 아픔 = 작은 오므린 입
+	# 입(원화의 넓은 장난기 어린 웃음): 얼굴 너비의 6할을 가로지르는 입꼬리 올라간 굵은 입선 + 그 밑의 짙은 입속 쐐기 + 윗니 줄 + 입꼬리의 큰 아랫니 송곳니 둘.
+	# 보통 = 다문 웃음(입속은 얇게 보인다), 벌림(화남·기쁨) = 입속이 아래로 크게 열리고 아랫니 줄이 보인다, 아픔·기절 = 작은 오므린 입. 송곳니는 입 뼈마다 그 입 크기에 맞춰 붙는다
 	var mc := _hp(_fd(0.0, -0.61))
 	g.add_bone("MouthN", "Head", mc)
 	g.use("MouthN")
-	var pts: Array = []
-	for i in 9:
-		var u := float(i) / 4.0 - 1.0
-		var w := -0.61 - 0.07 * u * u + 0.02 * absf(u)
-		var dm := _fd(u * 0.6, w)
-		pts.append(_hp(dm) + dm * 0.002)
-	g.spline_tube(pts, [0.003, 0.0055, 0.006, 0.006, 0.006, 0.006, 0.006, 0.0055, 0.003], MOUTH_IN, 4, true, true)
+	var wn := func(u: float) -> float: return -0.6 + 0.09 * u * u
+	_mouth_line(g, 0.66, 7, wn, 0.0095)
+	var wn_top := func(u: float) -> float: return float(wn.call(u)) - 0.02
+	var wn_bot := func(u: float) -> float: return float(wn.call(u)) - 0.02 - 0.12 * pow(maxf(1.0 - pow(u / 0.62, 2.0), 0.0), 0.6)
+	_face_band(g, -0.6, 0.6, 8, wn_top, wn_bot, 0.003, MOUTH_OPEN)
+	_upper_teeth(g, 0.36, 8, wn, 0.0045)
+	_fangs(g, 0.41, -0.668, 0.033)
 	g.add_bone("MouthA", "Head", mc)
 	g.use("MouthA")
-	var dn := _fd(0.0, -0.61)
-	var mnn := Vector3(dn.x / HR.x, dn.y / HR.y, dn.z / HR.z).normalized()
-	var mb := Basis.looking_at(dn, Vector3.UP)
-	var wb := Basis(Vector3.RIGHT, mnn.cross(Vector3.RIGHT).normalized(), mnn)
-	g.line = 0.5
-	g.polygon(PackedVector2Array([Vector2(-0.115, 0.012), Vector2(-0.06, 0.02), Vector2(0.06, 0.02), Vector2(0.115, 0.012),
-		Vector2(0.055, -0.04), Vector2(-0.055, -0.04)]), mc + mnn * 0.004, wb, 0.006, MOUTH_OPEN, MOUTH_OPEN)
-	g.line = 0.0
-	g.ellipsoid(mc + mb * Vector3(0, -0.026, -0.009), Vector3(0.042, 0.007, 0.008), FANG, 6, 2, mb)
+	var wa := func(u: float) -> float: return -0.58 + 0.1 * u * u
+	_mouth_line(g, 0.66, 4, wa, 0.0075)
+	var wa_top := func(u: float) -> float: return float(wa.call(u)) - 0.02
+	var wa_bot := func(u: float) -> float: return float(wa.call(u)) - 0.02 - 0.3 * pow(maxf(1.0 - pow(u / 0.64, 2.0), 0.0), 0.55)
+	_face_band(g, -0.62, 0.62, 8, wa_top, wa_bot, 0.003, MOUTH_OPEN)
+	_upper_teeth(g, 0.38, 6, wa, 0.0045)
+	var wl_top := func(u: float) -> float: return float(wa_bot.call(u)) + 0.06
+	var wl_bot := func(u: float) -> float: return float(wa_bot.call(u)) + 0.01
+	_face_band(g, -0.42, 0.42, 3, wl_top, wl_bot, 0.004, FANG)
+	_fangs(g, 0.43, float(wa_bot.call(0.43)) + 0.012, 0.036)
 	g.add_bone("MouthH", "Head", mc)
 	g.use("MouthH")
-	g.ellipsoid(mc - dn * 0.004, Vector3(0.022, 0.024, 0.012), MOUTH_IN, 6, 3, mb)
+	var dn := _fd(0.0, -0.61)
+	var mb := Basis.looking_at(dn, Vector3.UP)
+	g.ellipsoid(mc - dn * 0.004, Vector3(0.022, 0.024, 0.012), MOUTH_IN, 6, 2, mb)
+	_fangs(g, 0.11, -0.705, 0.016)
 	g.use("Head")
 	g.line = keep_line
 
