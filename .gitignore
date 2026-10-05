@@ -8,6 +8,8 @@ build/
 *.keystore
 *.jks
 !android/debug.keystore
+# Gradle 빌드 템플릿(tools/install_android_template.sh 가 만든다)
+android/.build_version
 
 # 에이전트 작업 공간(워크트리)
 .claude/

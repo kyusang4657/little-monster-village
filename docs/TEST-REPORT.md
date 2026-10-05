@@ -596,3 +596,13 @@ tests/demon_lv1_checks.gd                 RESULT: 221 passed, 0 failed   (옛 �
 |---|---|
 | APK | `release/monster-village-0.6.1-debug.apk`(57,669,780바이트, arm64-v8a + armeabi-v7a) **생성됨**, arm64 전용판 `deliver/v0.6.1/`(30,328,821바이트). `apksigner verify` 통과, 인증서 이전과 동일, versionName 0.6.1(매니페스트), versionCode 7(내보내기 설정) |
 | 웹 | `deliver/v0.6.1/monster-village-0.6.1-web.zip`(12,643,673바이트). 0.6.0 과 같은 템플릿·설정이며 캐릭터 빌더 두 파일만 바뀜(0.6.0 에서 헤드리스 Chromium 실행 확인) |
+
+### API 36 대응 준비(2026-10-05)
+
+| 항목 | 결과 |
+|---|---|
+| `Android AAB` 프리셋(Gradle, AAB, target SDK 36) | 추가됨. Godot 이 프리셋을 읽고 Gradle 빌드를 시작함 **[확인함]** |
+| `tools/install_android_template.sh` | 설치된 템플릿의 `android_source.zip`(209MB)을 `android/build` 에 풀고 버전 기록 **[확인함]** |
+| Gradle 8.2 래퍼 | services.gradle.org 에서 내려받아 JDK 21 로 시작됨 **[확인함]** |
+| AAB 생성 | **미완료**: Android Gradle Plugin 8.2.0 내려받기에서 실패. 원인은 이 환경의 네트워크 정책이 `dl.google.com`·`maven.google.com` 을 거부하기 때문(프록시 기록 확인). 개발자 PC 또는 해당 호스트를 허용한 환경에서 다시 실행해야 함 |
+| 대상 SDK 36 으로 Play 수락 여부 | 미검증 |

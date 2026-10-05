@@ -201,6 +201,8 @@ xvfb-run -a godot --path . --rendering-driver opengl3 --resolution 420x480 --scr
     --out=/tmp/cap --mode=solo --who=imp:4,knight:1           # 캐릭터 한 명씩 정면·옆·동작·표정·게임 크기
 godot --headless --path . --export-debug "Android" build/android/monster-village-debug.apk
 godot --headless --path . --export-release "Web" build/web/index.html
+tools/install_android_template.sh && godot --headless --path . --export-release "Android AAB" build/android/monster-village-release.aab
+                                                                     # Play 용 AAB(대상 SDK 36, Gradle, 출시 키는 환경 변수; docs/release/GOOGLE-PLAY.md)
 python3 tools/make_sounds.py                                         # 소리 다시 만들기(numpy, oggenc)
 ```
 
@@ -223,7 +225,7 @@ Android 내보내기 도구 구성(Godot 4.4.1 공식 템플릿, Gradle 미사�
 ## 8. 남은 문제
 
 - **실기기 미검증:** 설치·터치·핀치·노치·가독성·30FPS·10분 플레이·발열·실제 소리 크기와 품질. 소리는 합성 파형 수치(길이·최대값·잡음 없음)만 확인했고 사람 귀로 들어 보지 않았습니다.
-- Google Play 업로드 전 대상 API 36 대응(Gradle 빌드 또는 Godot 업그레이드)이 필요합니다.
+- Google Play 업로드용 AAB(대상 API 36)는 `Android AAB` 프리셋으로 개발자 PC에서 만듭니다. 이 저장소를 만든 클라우드 환경은 Google 호스트가 막혀 Gradle 빌드를 끝까지 확인하지 못했습니다(`docs/release/GOOGLE-PLAY.md` 1절).
 - 일꾼 2명은 외형 전용입니다. 현장이 하나면 둘 다 그곳으로 가고, 현장이 3곳 이상이면 세 번째 현장에는 일꾼이 가지 않습니다(공사는 시간 기준이라 진행은 됩니다).
 - 모델은 직접 만든 기본 도형 로우폴리입니다. 외부 CC0 에셋으로 바꾸려면 CREDITS의 안내를 따르세요.
 - **5차 성능:** 최대 지도(24×18)·10단계 16명에서 외곽선 켬 삼각형 약 73.5만(그리기 호출 493), 외곽선·그림자 끔 24.2만(261)입니다. 캐릭터가 세밀해져 4차보다 늘었고 회귀 상한(60만)을 외곽선 켬에서 넘습니다. 느리면 메뉴에서 외곽선·그림자를 꺼 주세요.
