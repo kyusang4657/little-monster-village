@@ -37,15 +37,20 @@ jobs:
           rm godot.zip templates.tpz
 
       - name: 가져오기
-        run: ./godot --headless --path . --import 2>&1 | tail -3
+        run: |
+          ./godot --headless --path . --import 2>&1 | tail -3
 
       - name: 규칙 검사(run_tests)
-        run: ./godot --headless --path . --script res://tests/run_tests.gd 2>&1 | tee /tmp/t1.log | tail -3 && grep -q "RESULT: .* 0 failed" /tmp/t1.log
+        run: |
+          ./godot --headless --path . --script res://tests/run_tests.gd 2>&1 | tee /tmp/t1.log | tail -3
+          grep -q "0 failed" /tmp/t1.log
 
       - name: 캐릭터 검사(character_checks, v6·v5)
         run: |
-          ./godot --headless --path . --script res://tests/character_checks.gd 2>&1 | tee /tmp/t2.log | tail -1 && grep -q "0 failed" /tmp/t2.log
-          ./godot --headless --path . --script res://tests/character_checks.gd -- --model-set=v5 2>&1 | tee /tmp/t3.log | tail -1 && grep -q "0 failed" /tmp/t3.log
+          ./godot --headless --path . --script res://tests/character_checks.gd 2>&1 | tee /tmp/t2.log | tail -1
+          grep -q "0 failed" /tmp/t2.log
+          ./godot --headless --path . --script res://tests/character_checks.gd -- --model-set=v5 2>&1 | tee /tmp/t3.log | tail -1
+          grep -q "0 failed" /tmp/t3.log
 
       - name: 웹 내보내기
         run: |
