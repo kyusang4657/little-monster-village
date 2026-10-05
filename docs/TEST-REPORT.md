@@ -587,3 +587,12 @@ tests/demon_lv1_checks.gd                 RESULT: 221 passed, 0 failed   (옛 �
 | APK | `release/monster-village-0.6.0-debug.apk`(57,661,588바이트, arm64-v8a + armeabi-v7a) **생성됨**. arm64 전용판 `deliver/v0.6/monster-village-0.6.0-debug-arm64.apk`(30,324,725바이트). 둘 다 `apksigner verify` v1·v2·v3 통과, 인증서 SHA-256 f6ef3b…d396(이전 버전과 같음, 덮어 설치 가능). versionName 0.6.0(매니페스트 확인), versionCode 6(내보내기 설정) |
 | 웹 | `godot --export-release "Web"` → `deliver/v0.6/monster-village-0.6.0-web.zip`(12,638,981바이트). 헤드리스 Chromium(SwiftShader WebGL2)에서 25초 실행: 캔버스 표시, 6차 캐릭터·한국어 안내 말풍선 표시, 콘솔 오류 0 |
 | 미검증 | 실제 Android 기기·실제 브라우저 성능. 저장 형식(v4)은 바뀌지 않아 0.5.0 저장이 그대로 이어집니다(규칙 검사에 저장 왕복 포함) |
+
+### 6차 보완 빌드(0.6.1, 2026-10-05)
+
+면갑 눈(기사 1~4·기사단장)과 고블린 입을 심사 지적대로 다듬은 뒤 다시 빌드했습니다. 규칙 검사 637 / 캐릭터 검사 v6·v5 각 520 통과.
+
+| 항목 | 결과 |
+|---|---|
+| APK | `release/monster-village-0.6.1-debug.apk`(57,669,780바이트, arm64-v8a + armeabi-v7a) **생성됨**, arm64 전용판 `deliver/v0.6.1/`(30,328,821바이트). `apksigner verify` 통과, 인증서 이전과 동일, versionName 0.6.1(매니페스트), versionCode 7(내보내기 설정) |
+| 웹 | `deliver/v0.6.1/monster-village-0.6.1-web.zip`(12,643,673바이트). 0.6.0 과 같은 템플릿·설정이며 캐릭터 빌더 두 파일만 바뀜(0.6.0 에서 헤드리스 Chromium 실행 확인) |

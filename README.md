@@ -1,15 +1,15 @@
-# 마물의 작은 마을 (v0.6.0)
+# 마물의 작은 마을 (v0.6.1)
 
 마물 진영의 작은 마을을 짓고 꾸미면서, 성을 노리는 인간 기사의 습격을 방어탑으로 막는 가로 화면 건설·방어 게임입니다. 습격을 막을수록 성이 자라고 땅이 넓어져, 작은 마을이 마왕성이 됩니다. 오프라인 싱글플레이이며 서버·로그인·광고·결제·런타임 생성형 AI가 없습니다.
 
-> **현재 상태: 6차(캐릭터를 매끈한 한 면 모델로 재구성, 뿔이를 악마형 마왕 Lv.1~4 로 교체) 구현과 디버그 APK·웹 빌드(0.6.0)는 끝났고, 실제 휴대전화 검증은 하지 못했습니다.**
+> **현재 상태: 6차(캐릭터를 매끈한 한 면 모델로 재구성, 뿔이를 악마형 마왕 Lv.1~4 로 교체) 구현과 디버그 APK·웹 빌드(0.6.1)는 끝났고, 실제 휴대전화 검증은 하지 못했습니다.**
 > 자동 검사·데스크톱(가상 디스플레이)·헤드리스 브라우저로 확인한 범위와 미검증 항목은 [`docs/TEST-REPORT.md`](docs/TEST-REPORT.md)에 구분해 두었습니다.
 
 | 항목 | 내용 |
 | --- | --- |
-| 설치 파일 | [`release/monster-village-0.6.0-debug.apk`](release/monster-village-0.6.0-debug.apk) (**디버그용 APK**, arm64-v8a + armeabi-v7a, 약 58MB; arm64 전용판 약 30MB 는 `deliver/v0.6/`) |
+| 설치 파일 | [`release/monster-village-0.6.1-debug.apk`](release/monster-village-0.6.1-debug.apk) (**디버그용 APK**, arm64-v8a + armeabi-v7a, 약 58MB; arm64 전용판 약 30MB 는 `deliver/v0.6.1/`) |
 | 웹(itch.io용) | `godot --headless --path . --export-release "Web" build/web/index.html` → `build/web` 압축(약 12.7MB). 안내: [`docs/release/ITCH-IO.md`](docs/release/ITCH-IO.md) |
-| 패키지 ID / 버전 | `io.github.kyusang4657.monstervillage` / 0.6.0 (versionCode 6). 이전 버전과 같은 디버그 서명이라 덮어 설치하면 저장이 이어집니다 |
+| 패키지 ID / 버전 | `io.github.kyusang4657.monstervillage` / 0.6.1 (versionCode 7). 이전 버전과 같은 디버그 서명이라 덮어 설치하면 저장이 이어집니다 |
 | 엔진 | Godot **4.4.1-stable** · GDScript · **Compatibility** 렌더러 · 실시간 3D |
 | 권한 | 추가 권한 없음(인터넷·위치·카메라·연락처 사용 안 함) |
 | 출처·라이선스 | [`CREDITS.md`](CREDITS.md) (폰트 OFL, 모델·소리는 직접 제작, 소리는 CC0) |
@@ -24,7 +24,7 @@
 
 1. 휴대전화에서 APK를 내려받습니다(GitHub 파일 화면 → *Download raw file*).
 2. "출처를 알 수 없는 앱" 설치를 허용하고 설치합니다. 인터넷 연결은 필요 없습니다.
-3. PC에서는 `adb install -r release/monster-village-0.6.0-debug.apk`로 설치합니다.
+3. PC에서는 `adb install -r release/monster-village-0.6.1-debug.apk`로 설치합니다.
 
 이전 버전 저장 데이터(형식 v1~v3)는 처음 실행할 때 v4로 자동 이전됩니다(유닛 0, 집결 깃발은 성 앞). 성 레벨은 이미 깬 단계에 맞춰지고, 이미 지나온 장의 이야기는 본 것으로 표시됩니다.
 
