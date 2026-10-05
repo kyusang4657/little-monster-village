@@ -606,3 +606,13 @@ tests/demon_lv1_checks.gd                 RESULT: 221 passed, 0 failed   (옛 �
 | Gradle 8.2 래퍼 | services.gradle.org 에서 내려받아 JDK 21 로 시작됨 **[확인함]** |
 | AAB 생성 | **미완료**: Android Gradle Plugin 8.2.0 내려받기에서 실패. 원인은 이 환경의 네트워크 정책이 `dl.google.com`·`maven.google.com` 을 거부하기 때문(프록시 기록 확인). 개발자 PC 또는 해당 호스트를 허용한 환경에서 다시 실행해야 함 |
 | 대상 SDK 36 으로 Play 수락 여부 | 미검증 |
+
+### 1.0.0 빌드(2026-10-05, 포트폴리오 공개판)
+
+0.6.1 과 같은 소스에 버전만 1.0.0(versionCode 8)으로 올려 다시 내보냈습니다. 이후 APK 는 저장소 안(`release/`)이 아니라 GitHub Releases 첨부 파일로 배포하고, 웹 빌드는 GitHub Actions 가 `main` 푸시마다 검사(run_tests·character_checks v6/v5) 후 GitHub Pages 에 배포합니다(`.github/workflows/build.yml`).
+
+| 항목 | 결과 |
+|---|---|
+| APK | 범용 57,669,780바이트(arm64-v8a + armeabi-v7a), arm64 전용 30,328,821바이트. `apksigner verify` 통과, 인증서 이전과 동일, versionName 1.0.0 · versionCode 8(매니페스트 확인), targetSdk 34 |
+| 웹 | zip 12,643,674바이트. 0.6.0 에서 헤드리스 Chromium 실행 확인 후 캐릭터 빌더 외 변경 없음 |
+| 주의 | `tools/install_android_template.sh` 가 만든 `android/build` 에 `.gdignore` 가 없으면 편집기가 템플릿 안의 스크립트 사본을 가져와 "hides a global script class" 오류를 냅니다. 스크립트가 `.gdignore` 를 만들도록 고쳤습니다 |

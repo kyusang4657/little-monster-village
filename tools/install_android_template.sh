@@ -11,5 +11,6 @@ fi
 rm -rf android/build
 mkdir -p android/build
 unzip -q "$T/android_source.zip" -d android/build
+touch android/build/.gdignore   # 편집기가 템플릿 안의 복사본을 가져오지 않도록(중복 class_name 오류 방지)
 cat "$T/version.txt" > android/.build_version
 echo "android/build 에 템플릿 $(cat android/.build_version) 설치"

@@ -1,0 +1,72 @@
+# main 에 푸시될 때마다 헤드리스 검사를 돌리고 웹 빌드를 GitHub Pages 에 배포한다.
+name: build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.4.1
+
+jobs:
+  test-and-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Godot 와 내보내기 템플릿 내려받기
+        run: |
+          set -e
+          B="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable"
+          curl -sSL -o godot.zip "$B/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          curl -sSL -o templates.tpz "$B/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          unzip -q godot.zip && mv Godot_v${GODOT_VERSION}-stable_linux.x86_64 godot && chmod +x godot
+          T="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$T" && unzip -q -j templates.tpz "templates/web_nothreads_*" -d "$T"
+          unzip -q -j templates.tpz templates/version.txt -d "$T"
+          rm godot.zip templates.tpz
+
+      - name: 가져오기
+        run: ./godot --headless --path . --import 2>&1 | tail -3
+
+      - name: 규칙 검사(run_tests)
+        run: ./godot --headless --path . --script res://tests/run_tests.gd 2>&1 | tee /tmp/t1.log | tail -3 && grep -q "RESULT: .* 0 failed" /tmp/t1.log
+
+      - name: 캐릭터 검사(character_checks, v6·v5)
+        run: |
+          ./godot --headless --path . --script res://tests/character_checks.gd 2>&1 | tee /tmp/t2.log | tail -1 && grep -q "0 failed" /tmp/t2.log
+          ./godot --headless --path . --script res://tests/character_checks.gd -- --model-set=v5 2>&1 | tee /tmp/t3.log | tail -1 && grep -q "0 failed" /tmp/t3.log
+
+      - name: 웹 내보내기
+        run: |
+          mkdir -p build/web
+          ./godot --headless --path . --export-release "Web" build/web/index.html 2>&1 | grep -iv alsa | tail -3
+          test -f build/web/index.html && test -f build/web/index.wasm
+          touch build/web/.nojekyll
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy-pages:
+    needs: test-and-web
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
