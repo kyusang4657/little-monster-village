@@ -9,7 +9,7 @@
 | 주아체(Jua) | `assets/fonts/Jua-Regular.ttf` | 우아한형제들 · [Google Fonts 저장소](https://github.com/google/fonts/tree/main/ofl/jua) | SIL Open Font License 1.1 (`assets/fonts/OFL-Jua.txt`) |
 | 검은고딕(Black Han Sans) | `assets/fonts/BlackHanSans-Regular.ttf` | Zess Type · [Google Fonts 저장소](https://github.com/google/fonts/tree/main/ofl/blackhansans) | SIL Open Font License 1.1 (`assets/fonts/OFL-BlackHanSans.txt`) |
 | 기호 보조 글꼴(MonsterVillage Symbols) | `assets/fonts/MonsterVillageSymbols-Regular.ttf` | 나눔고딕(NAVER Corp., [Google Fonts 저장소](https://github.com/google/fonts/tree/main/ofl/nanumgothic))에서 기호(· … × 「」 → 등)만 뽑은 수정본. OFL 의 예약 글꼴 이름 규정에 따라 이름을 바꿈 | SIL Open Font License 1.1 (`assets/fonts/OFL-NanumGothic.txt`) |
-| 3D 모델 전부(성 Lv.1~4·주택·벌목소·방어탑·앞마당·꽃밭·버섯 등불·울타리·나무·비계) | `scripts/world/models.gd` | 이 프로젝트에서 기본 도형을 코드로 조합해 직접 제작 | 프로젝트 소스와 같음 |
+| 3D 모델 전부(성 Lv.1~4·주택·벌목소·방어탑·앞마당·꽃밭·버섯 등불·울타리·나무·비계) | `scripts/world/models.gd` | 이 프로젝트에서 기본 도형을 코드로 조합해 직접 제작 | 프로젝트 소스와 같음(MIT, `LICENSE`) |
 | 캐릭터(고블린·기사 변형 5종·용사·기사단장)와 동작 | `scripts/world/character_rig.gd` | 이 프로젝트에서 코드로 메시·뼈대·자세를 직접 제작(3차) | 프로젝트 소스와 같음 |
 | 이야기 대사 | `config/story.json` | 이 프로젝트에서 직접 작성(개발 중 쓰기·검토·고쳐 쓰기, 앱 안 생성 없음) | 프로젝트 소스와 같음 |
 | 효과음 12종, 배경음 2곡 | `assets/audio/` | 이 프로젝트에서 `tools/make_sounds.py`로 직접 합성(사인·삼각·사각파, 잡음, 현 모델). 외부 음원 사용 없음 | **CC0 1.0**(퍼블릭 도메인 기증) |
